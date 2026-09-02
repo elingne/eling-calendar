@@ -940,7 +940,7 @@ async function loadDayTodos(date) {
   const completedDayTodos = (todosResult.data || [])
     .filter(todo => todo.is_completed)
     .map(todo => ({
-      source: "day",
+      table: "todos",
       id: todo.id,
       title: todo.title,
       completed_at: todo.completed_at || todo.created_at
@@ -952,7 +952,7 @@ async function loadDayTodos(date) {
       formatDateKey(new Date(item.completed_at)) === date
     )
     .map(item => ({
-      source: "quick",
+      table: "quick_todos",
       id: item.id,
       title: item.title,
       completed_at: item.completed_at
@@ -968,7 +968,7 @@ async function loadDayTodos(date) {
 
   completedItems.forEach(item => {
     const row = document.createElement("div");
-    row.className = "todo-row done completed-record-row";
+    row.className = "todo-row done completed-record-row unified-completed-row";
 
     const checkMark = document.createElement("span");
     checkMark.className = "completed-record-check";
@@ -978,24 +978,19 @@ async function loadDayTodos(date) {
     text.className = "completed-record-title";
     text.textContent = item.title;
 
-    const sourceBadge = document.createElement("span");
-    sourceBadge.className = "completed-record-source";
-    sourceBadge.textContent = item.source === "quick" ? "QUICK" : "기록";
+    row.append(checkMark, text);
 
-    row.append(checkMark, text, sourceBadge);
-
-    // 직접 '한 일 추가'로 기록한 항목은 여기서 삭제 가능.
-    // QUICK TODO 완료 기록은 메인의 완료 목록에서 관리하므로 중복 편집 UI는 만들지 않는다.
-    if (isOwner && item.source === "day") {
+    if (isOwner) {
       const del = document.createElement("button");
       del.type = "button";
       del.className = "row-delete";
       del.textContent = "×";
-      del.title = "기록 삭제";
+      del.title = "완료 기록 삭제";
+      del.setAttribute("aria-label", `${item.title} 삭제`);
 
       del.addEventListener("click", async () => {
         const { error } = await supabaseClient
-          .from("todos")
+          .from(item.table)
           .delete()
           .eq("id", item.id);
 
@@ -1005,6 +1000,11 @@ async function loadDayTodos(date) {
         }
 
         await loadDayTodos(date);
+
+        // QUICK TODO를 삭제했다면 메인 오늘 완료 목록에서도 즉시 사라지게 한다.
+        if (item.table === "quick_todos") {
+          await loadQuickTodos();
+        }
       });
 
       row.appendChild(del);

@@ -2768,3 +2768,24 @@ textarea {
     font-size: 22px !important;
   }
 }
+
+
+/* =========================================================
+   V19 UNIFIED COMPLETED LIST
+========================================================= */
+
+.unified-completed-row {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) 26px !important;
+  align-items: center;
+  gap: 7px !important;
+}
+
+.unified-completed-row .row-delete {
+  justify-self: end;
+}
+
+/* 출처 구분 태그는 사용하지 않음 */
+.completed-record-source {
+  display: none !important;
+}
