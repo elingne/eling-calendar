@@ -409,3 +409,110 @@ textarea { resize: vertical; }
   .goal-badge-preview { display:none; }
   .date-pair { grid-template-columns:1fr; }
 }
+
+
+/* =========================
+   QUICK TODO V7 FIX
+========================= */
+
+.quick-todo-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.48fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.quick-history {
+  display: block;
+  width: 100%;
+  min-height: 150px;
+  max-height: none;
+  overflow: visible;
+}
+
+.quick-history-header {
+  margin-bottom: 4px;
+}
+
+.quick-item {
+  max-width: none;
+  min-height: 54px;
+}
+
+.quick-item-content {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.quick-item-title {
+  overflow-wrap: anywhere;
+}
+
+.quick-item-completed .quick-item-title {
+  color: #6f727c;
+}
+
+.quick-item-time {
+  margin-left: 0;
+  color: var(--subtext);
+  font-size: 10px;
+}
+
+.quick-item-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.quick-edit-button,
+.quick-delete-button {
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 11px;
+}
+
+.quick-edit-button {
+  border: 1px solid #dcebf6;
+  background: #f2f8fd;
+  color: #669fbd;
+}
+
+.quick-delete-button {
+  border: 1px solid #f4d7df;
+  background: #fff4f6;
+  color: #d96f89;
+}
+
+.quick-edit-button:hover {
+  background: #eaf5fc;
+}
+
+.quick-delete-button:hover {
+  background: #ffebf0;
+}
+
+@media (max-width: 900px) {
+  .quick-todo-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-history {
+    margin-top: 4px;
+  }
+}
+
+@media (max-width: 560px) {
+  .quick-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .quick-item-actions {
+    width: 100%;
+    margin-left: 27px;
+  }
+}

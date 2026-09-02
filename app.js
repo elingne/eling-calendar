@@ -62,9 +62,7 @@ const goalRecordSaveState = $("goalRecordSaveState");
 const quickTodoInput = $("quickTodoInput");
 const quickTodoAddButton = $("quickTodoAddButton");
 const quickTodoList = $("quickTodoList");
-const quickTodoMoreButton = $("quickTodoMoreButton");
 const quickTodoHistory = $("quickTodoHistory");
-const quickHistoryClose = $("quickHistoryClose");
 const quickTodoCompletedList = $("quickTodoCompletedList");
 
 const dayTodoForm = $("dayTodoForm");
@@ -153,6 +151,8 @@ function showLogin() {
 async function showSite() {
   loginScreen.classList.add("hidden");
   siteApp.classList.remove("hidden");
+
+  clearQuickTodoAutofill();
 
   await Promise.all([
     loadBadgeSettings(),
@@ -806,6 +806,20 @@ async function loadDayTodos(date) {
   }
 }
 
+function clearQuickTodoAutofill() {
+  if (!quickTodoInput) return;
+
+  quickTodoInput.value = "";
+
+  // Some browsers/password managers inject remembered account text
+  // shortly after page restore, so clear it once more after rendering.
+  window.setTimeout(() => {
+    if (document.activeElement !== quickTodoInput) {
+      quickTodoInput.value = "";
+    }
+  }, 120);
+}
+
 /* QUICK TODOS */
 quickTodoAddButton.addEventListener("click", addQuickTodo);
 quickTodoInput.addEventListener("keydown", (event) => {
@@ -853,40 +867,114 @@ async function loadQuickTodos() {
 
 function makeQuickTodoRow(item, completed) {
   const row = document.createElement("div");
-  row.className = "quick-item";
+  row.className = `quick-item ${completed ? "quick-item-completed" : ""}`;
 
   const check = document.createElement("input");
   check.type = "checkbox";
   check.checked = completed;
+  check.title = completed ? "체크 해제하면 다시 해야 하는 일로 돌아가요." : "완료";
 
   check.addEventListener("change", async () => {
-    await supabaseClient.from("quick_todos").update({
+    const { error } = await supabaseClient.from("quick_todos").update({
       is_completed: check.checked,
       completed_at: check.checked ? new Date().toISOString() : null
     }).eq("id", item.id);
 
-    loadQuickTodos();
+    if (error) {
+      console.error("QUICK TODO 상태 변경 오류:", error);
+      check.checked = !check.checked;
+      return;
+    }
 
-    if (selectedRecordDate) loadDayTodos(selectedRecordDate);
+    await loadQuickTodos();
+
+    if (selectedRecordDate) {
+      await loadDayTodos(selectedRecordDate);
+    }
   });
 
+  const content = document.createElement("div");
+  content.className = "quick-item-content";
+
   const text = document.createElement("span");
+  text.className = "quick-item-title";
   text.textContent = item.title;
+  content.appendChild(text);
 
-  row.append(check, text);
-
-  if (completed) {
+  if (completed && item.completed_at) {
     const time = document.createElement("span");
     time.className = "quick-item-time";
     time.textContent = formatDateTime(item.completed_at);
-    row.appendChild(time);
+    content.appendChild(time);
   }
+
+  const actions = document.createElement("div");
+  actions.className = "quick-item-actions";
+
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "quick-edit-button";
+  editButton.textContent = "수정";
+  editButton.addEventListener("click", async () => {
+    const nextTitle = window.prompt("할 일을 수정해주세요.", item.title);
+
+    if (nextTitle === null) return;
+
+    const trimmed = nextTitle.trim();
+
+    if (!trimmed) {
+      alert("내용을 비워둘 수 없어요.");
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("quick_todos")
+      .update({ title: trimmed })
+      .eq("id", item.id);
+
+    if (error) {
+      console.error("QUICK TODO 수정 오류:", error);
+      alert("수정하지 못했어요.");
+      return;
+    }
+
+    await loadQuickTodos();
+
+    if (selectedRecordDate) {
+      await loadDayTodos(selectedRecordDate);
+    }
+  });
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "quick-delete-button";
+  deleteButton.textContent = "삭제";
+  deleteButton.addEventListener("click", async () => {
+    if (!window.confirm(`"${item.title}"을(를) 삭제할까요?`)) return;
+
+    const { error } = await supabaseClient
+      .from("quick_todos")
+      .delete()
+      .eq("id", item.id);
+
+    if (error) {
+      console.error("QUICK TODO 삭제 오류:", error);
+      alert("삭제하지 못했어요.");
+      return;
+    }
+
+    await loadQuickTodos();
+
+    if (selectedRecordDate) {
+      await loadDayTodos(selectedRecordDate);
+    }
+  });
+
+  actions.append(editButton, deleteButton);
+  row.append(check, content, actions);
 
   return row;
 }
-
-quickTodoMoreButton.addEventListener("click", () => quickTodoHistory.classList.toggle("hidden"));
-quickHistoryClose.addEventListener("click", () => quickTodoHistory.classList.add("hidden"));
 
 /* MOOD */
 async function loadMood(date) {
@@ -1704,4 +1792,5 @@ function renderSearchResults(items) {
 }
 
 /* START */
+clearQuickTodoAutofill();
 checkSession();

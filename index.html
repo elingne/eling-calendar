@@ -65,24 +65,34 @@
               <span class="section-label">QUICK TODO</span>
               <h2>지금 해야 하는 일</h2>
             </div>
-            <button id="quickTodoMoreButton" class="more-button">더보기</button>
           </div>
 
           <div class="quick-todo-layout">
             <div class="quick-current">
               <div class="quick-input-row">
-                <input id="quickTodoInput" type="text" maxlength="120" placeholder="지금 해야 할 일을 적어보세요">
+                <input
+                  id="quickTodoInput"
+                  name="quick_todo_text"
+                  type="text"
+                  maxlength="120"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  placeholder="지금 해야 할 일을 적어보세요"
+                >
                 <button id="quickTodoAddButton" type="button">+</button>
               </div>
+
               <div id="quickTodoList" class="quick-todo-list">
                 <p class="empty-text">아직 등록된 할 일이 없어요.</p>
               </div>
             </div>
 
-            <aside id="quickTodoHistory" class="quick-history hidden">
+            <aside id="quickTodoHistory" class="quick-history">
               <div class="quick-history-header">
                 <strong>완료 기록</strong>
-                <button id="quickHistoryClose" type="button">×</button>
               </div>
               <div id="quickTodoCompletedList" class="quick-completed-list"></div>
             </aside>
