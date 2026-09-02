@@ -896,23 +896,32 @@ async function saveDailyGoalRecord(goalId, status, select) {
 
 /* DAY TODOS */
 dayTodoForm.addEventListener("submit", async (event) => {
-  if (!isOwner) return;
   event.preventDefault();
+
+  if (!isOwner || !selectedRecordDate) return;
+
   const title = dayTodoInput.value.trim();
-  if (!title || !selectedRecordDate) return;
+  if (!title) return;
 
-  const { error } = await supabaseClient.from("todos").insert({
-    title,
-    target_date: selectedRecordDate,
-    is_completed: false
-  });
+  const completedAt = new Date(`${selectedRecordDate}T12:00:00`).toISOString();
 
-  if (!error) {
-    dayTodoInput.value = "";
-    loadDayTodos(selectedRecordDate);
+  const { error } = await supabaseClient
+    .from("todos")
+    .insert({
+      title,
+      target_date: selectedRecordDate,
+      is_completed: true,
+      completed_at: completedAt
+    });
+
+  if (error) {
+    console.error("한 일 추가 오류:", error);
+    return;
   }
-});
 
+  dayTodoInput.value = "";
+  await loadDayTodos(selectedRecordDate);
+});
 async function loadDayTodos(date) {
   const [todosResult, quickResult] = await Promise.all([
     supabaseClient
@@ -929,7 +938,12 @@ async function loadDayTodos(date) {
 
   dayTodoList.innerHTML = "";
 
-  (todosResult.data || []).forEach(todo => {
+  const dayTodos = [...(todosResult.data || [])].sort((a, b) => {
+    if (a.is_completed !== b.is_completed) return a.is_completed ? -1 : 1;
+    return new Date(a.completed_at || a.created_at) - new Date(b.completed_at || b.created_at);
+  });
+
+  dayTodos.forEach(todo => {
     const row = document.createElement("div");
     row.className = `todo-row ${todo.is_completed ? "done" : ""}`;
 
@@ -960,8 +974,8 @@ async function loadDayTodos(date) {
     dayTodoList.appendChild(row);
   });
 
-  if (!(todosResult.data || []).length) {
-    dayTodoList.innerHTML = '<p class="empty-text">등록된 할 일이 없어요.</p>';
+  if (!dayTodos.length) {
+    dayTodoList.innerHTML = '<p class="empty-text">아직 기록된 일이 없어요.</p>';
   }
 
   completedQuickOnDate.innerHTML = "";
