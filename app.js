@@ -10,6 +10,9 @@ let clickTimer = null;
 let dragStartDate = null;
 let dragCurrentDate = null;
 let didRangeDrag = false;
+let isOwner = false;
+let decorationLayers = [];
+let selectedDecorationLayerId = null;
 
 const MOODS = [
   { value: "great", label: "아주 좋음", fallback: "😄" },
@@ -36,11 +39,6 @@ const loginPassword = $("loginPassword");
 const loginButton = $("loginButton");
 const loginMessage = $("loginMessage");
 const logoutButton = $("logoutButton");
-
-const siteLockScreen = $("siteLockScreen");
-const siteLockForm = $("siteLockForm");
-const siteLockPinInput = $("siteLockPinInput");
-const siteLockMessage = $("siteLockMessage");
 
 const navButtons = [...document.querySelectorAll(".nav-button")];
 const calendarPage = $("calendarPage");
@@ -70,33 +68,6 @@ const dayTodoInput = $("dayTodoInput");
 const dayTodoList = $("dayTodoList");
 const completedQuickOnDate = $("completedQuickOnDate");
 
-const moodSelect = $("moodSelect");
-const moodReason = $("moodReason");
-const moodSaveButton = $("moodSaveButton");
-const moodSaveState = $("moodSaveState");
-
-const periodStateText = $("periodStateText");
-const periodStartButton = $("periodStartButton");
-const periodEndButton = $("periodEndButton");
-const periodDeleteButton = $("periodDeleteButton");
-
-const dayStickerSelect = $("dayStickerSelect");
-const addStickerToDayButton = $("addStickerToDayButton");
-const dayImageInput = $("dayImageInput");
-const dayDecorationList = $("dayDecorationList");
-
-const dayEventForm = $("dayEventForm");
-const dayEventInput = $("dayEventInput");
-const dayEventList = $("dayEventList");
-
-const scheduleForm = $("scheduleForm");
-const scheduleTitle = $("scheduleTitle");
-const scheduleStart = $("scheduleStart");
-const scheduleEnd = $("scheduleEnd");
-const scheduleDescription = $("scheduleDescription");
-const scheduleMessage = $("scheduleMessage");
-const scheduleList = $("scheduleList");
-
 const goalForm = $("goalForm");
 const goalNameInput = $("goalNameInput");
 const goalDescriptionInput = $("goalDescriptionInput");
@@ -110,12 +81,47 @@ const stickerFileInput = $("stickerFileInput");
 const stickerMessage = $("stickerMessage");
 const stickerAdminList = $("stickerAdminList");
 
-const badgeAdminList = $("badgeAdminList");
+const moodSelect = $("moodSelect");
+const periodCheck = $("periodCheck");
+const quickMetaSaveState = $("quickMetaSaveState");
 
-const siteLockEnabled = $("siteLockEnabled");
-const siteLockAdminPin = $("siteLockAdminPin");
-const siteLockSaveButton = $("siteLockSaveButton");
-const siteLockAdminMessage = $("siteLockAdminMessage");
+const openDecorationEditorButton = $("openDecorationEditorButton");
+const decorationSidePreview = $("decorationSidePreview");
+const decorationEditorModal = $("decorationEditorModal");
+const decorationEditorCloseButton = $("decorationEditorCloseButton");
+const decorationEditorSaveButton = $("decorationEditorSaveButton");
+const decorationEditorTitle = $("decorationEditorTitle");
+const decorationCanvas = $("decorationCanvas");
+const decoCanvasDate = $("decoCanvasDate");
+const decoImageFileInput = $("decoImageFileInput");
+const decoStickerSelect = $("decoStickerSelect");
+const decoAddStickerButton = $("decoAddStickerButton");
+const decoScaleRange = $("decoScaleRange");
+const layerList = $("layerList");
+const decorationViewerModal = $("decorationViewerModal");
+const decorationViewerCloseButton = $("decorationViewerCloseButton");
+const decorationViewerCanvas = $("decorationViewerCanvas");
+
+const openScheduleCreateButton = $("openScheduleCreateButton");
+const scheduleList = $("scheduleList");
+
+const eventModal = $("eventModal");
+const eventModalTitle = $("eventModalTitle");
+const eventModalCloseButton = $("eventModalCloseButton");
+const eventModalForm = $("eventModalForm");
+const eventIdInput = $("eventIdInput");
+const eventTitleInput = $("eventTitleInput");
+const eventStartInput = $("eventStartInput");
+const eventEndInput = $("eventEndInput");
+const eventDescriptionInput = $("eventDescriptionInput");
+const eventDeleteButton = $("eventDeleteButton");
+const eventCancelButton = $("eventCancelButton");
+const eventModalMessage = $("eventModalMessage");
+
+const sitePublicToggle = $("sitePublicToggle");
+const sitePublicLabel = $("sitePublicLabel");
+const sitePublicSaveButton = $("sitePublicSaveButton");
+const sitePublicMessage = $("sitePublicMessage");
 
 const searchButton = $("searchButton");
 const searchModal = $("searchModal");
@@ -126,25 +132,51 @@ const searchResults = $("searchResults");
 /* AUTH */
 async function checkSession() {
   const { data, error } = await supabaseClient.auth.getSession();
+
   if (error) {
     console.error(error);
-    showLogin();
+  }
+
+  currentSession = data?.session || null;
+  isOwner = Boolean(currentSession);
+
+  if (isOwner) {
+    await showSite();
     return;
   }
 
-  currentSession = data.session;
+  const publicMode = await isSitePublic();
 
-  if (currentSession) {
+  if (publicMode) {
     await showSite();
   } else {
     showLogin();
   }
 }
 
+async function isSitePublic() {
+  const { data, error } = await supabaseClient
+    .from("site_settings")
+    .select("setting_value")
+    .eq("setting_key", "site_visibility")
+    .maybeSingle();
+
+  if (error) return false;
+  return Boolean(data?.setting_value?.public);
+}
+
+function applyAccessMode() {
+  document.body.classList.toggle("read-only", !isOwner);
+
+  const adminButton = navButtons.find(button => button.dataset.page === "admin");
+  if (adminButton) adminButton.classList.toggle("hidden", !isOwner);
+
+  logoutButton.textContent = isOwner ? "로그아웃" : "관리자 로그인";
+}
+
 function showLogin() {
   loginScreen.classList.remove("hidden");
   siteApp.classList.add("hidden");
-  siteLockScreen.classList.add("hidden");
   dayPanel.classList.remove("open");
 }
 
@@ -153,16 +185,18 @@ async function showSite() {
   siteApp.classList.remove("hidden");
 
   clearQuickTodoAutofill();
+  applyAccessMode();
 
-  await Promise.all([
-    loadBadgeSettings(),
-    loadStickers()
-  ]);
+  await loadStickers();
 
   showPage("calendar");
   renderCalendar();
-  loadQuickTodos();
-  await applySiteLockIfNeeded();
+
+  if (isOwner) {
+    loadQuickTodos();
+  } else {
+    loadQuickTodos();
+  }
 }
 
 loginForm.addEventListener("submit", async (event) => {
@@ -185,20 +219,29 @@ loginForm.addEventListener("submit", async (event) => {
   }
 
   currentSession = data.session;
+  isOwner = true;
   loginPassword.value = "";
   await showSite();
 });
 
 logoutButton.addEventListener("click", async () => {
+  if (!isOwner) {
+    showLogin();
+    return;
+  }
+
   await supabaseClient.auth.signOut();
   currentSession = null;
-  sessionStorage.removeItem("siteLockUnlocked");
-  showLogin();
+  isOwner = false;
+
+  const publicMode = await isSitePublic();
+  if (publicMode) await showSite();
+  else showLogin();
 });
 
 supabaseClient.auth.onAuthStateChange((event, session) => {
   currentSession = session;
-  if (event === "SIGNED_OUT") showLogin();
+  isOwner = Boolean(session);
 });
 
 /* NAV */
@@ -223,18 +266,15 @@ async function showPage(page) {
   }
 
   if (page === "schedule") {
-    setScheduleDefaults();
     loadSchedulePage();
   }
 
-  if (page === "admin") {
+  if (page === "admin" && isOwner) {
     await Promise.all([
       loadGoals(),
       loadStickers(),
-      loadBadgeSettings(),
-      loadSiteLockAdmin()
+      loadSiteVisibilityAdmin()
     ]);
-    renderBadgeAdmin();
   }
 }
 
@@ -361,17 +401,23 @@ function createDayCell(date, otherMonth) {
     clickTimer = setTimeout(() => openDayPanel(date), 220);
   });
 
-  cell.addEventListener("dblclick", async (event) => {
+  cell.addEventListener("dblclick", (event) => {
     event.preventDefault();
     clearTimeout(clickTimer);
-    const title = window.prompt(`${formatDateKey(date)} 일정 이름`);
-    if (!title?.trim()) return;
-    await createEvent(title.trim(), formatDateKey(date), formatDateKey(date), "");
-    renderCalendar();
+
+    if (!isOwner) return;
+
+    const key = formatDateKey(date);
+    openEventModal({
+      start_date: key,
+      end_date: key
+    });
   });
 
   cell.addEventListener("mousedown", (event) => {
-    if (event.button !== 0) return;
+    if (!isOwner || event.button !== 0) return;
+    if (event.target.closest(".calendar-event-chip") || event.target.closest(".calendar-deco-composite")) return;
+
     dragStartDate = cell.dataset.date;
     dragCurrentDate = cell.dataset.date;
     didRangeDrag = false;
@@ -380,6 +426,7 @@ function createDayCell(date, otherMonth) {
   cell.addEventListener("mouseenter", () => {
     if (!dragStartDate) return;
     dragCurrentDate = cell.dataset.date;
+
     if (dragCurrentDate !== dragStartDate) {
       didRangeDrag = true;
       paintDragRange(dragStartDate, dragCurrentDate);
@@ -389,7 +436,7 @@ function createDayCell(date, otherMonth) {
   calendarGrid.appendChild(cell);
 }
 
-document.addEventListener("mouseup", async () => {
+document.addEventListener("mouseup", () => {
   if (!dragStartDate) return;
 
   const start = dragStartDate;
@@ -399,15 +446,13 @@ document.addEventListener("mouseup", async () => {
   dragStartDate = null;
   dragCurrentDate = null;
 
-  if (!didRangeDrag || start === end) return;
+  if (!didRangeDrag || start === end || !isOwner) return;
 
   const ordered = [start, end].sort();
-  const title = window.prompt(`${ordered[0]} ~ ${ordered[1]} 일정 이름`);
-
-  if (title?.trim()) {
-    await createEvent(title.trim(), ordered[0], ordered[1], "");
-    renderCalendar();
-  }
+  openEventModal({
+    start_date: ordered[0],
+    end_date: ordered[1]
+  });
 });
 
 function paintDragRange(a, b) {
@@ -437,7 +482,7 @@ nextMonthButton.addEventListener("click", () => {
 });
 
 /* CALENDAR EXTRAS */
-async function loadCalendarExtras(year, monthIndex) {
+async function loadCalendarExtras() {
   const visibleCells = [...document.querySelectorAll(".calendar-day")];
   if (!visibleCells.length) return;
 
@@ -447,78 +492,106 @@ async function loadCalendarExtras(year, monthIndex) {
   const [moodsResult, eventsResult, periodsResult, decoResult] = await Promise.all([
     supabaseClient.from("moods").select("*").gte("record_date", start).lte("record_date", end),
     supabaseClient.from("events").select("*").lte("start_date", end).gte("end_date", start),
-    supabaseClient.from("period_records").select("*").lte("start_date", end).or(`end_date.is.null,end_date.gte.${start}`),
+    supabaseClient.from("period_records").select("*").lte("start_date", end).gte("end_date", start),
     supabaseClient.from("day_decorations").select("*,stickers(*)").gte("record_date", start).lte("record_date", end)
   ]);
 
-  const moodMap = new Map((moodsResult.data || []).map(x => [x.record_date, x]));
-  const decosByDate = new Map();
-
-  (decoResult.data || []).forEach((x) => {
-    if (!decosByDate.has(x.record_date)) decosByDate.set(x.record_date, []);
-    decosByDate.get(x.record_date).push(x);
-  });
+  const moods = moodsResult.data || [];
+  const events = eventsResult.data || [];
+  const periods = periodsResult.data || [];
+  const decos = decoResult.data || [];
 
   visibleCells.forEach((cell) => {
     const key = cell.dataset.date;
 
-    const mood = moodMap.get(key);
-    if (mood) renderMoodBadgeOnCell(cell, mood);
+    const badgeWrap = document.createElement("div");
+    badgeWrap.className = "calendar-top-badges";
 
-    const events = (eventsResult.data || []).filter(e => e.start_date <= key && e.end_date >= key);
-    const eventsBox = cell.querySelector(".calendar-event-list");
-    events.slice(0, 3).forEach((event) => {
-      const chip = document.createElement("div");
-      chip.className = "calendar-event-chip";
-      chip.textContent = event.title;
-      eventsBox.appendChild(chip);
-    });
-
-    const period = (periodsResult.data || []).some(p => {
-      const endDate = p.end_date || end;
-      return p.start_date <= key && endDate >= key;
-    });
-
-    if (period) {
-      const mark = document.createElement("div");
-      mark.className = "calendar-period-mark";
-      cell.appendChild(mark);
+    const mood = moods.find(item => item.record_date === key);
+    if (mood) {
+      const meta = MOODS.find(item => item.value === mood.mood_type);
+      if (meta) {
+        const badge = document.createElement("span");
+        badge.className = "calendar-simple-badge mood-badge";
+        badge.textContent = meta.fallback;
+        badgeWrap.appendChild(badge);
+      }
     }
 
-    const decos = decosByDate.get(key) || [];
-    if (decos.length) {
-      const wrap = document.createElement("div");
-      wrap.className = "calendar-decoration-wrap";
+    const periodOn = periods.some(item =>
+      item.start_date <= key && item.end_date >= key
+    );
 
-      decos.slice(0, 2).forEach((deco) => {
-        const img = document.createElement("img");
-        img.className = `calendar-decoration ${deco.decoration_type === "image" ? "photo" : ""}`;
-        img.src = deco.decoration_type === "sticker" ? deco.stickers?.image_url : deco.image_url;
-        if (img.src) wrap.appendChild(img);
+    if (periodOn) {
+      const badge = document.createElement("span");
+      badge.className = "calendar-simple-badge period-drop";
+      badge.textContent = "💧";
+      badge.title = "생리";
+      badgeWrap.appendChild(badge);
+    }
+
+    if (badgeWrap.children.length) {
+      cell.appendChild(badgeWrap);
+    }
+
+    const eventBox = cell.querySelector(".calendar-event-list");
+    events
+      .filter(event => event.start_date <= key && event.end_date >= key)
+      .slice(0, 3)
+      .forEach(event => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "calendar-event-chip";
+        chip.textContent = event.title;
+
+        chip.addEventListener("click", (clickEvent) => {
+          clickEvent.stopPropagation();
+          openEventModal(event, true);
+        });
+
+        eventBox.appendChild(chip);
       });
 
-      cell.appendChild(wrap);
+    const dateDecos = decos
+      .filter(item => item.record_date === key)
+      .sort((a, b) => (a.z_order || 0) - (b.z_order || 0));
+
+    if (dateDecos.length) {
+      const composite = buildDecorationComposite(dateDecos, "calendar");
+      composite.classList.add("calendar-deco-composite");
+      composite.title = "클릭해서 크게 보기";
+
+      composite.addEventListener("click", (clickEvent) => {
+        clickEvent.stopPropagation();
+        openDecorationViewer(dateDecos, key);
+      });
+
+      cell.appendChild(composite);
     }
   });
 }
 
-function renderMoodBadgeOnCell(cell, mood) {
-  const badge = badgeSettings.find(b => b.category === "mood" && b.value === mood.mood_type);
-  const moodMeta = MOODS.find(m => m.value === mood.mood_type);
+function buildDecorationComposite(layers, mode = "calendar") {
+  const wrap = document.createElement("div");
+  wrap.className = `deco-composite deco-composite-${mode}`;
 
-  const el = document.createElement("div");
-  el.className = "calendar-mood";
-  el.title = mood.reason || moodMeta?.label || mood.mood_type;
-
-  if (badge?.image_url) {
+  layers.forEach((layer, index) => {
     const img = document.createElement("img");
-    img.src = badge.image_url;
-    el.appendChild(img);
-  } else {
-    el.textContent = moodMeta?.fallback || "•";
-  }
+    img.className = "deco-composite-layer";
+    img.src = layer.decoration_type === "sticker"
+      ? layer.stickers?.image_url
+      : layer.image_url;
 
-  cell.appendChild(el);
+    if (!img.src) return;
+
+    img.style.left = `${layer.position_x ?? 50}%`;
+    img.style.top = `${layer.position_y ?? 50}%`;
+    img.style.transform = `translate(-50%, -50%) scale(${layer.scale ?? 1})`;
+    img.style.zIndex = String(layer.z_order ?? index);
+    wrap.appendChild(img);
+  });
+
+  return wrap;
 }
 
 /* MONTHLY SUMMARY */
@@ -612,10 +685,8 @@ async function openDayPanel(date) {
   await Promise.all([
     loadDailyGoalRecords(key),
     loadDayTodos(key),
-    loadMood(key),
-    loadPeriodState(key),
-    loadDayDecorations(key),
-    loadDayEvents(key)
+    loadQuickDateMeta(key),
+    loadDecorationSidePreview(key)
   ]);
 }
 
@@ -659,9 +730,6 @@ async function loadDailyGoalRecords(date) {
       info.appendChild(desc);
     }
 
-    const badgeImg = document.createElement("img");
-    badgeImg.className = "goal-badge-preview hidden";
-
     const select = document.createElement("select");
     select.className = "goal-status-select";
     select.innerHTML = '<option value="">미기록</option>';
@@ -674,16 +742,15 @@ async function loadDailyGoalRecords(date) {
     });
 
     select.value = map.get(goal.id)?.status || "";
+    select.disabled = !isOwner;
     applyGoalStatusClass(select);
-    updateGoalBadgePreview(badgeImg, select.value);
 
     select.addEventListener("change", async () => {
       applyGoalStatusClass(select);
-      updateGoalBadgePreview(badgeImg, select.value);
       await saveDailyGoalRecord(goal.id, select.value, select);
     });
 
-    row.append(info, badgeImg, select);
+    row.append(info, select);
     dailyGoalRecordList.appendChild(row);
   });
 }
@@ -691,16 +758,6 @@ async function loadDailyGoalRecords(date) {
 function applyGoalStatusClass(select) {
   select.classList.remove("status-success","status-effort","status-holiday","status-fail");
   if (select.value) select.classList.add(`status-${select.value}`);
-}
-
-function updateGoalBadgePreview(img, status) {
-  const badge = badgeSettings.find(b => b.category === "goal_status" && b.value === status);
-  if (badge?.image_url) {
-    img.src = badge.image_url;
-    img.classList.remove("hidden");
-  } else {
-    img.classList.add("hidden");
-  }
 }
 
 async function saveDailyGoalRecord(goalId, status, select) {
@@ -728,6 +785,7 @@ async function saveDailyGoalRecord(goalId, status, select) {
 
 /* DAY TODOS */
 dayTodoForm.addEventListener("submit", async (event) => {
+  if (!isOwner) return;
   event.preventDefault();
   const title = dayTodoInput.value.trim();
   if (!title || !selectedRecordDate) return;
@@ -762,6 +820,7 @@ async function loadDayTodos(date) {
     const check = document.createElement("input");
     check.type = "checkbox";
     check.checked = todo.is_completed;
+    check.disabled = !isOwner;
     check.addEventListener("change", async () => {
       await supabaseClient.from("todos").update({
         is_completed: check.checked,
@@ -774,7 +833,7 @@ async function loadDayTodos(date) {
     text.textContent = todo.title;
 
     const del = document.createElement("button");
-    del.className = "row-delete";
+    del.className = `row-delete ${isOwner ? "" : "hidden"}`;
     del.textContent = "×";
     del.addEventListener("click", async () => {
       await supabaseClient.from("todos").delete().eq("id", todo.id);
@@ -827,6 +886,7 @@ quickTodoInput.addEventListener("keydown", (event) => {
 });
 
 async function addQuickTodo() {
+  if (!isOwner) return;
   const title = quickTodoInput.value.trim();
   if (!title) return;
 
@@ -872,6 +932,7 @@ function makeQuickTodoRow(item, completed) {
   const check = document.createElement("input");
   check.type = "checkbox";
   check.checked = completed;
+  check.disabled = !isOwner;
   check.title = completed ? "체크 해제하면 다시 해야 하는 일로 돌아가요." : "완료";
 
   check.addEventListener("change", async () => {
@@ -1034,308 +1095,524 @@ function makeQuickTodoRow(item, completed) {
   });
 
   actions.append(editButton, deleteButton);
+  if (!isOwner) actions.classList.add("hidden");
   row.append(check, content, actions);
 
   return row;
 }
 
-/* MOOD */
-async function loadMood(date) {
-  const { data } = await supabaseClient.from("moods").select("*").eq("record_date", date).maybeSingle();
-  moodSelect.value = data?.mood_type || "";
-  moodReason.value = data?.reason || "";
-  moodSaveState.textContent = "";
+/* DATE META: MOOD + PERIOD */
+async function loadQuickDateMeta(date) {
+  quickMetaSaveState.textContent = "";
+
+  const [moodResult, periodResult] = await Promise.all([
+    supabaseClient.from("moods").select("*").eq("record_date", date).maybeSingle(),
+    supabaseClient.from("period_records").select("*").eq("start_date", date).eq("end_date", date).maybeSingle()
+  ]);
+
+  moodSelect.value = moodResult.data?.mood_type || "";
+  periodCheck.checked = Boolean(periodResult.data);
+
+  moodSelect.disabled = !isOwner;
+  periodCheck.disabled = !isOwner;
 }
 
-moodSaveButton.addEventListener("click", async () => {
-  if (!selectedRecordDate) return;
+moodSelect.addEventListener("change", async () => {
+  if (!isOwner || !selectedRecordDate) return;
 
-  moodSaveState.textContent = "저장 중...";
+  quickMetaSaveState.textContent = "저장 중...";
 
   let result;
 
   if (!moodSelect.value) {
-    result = await supabaseClient.from("moods").delete().eq("record_date", selectedRecordDate);
+    result = await supabaseClient
+      .from("moods")
+      .delete()
+      .eq("record_date", selectedRecordDate);
   } else {
-    result = await supabaseClient.from("moods").upsert({
-      record_date:selectedRecordDate,
-      mood_type:moodSelect.value,
-      reason:moodReason.value.trim() || null
-    }, { onConflict:"record_date" });
+    result = await supabaseClient
+      .from("moods")
+      .upsert({
+        record_date: selectedRecordDate,
+        mood_type: moodSelect.value,
+        reason: null
+      }, { onConflict: "record_date" });
   }
 
-  moodSaveState.textContent = result.error ? "저장 실패" : "저장됨";
+  quickMetaSaveState.textContent = result.error ? "저장 실패" : "저장됨";
 
   if (!result.error) {
     renderCalendar();
-    setTimeout(() => moodSaveState.textContent = "", 1000);
+    window.setTimeout(() => quickMetaSaveState.textContent = "", 800);
   }
 });
 
-/* PERIOD */
-async function loadPeriodState(date) {
-  currentPeriodRecordId = null;
-  const { data } = await supabaseClient.from("period_records").select("*").order("start_date", { ascending:false });
+periodCheck.addEventListener("change", async () => {
+  if (!isOwner || !selectedRecordDate) return;
 
-  const records = data || [];
-  const covering = records.find(p => p.start_date <= date && (!p.end_date || p.end_date >= date));
-  const open = records.find(p => !p.end_date);
+  quickMetaSaveState.textContent = "저장 중...";
 
-  periodDeleteButton.classList.add("hidden");
+  let result;
 
-  if (covering) {
-    currentPeriodRecordId = covering.id;
-    periodStateText.textContent = covering.end_date
-      ? `${covering.start_date} ~ ${covering.end_date}`
-      : `${covering.start_date}부터 진행 중`;
-    periodDeleteButton.classList.remove("hidden");
-  } else if (open) {
-    periodStateText.textContent = `${open.start_date}부터 진행 중`;
+  if (periodCheck.checked) {
+    result = await supabaseClient.from("period_records").insert({
+      start_date: selectedRecordDate,
+      end_date: selectedRecordDate
+    });
   } else {
-    periodStateText.textContent = "이 날짜의 생리 기록이 없어요.";
+    result = await supabaseClient
+      .from("period_records")
+      .delete()
+      .eq("start_date", selectedRecordDate)
+      .eq("end_date", selectedRecordDate);
   }
-}
 
-periodStartButton.addEventListener("click", async () => {
-  if (!selectedRecordDate) return;
+  quickMetaSaveState.textContent = result.error ? "저장 실패" : "저장됨";
 
-  const { error } = await supabaseClient.from("period_records").insert({
-    start_date:selectedRecordDate,
-    end_date:null
-  });
+  if (result.error) {
+    periodCheck.checked = !periodCheck.checked;
+  } else {
+    renderCalendar();
+    window.setTimeout(() => quickMetaSaveState.textContent = "", 800);
+  }
+});
 
-  if (error) {
-    alert("이미 진행 중인 기록이 있거나 저장에 실패했어요.");
+/* DECORATION EDITOR */
+async function loadDecorationSidePreview(date) {
+  const layers = await fetchDecorationLayers(date);
+  decorationSidePreview.innerHTML = "";
+
+  if (!layers.length) {
+    decorationSidePreview.innerHTML = '<p class="empty-text">꾸민 이미지가 없어요.</p>';
     return;
   }
 
-  loadPeriodState(selectedRecordDate);
-  renderCalendar();
-});
-
-periodEndButton.addEventListener("click", async () => {
-  if (!selectedRecordDate) return;
-
-  const { data } = await supabaseClient.from("period_records")
-    .select("*").is("end_date", null).order("start_date", { ascending:false }).limit(1);
-
-  const open = data?.[0];
-
-  if (!open) {
-    alert("종료할 진행 중 기록이 없어요.");
-    return;
-  }
-
-  if (selectedRecordDate < open.start_date) {
-    alert("시작일보다 앞선 날짜로 종료할 수 없어요.");
-    return;
-  }
-
-  await supabaseClient.from("period_records").update({ end_date:selectedRecordDate }).eq("id", open.id);
-  loadPeriodState(selectedRecordDate);
-  renderCalendar();
-});
-
-periodDeleteButton.addEventListener("click", async () => {
-  if (!currentPeriodRecordId) return;
-  if (!confirm("이 생리 기록을 삭제할까요?")) return;
-  await supabaseClient.from("period_records").delete().eq("id", currentPeriodRecordId);
-  loadPeriodState(selectedRecordDate);
-  renderCalendar();
-});
-
-/* DECORATIONS */
-async function loadStickers() {
-  const { data } = await supabaseClient.from("stickers").select("*").order("created_at");
-  stickers = data || [];
-  renderStickerSelect();
-  renderStickerAdminList();
+  const composite = buildDecorationComposite(layers, "side");
+  composite.addEventListener("click", () => openDecorationViewer(layers, date));
+  decorationSidePreview.appendChild(composite);
 }
 
-function renderStickerSelect() {
-  dayStickerSelect.innerHTML = '<option value="">스티커 선택</option>';
+async function fetchDecorationLayers(date) {
+  const { data } = await supabaseClient
+    .from("day_decorations")
+    .select("*,stickers(*)")
+    .eq("record_date", date)
+    .order("z_order", { ascending: true })
+    .order("created_at", { ascending: true });
 
-  stickers.forEach(s => {
-    const option = document.createElement("option");
-    option.value = s.id;
-    option.textContent = s.name;
-    dayStickerSelect.appendChild(option);
-  });
+  return data || [];
 }
 
-addStickerToDayButton.addEventListener("click", async () => {
-  if (!selectedRecordDate || !dayStickerSelect.value) return;
+openDecorationEditorButton.addEventListener("click", async () => {
+  if (!isOwner || !selectedRecordDate) return;
 
-  await supabaseClient.from("day_decorations").insert({
-    record_date:selectedRecordDate,
-    decoration_type:"sticker",
-    sticker_id:Number(dayStickerSelect.value),
-    position_x:50,
-    position_y:50,
-    scale:1
-  });
+  decorationLayers = await fetchDecorationLayers(selectedRecordDate);
+  decorationEditorTitle.textContent = `${selectedRecordDate} 다꾸`;
+  decoCanvasDate.textContent = selectedRecordDate;
+  selectedDecorationLayerId = decorationLayers.at(-1)?.id || null;
 
-  dayStickerSelect.value = "";
-  loadDayDecorations(selectedRecordDate);
-  renderCalendar();
+  renderDecorationEditor();
+  decorationEditorModal.classList.remove("hidden");
 });
 
-dayImageInput.addEventListener("change", async () => {
-  const file = dayImageInput.files?.[0];
-  if (!file || !selectedRecordDate) return;
+decorationEditorCloseButton.addEventListener("click", closeDecorationEditor);
 
-  const image = await readAndCompressImage(file, 800, .76);
+function closeDecorationEditor() {
+  decorationEditorModal.classList.add("hidden");
+  decorationLayers = [];
+  selectedDecorationLayerId = null;
+}
 
-  await supabaseClient.from("day_decorations").insert({
-    record_date:selectedRecordDate,
-    decoration_type:"image",
-    image_url:image,
-    position_x:50,
-    position_y:50,
-    scale:1
-  });
+function renderDecorationEditor() {
+  decorationCanvas.querySelectorAll(".deco-edit-layer").forEach(node => node.remove());
 
-  dayImageInput.value = "";
-  loadDayDecorations(selectedRecordDate);
-  renderCalendar();
-});
+  decorationLayers
+    .sort((a, b) => (a.z_order || 0) - (b.z_order || 0))
+    .forEach((layer, index) => {
+      layer.z_order = index;
 
-async function loadDayDecorations(date) {
-  const { data } = await supabaseClient.from("day_decorations").select("*,stickers(*)").eq("record_date", date).order("created_at");
-  dayDecorationList.innerHTML = "";
+      const img = document.createElement("img");
+      img.className = "deco-edit-layer";
+      if (layer.id === selectedDecorationLayerId) img.classList.add("selected");
 
-  (data || []).forEach(deco => {
-    const row = document.createElement("div");
-    row.className = "decoration-row";
+      img.dataset.layerId = layer.id;
+      img.src = layer.decoration_type === "sticker"
+        ? layer.stickers?.image_url
+        : layer.image_url;
 
-    const img = document.createElement("img");
-    img.className = `decoration-thumb ${deco.decoration_type === "image" ? "photo" : ""}`;
-    img.src = deco.decoration_type === "sticker" ? deco.stickers?.image_url : deco.image_url;
+      img.style.left = `${layer.position_x ?? 50}%`;
+      img.style.top = `${layer.position_y ?? 50}%`;
+      img.style.transform = `translate(-50%, -50%) scale(${layer.scale ?? 1})`;
+      img.style.zIndex = String(index + 1);
 
-    const text = document.createElement("span");
-    text.textContent = deco.decoration_type === "sticker" ? (deco.stickers?.name || "스티커") : "사진";
+      enableDecorationDrag(img, layer);
+      img.addEventListener("pointerdown", () => selectDecorationLayer(layer.id));
 
-    const del = document.createElement("button");
-    del.className = "row-delete";
-    del.textContent = "×";
-    del.addEventListener("click", async () => {
-      await supabaseClient.from("day_decorations").delete().eq("id", deco.id);
-      loadDayDecorations(date);
-      renderCalendar();
+      decorationCanvas.appendChild(img);
     });
 
-    row.append(img, text, del);
-    dayDecorationList.appendChild(row);
+  renderLayerList();
+  syncDecorationScaleControl();
+}
+
+function enableDecorationDrag(element, layer) {
+  element.addEventListener("pointerdown", (event) => {
+    if (!isOwner) return;
+
+    event.preventDefault();
+    element.setPointerCapture(event.pointerId);
+
+    const rect = decorationCanvas.getBoundingClientRect();
+
+    const move = (moveEvent) => {
+      const x = Math.max(0, Math.min(100, ((moveEvent.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((moveEvent.clientY - rect.top) / rect.height) * 100));
+
+      layer.position_x = x;
+      layer.position_y = y;
+      element.style.left = `${x}%`;
+      element.style.top = `${y}%`;
+    };
+
+    const up = () => {
+      element.removeEventListener("pointermove", move);
+      element.removeEventListener("pointerup", up);
+    };
+
+    element.addEventListener("pointermove", move);
+    element.addEventListener("pointerup", up);
+  });
+}
+
+function selectDecorationLayer(id) {
+  selectedDecorationLayerId = id;
+  renderDecorationEditor();
+}
+
+function syncDecorationScaleControl() {
+  const selected = decorationLayers.find(layer => layer.id === selectedDecorationLayerId);
+  decoScaleRange.disabled = !selected;
+  decoScaleRange.value = selected?.scale ?? 1;
+}
+
+decoScaleRange.addEventListener("input", () => {
+  const selected = decorationLayers.find(layer => layer.id === selectedDecorationLayerId);
+  if (!selected) return;
+
+  selected.scale = Number(decoScaleRange.value);
+
+  const element = decorationCanvas.querySelector(`[data-layer-id="${selected.id}"]`);
+  if (element) {
+    element.style.transform = `translate(-50%, -50%) scale(${selected.scale})`;
+  }
+});
+
+function renderLayerList() {
+  layerList.innerHTML = "";
+
+  [...decorationLayers]
+    .sort((a, b) => (b.z_order || 0) - (a.z_order || 0))
+    .forEach(layer => {
+      const item = document.createElement("div");
+      item.className = "layer-item";
+      item.draggable = true;
+      item.dataset.layerId = layer.id;
+
+      if (layer.id === selectedDecorationLayerId) {
+        item.classList.add("selected");
+      }
+
+      const thumb = document.createElement("img");
+      thumb.src = layer.decoration_type === "sticker"
+        ? layer.stickers?.image_url
+        : layer.image_url;
+
+      const name = document.createElement("span");
+      name.textContent = layer.decoration_type === "sticker"
+        ? (layer.stickers?.name || "스티커")
+        : "사진";
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.textContent = "×";
+      remove.addEventListener("click", async (event) => {
+        event.stopPropagation();
+
+        if (String(layer.id).startsWith("temp-")) {
+          decorationLayers = decorationLayers.filter(item => item.id !== layer.id);
+        } else {
+          await supabaseClient.from("day_decorations").delete().eq("id", layer.id);
+          decorationLayers = decorationLayers.filter(item => item.id !== layer.id);
+        }
+
+        selectedDecorationLayerId = decorationLayers.at(-1)?.id || null;
+        normalizeDecorationOrder();
+        renderDecorationEditor();
+      });
+
+      item.addEventListener("click", () => selectDecorationLayer(layer.id));
+      item.addEventListener("dragstart", event => {
+        event.dataTransfer.setData("text/plain", String(layer.id));
+      });
+      item.addEventListener("dragover", event => event.preventDefault());
+      item.addEventListener("drop", event => {
+        event.preventDefault();
+
+        const draggedId = event.dataTransfer.getData("text/plain");
+        reorderDecorationLayers(draggedId, String(layer.id));
+      });
+
+      item.append(thumb, name, remove);
+      layerList.appendChild(item);
+    });
+}
+
+function reorderDecorationLayers(draggedId, targetId) {
+  const orderedFrontFirst = [...decorationLayers]
+    .sort((a, b) => (b.z_order || 0) - (a.z_order || 0));
+
+  const from = orderedFrontFirst.findIndex(layer => String(layer.id) === String(draggedId));
+  const to = orderedFrontFirst.findIndex(layer => String(layer.id) === String(targetId));
+
+  if (from < 0 || to < 0 || from === to) return;
+
+  const [moved] = orderedFrontFirst.splice(from, 1);
+  orderedFrontFirst.splice(to, 0, moved);
+
+  const backToFront = orderedFrontFirst.reverse();
+  backToFront.forEach((layer, index) => layer.z_order = index);
+
+  decorationLayers = backToFront;
+  renderDecorationEditor();
+}
+
+function normalizeDecorationOrder() {
+  decorationLayers
+    .sort((a, b) => (a.z_order || 0) - (b.z_order || 0))
+    .forEach((layer, index) => layer.z_order = index);
+}
+
+function renderStickerEditorOptions() {
+  decoStickerSelect.innerHTML = '<option value="">스티커 선택</option>';
+
+  stickers.forEach(sticker => {
+    const option = document.createElement("option");
+    option.value = sticker.id;
+    option.textContent = sticker.name;
+    decoStickerSelect.appendChild(option);
+  });
+}
+
+decoAddStickerButton.addEventListener("click", () => {
+  const sticker = stickers.find(item => String(item.id) === decoStickerSelect.value);
+  if (!sticker) return;
+
+  const tempId = `temp-${crypto.randomUUID()}`;
+
+  decorationLayers.push({
+    id: tempId,
+    record_date: selectedRecordDate,
+    decoration_type: "sticker",
+    sticker_id: sticker.id,
+    image_url: null,
+    stickers: sticker,
+    position_x: 50,
+    position_y: 50,
+    scale: 1,
+    z_order: decorationLayers.length
   });
 
-  if (!(data || []).length) {
-    dayDecorationList.innerHTML = '<p class="empty-text">붙인 이미지가 없어요.</p>';
+  selectedDecorationLayerId = tempId;
+  decoStickerSelect.value = "";
+  renderDecorationEditor();
+});
+
+decoImageFileInput.addEventListener("change", async () => {
+  const file = decoImageFileInput.files?.[0];
+  if (!file) return;
+
+  const imageUrl = await readAndCompressImage(file, 1100, .82);
+  const tempId = `temp-${crypto.randomUUID()}`;
+
+  decorationLayers.push({
+    id: tempId,
+    record_date: selectedRecordDate,
+    decoration_type: "image",
+    sticker_id: null,
+    image_url: imageUrl,
+    stickers: null,
+    position_x: 50,
+    position_y: 50,
+    scale: 1,
+    z_order: decorationLayers.length
+  });
+
+  selectedDecorationLayerId = tempId;
+  decoImageFileInput.value = "";
+  renderDecorationEditor();
+});
+
+decorationEditorSaveButton.addEventListener("click", async () => {
+  if (!isOwner || !selectedRecordDate) return;
+
+  normalizeDecorationOrder();
+  decorationEditorSaveButton.disabled = true;
+  decorationEditorSaveButton.textContent = "저장 중...";
+
+  for (const layer of decorationLayers) {
+    const payload = {
+      record_date: selectedRecordDate,
+      decoration_type: layer.decoration_type,
+      sticker_id: layer.sticker_id || null,
+      image_url: layer.decoration_type === "image" ? layer.image_url : null,
+      position_x: layer.position_x ?? 50,
+      position_y: layer.position_y ?? 50,
+      scale: layer.scale ?? 1,
+      z_order: layer.z_order ?? 0
+    };
+
+    if (String(layer.id).startsWith("temp-")) {
+      await supabaseClient.from("day_decorations").insert(payload);
+    } else {
+      await supabaseClient.from("day_decorations").update(payload).eq("id", layer.id);
+    }
   }
+
+  decorationEditorSaveButton.disabled = false;
+  decorationEditorSaveButton.textContent = "완료";
+
+  closeDecorationEditor();
+  await loadDecorationSidePreview(selectedRecordDate);
+  renderCalendar();
+});
+
+function openDecorationViewer(layers, date) {
+  decorationViewerCanvas.innerHTML = "";
+
+  const title = document.createElement("div");
+  title.className = "viewer-date";
+  title.textContent = date;
+
+  const composite = buildDecorationComposite(layers, "viewer");
+
+  decorationViewerCanvas.append(title, composite);
+  decorationViewerModal.classList.remove("hidden");
 }
+
+decorationViewerCloseButton.addEventListener("click", () => {
+  decorationViewerModal.classList.add("hidden");
+});
 
 /* EVENTS */
-async function createEvent(title, start, end, description) {
-  return supabaseClient.from("events").insert({
-    title,
-    start_date:start,
-    end_date:end,
-    description:description || null
+function openEventModal(eventData = {}, allowEdit = false) {
+  const existing = Boolean(eventData.id);
+
+  eventIdInput.value = eventData.id || "";
+  eventTitleInput.value = eventData.title || "";
+  eventStartInput.value = eventData.start_date || formatDateKey(new Date());
+  eventEndInput.value = eventData.end_date || eventStartInput.value;
+  eventDescriptionInput.value = eventData.description || "";
+  eventModalMessage.textContent = "";
+
+  const canEdit = isOwner;
+  eventModalTitle.textContent = existing ? (canEdit ? "일정 수정" : "일정 보기") : "일정 추가";
+
+  [eventTitleInput, eventStartInput, eventEndInput, eventDescriptionInput].forEach(input => {
+    input.disabled = !canEdit;
   });
+
+  eventDeleteButton.classList.toggle("hidden", !existing || !canEdit);
+  eventModalForm.querySelector('button[type="submit"]').classList.toggle("hidden", !canEdit);
+
+  eventModal.classList.remove("hidden");
 }
 
-dayEventForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const title = dayEventInput.value.trim();
-  if (!title || !selectedRecordDate) return;
+function closeEventModal() {
+  eventModal.classList.add("hidden");
+  eventModalForm.reset();
+  eventIdInput.value = "";
+}
 
-  const { error } = await createEvent(title, selectedRecordDate, selectedRecordDate, "");
-  if (!error) {
-    dayEventInput.value = "";
-    loadDayEvents(selectedRecordDate);
-    renderCalendar();
+eventModalCloseButton.addEventListener("click", closeEventModal);
+eventCancelButton.addEventListener("click", closeEventModal);
+
+eventStartInput.addEventListener("change", () => {
+  if (!eventEndInput.value || eventEndInput.value < eventStartInput.value) {
+    eventEndInput.value = eventStartInput.value;
   }
 });
 
-async function loadDayEvents(date) {
-  const { data } = await supabaseClient.from("events").select("*")
-    .lte("start_date", date).gte("end_date", date).order("start_date");
-
-  dayEventList.innerHTML = "";
-
-  (data || []).forEach(event => {
-    const row = document.createElement("div");
-    row.className = "side-event-row";
-
-    const text = document.createElement("span");
-    text.textContent = event.start_date === event.end_date
-      ? event.title
-      : `${event.title} · ${niceDate(event.start_date)}~${niceDate(event.end_date)}`;
-
-    const del = document.createElement("button");
-    del.className = "row-delete";
-    del.textContent = "×";
-    del.addEventListener("click", async () => {
-      await supabaseClient.from("events").delete().eq("id", event.id);
-      loadDayEvents(date);
-      renderCalendar();
-    });
-
-    row.append(text, del);
-    dayEventList.appendChild(row);
-  });
-
-  if (!(data || []).length) {
-    dayEventList.innerHTML = '<p class="empty-text">일정이 없어요.</p>';
-  }
-}
-
-/* SCHEDULE PAGE */
-function setScheduleDefaults() {
-  const today = formatDateKey(new Date());
-  if (!scheduleStart.value) scheduleStart.value = today;
-  if (!scheduleEnd.value) scheduleEnd.value = today;
-}
-
-scheduleStart.addEventListener("change", () => {
-  if (!scheduleEnd.value || scheduleEnd.value < scheduleStart.value) {
-    scheduleEnd.value = scheduleStart.value;
-  }
-});
-
-scheduleForm.addEventListener("submit", async (event) => {
+eventModalForm.addEventListener("submit", async event => {
   event.preventDefault();
+  if (!isOwner) return;
 
-  if (scheduleEnd.value < scheduleStart.value) {
-    scheduleMessage.textContent = "종료일은 시작일보다 빠를 수 없어요.";
+  const payload = {
+    title: eventTitleInput.value.trim(),
+    start_date: eventStartInput.value,
+    end_date: eventEndInput.value,
+    description: eventDescriptionInput.value.trim() || null
+  };
+
+  if (!payload.title) return;
+
+  if (payload.end_date < payload.start_date) {
+    eventModalMessage.textContent = "종료일은 시작일보다 빠를 수 없어요.";
     return;
   }
 
-  const { error } = await createEvent(
-    scheduleTitle.value.trim(),
-    scheduleStart.value,
-    scheduleEnd.value,
-    scheduleDescription.value.trim()
-  );
+  let result;
 
-  if (error) {
-    scheduleMessage.textContent = "저장하지 못했어요.";
+  if (eventIdInput.value) {
+    result = await supabaseClient
+      .from("events")
+      .update(payload)
+      .eq("id", Number(eventIdInput.value));
+  } else {
+    result = await supabaseClient
+      .from("events")
+      .insert(payload);
+  }
+
+  if (result.error) {
+    eventModalMessage.textContent = "저장하지 못했어요.";
     return;
   }
 
-  scheduleMessage.textContent = "저장했어요.";
-  scheduleTitle.value = "";
-  scheduleDescription.value = "";
+  closeEventModal();
   loadSchedulePage();
   renderCalendar();
 });
 
+eventDeleteButton.addEventListener("click", async () => {
+  if (!isOwner || !eventIdInput.value) return;
+  if (!confirm("이 일정을 삭제할까요?")) return;
+
+  await supabaseClient.from("events").delete().eq("id", Number(eventIdInput.value));
+
+  closeEventModal();
+  loadSchedulePage();
+  renderCalendar();
+});
+
+openScheduleCreateButton.addEventListener("click", () => {
+  if (!isOwner) return;
+  openEventModal();
+});
+
+/* SCHEDULE PAGE */
 async function loadSchedulePage() {
-  const { data } = await supabaseClient.from("events").select("*").order("start_date").order("created_at");
+  const { data } = await supabaseClient
+    .from("events")
+    .select("*")
+    .order("start_date")
+    .order("created_at");
+
   scheduleList.innerHTML = "";
 
   (data || []).forEach(event => {
-    const row = document.createElement("div");
-    row.className = "schedule-item";
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "schedule-item schedule-item-button";
 
     const date = document.createElement("div");
     date.className = "schedule-date";
@@ -1345,6 +1622,7 @@ async function loadSchedulePage() {
 
     const text = document.createElement("div");
     text.className = "schedule-text";
+
     const strong = document.createElement("strong");
     strong.textContent = event.title;
     text.appendChild(strong);
@@ -1355,17 +1633,8 @@ async function loadSchedulePage() {
       text.appendChild(desc);
     }
 
-    const del = document.createElement("button");
-    del.className = "danger-button";
-    del.textContent = "삭제";
-    del.addEventListener("click", async () => {
-      if (!confirm(`"${event.title}" 일정을 삭제할까요?`)) return;
-      await supabaseClient.from("events").delete().eq("id", event.id);
-      loadSchedulePage();
-      renderCalendar();
-    });
-
-    row.append(date, text, del);
+    row.addEventListener("click", () => openEventModal(event, true));
+    row.append(date, text);
     scheduleList.appendChild(row);
   });
 
@@ -1586,173 +1855,37 @@ function renderStickerAdminList() {
   }
 }
 
-/* BADGE ADMIN */
-async function loadBadgeSettings() {
-  const { data } = await supabaseClient.from("badge_settings").select("*");
-  badgeSettings = data || [];
+/* SITE VISIBILITY */
+async function loadSiteVisibilityAdmin() {
+  const { data } = await supabaseClient
+    .from("site_settings")
+    .select("setting_value")
+    .eq("setting_key", "site_visibility")
+    .maybeSingle();
+
+  const publicMode = Boolean(data?.setting_value?.public);
+  sitePublicToggle.checked = publicMode;
+  sitePublicLabel.textContent = publicMode ? "전체 공개" : "비공개";
+  sitePublicMessage.textContent = "";
 }
 
-function renderBadgeAdmin() {
-  badgeAdminList.innerHTML = "";
-
-  const items = [
-    ...GOAL_STATUSES.map(x => ({ category:"goal_status", ...x, fallback:"○" })),
-    ...MOODS.map(x => ({ category:"mood", ...x }))
-  ];
-
-  items.forEach(meta => {
-    const setting = badgeSettings.find(b => b.category === meta.category && b.value === meta.value);
-    const item = document.createElement("div");
-    item.className = "badge-admin-item";
-
-    const preview = document.createElement("div");
-    preview.className = "badge-preview";
-
-    if (setting?.image_url) {
-      const img = document.createElement("img");
-      img.src = setting.image_url;
-      preview.appendChild(img);
-    } else {
-      preview.textContent = meta.fallback || "○";
-    }
-
-    const info = document.createElement("div");
-    info.className = "badge-admin-meta";
-
-    const title = document.createElement("strong");
-    title.textContent = `${meta.category === "goal_status" ? "목표" : "기분"} · ${meta.label}`;
-
-    const label = document.createElement("label");
-    label.textContent = setting?.image_url ? "이미지 변경" : "이미지 등록";
-
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-
-    input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-
-      const image = await readAndCompressImage(file, 300, .84);
-
-      await supabaseClient.from("badge_settings").upsert({
-        category:meta.category,
-        value:meta.value,
-        label:meta.label,
-        image_url:image
-      }, { onConflict:"category,value" });
-
-      await loadBadgeSettings();
-      renderBadgeAdmin();
-      renderCalendar();
-    });
-
-    label.appendChild(input);
-    info.append(title, label);
-
-    if (setting?.image_url) {
-      const clear = document.createElement("button");
-      clear.textContent = "이미지 제거";
-      clear.addEventListener("click", async () => {
-        await supabaseClient.from("badge_settings").upsert({
-          category:meta.category,
-          value:meta.value,
-          label:meta.label,
-          image_url:null
-        }, { onConflict:"category,value" });
-
-        await loadBadgeSettings();
-        renderBadgeAdmin();
-        renderCalendar();
-      });
-
-      info.appendChild(clear);
-    }
-
-    item.append(preview, info);
-    badgeAdminList.appendChild(item);
-  });
-}
-
-/* SITE LOCK */
-async function getSiteLockSetting() {
-  const { data } = await supabaseClient.from("site_settings")
-    .select("*").eq("setting_key", "site_lock").maybeSingle();
-
-  return data?.setting_value || { enabled:false };
-}
-
-async function applySiteLockIfNeeded() {
-  const setting = await getSiteLockSetting();
-
-  if (
-    setting.enabled &&
-    setting.pin_hash &&
-    sessionStorage.getItem("siteLockUnlocked") !== setting.pin_hash
-  ) {
-    siteLockScreen.classList.remove("hidden");
-    siteLockPinInput.value = "";
-    setTimeout(() => siteLockPinInput.focus(), 50);
-  } else {
-    siteLockScreen.classList.add("hidden");
-  }
-}
-
-siteLockForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  const setting = await getSiteLockSetting();
-  const hash = await sha256(siteLockPinInput.value);
-
-  if (hash !== setting.pin_hash) {
-    siteLockMessage.textContent = "PIN이 맞지 않아요.";
-    return;
-  }
-
-  sessionStorage.setItem("siteLockUnlocked", hash);
-  siteLockMessage.textContent = "";
-  siteLockScreen.classList.add("hidden");
+sitePublicToggle.addEventListener("change", () => {
+  sitePublicLabel.textContent = sitePublicToggle.checked ? "전체 공개" : "비공개";
 });
 
-async function loadSiteLockAdmin() {
-  const setting = await getSiteLockSetting();
-  siteLockEnabled.checked = Boolean(setting.enabled);
-  siteLockAdminPin.value = "";
-}
+sitePublicSaveButton.addEventListener("click", async () => {
+  if (!isOwner) return;
 
-siteLockSaveButton.addEventListener("click", async () => {
-  const old = await getSiteLockSetting();
-  let hash = old.pin_hash || null;
+  const { error } = await supabaseClient
+    .from("site_settings")
+    .upsert({
+      setting_key: "site_visibility",
+      setting_value: {
+        public: sitePublicToggle.checked
+      }
+    }, { onConflict: "setting_key" });
 
-  if (siteLockAdminPin.value) {
-    hash = await sha256(siteLockAdminPin.value);
-  }
-
-  if (siteLockEnabled.checked && !hash) {
-    siteLockAdminMessage.textContent = "잠금을 켜려면 PIN을 입력해주세요.";
-    return;
-  }
-
-  const { error } = await supabaseClient.from("site_settings").upsert({
-    setting_key:"site_lock",
-    setting_value:{
-      enabled:siteLockEnabled.checked,
-      pin_hash:hash
-    }
-  }, { onConflict:"setting_key" });
-
-  if (error) {
-    siteLockAdminMessage.textContent = "저장하지 못했어요.";
-    return;
-  }
-
-  siteLockAdminMessage.textContent = "저장했어요.";
-  siteLockAdminPin.value = "";
-  sessionStorage.removeItem("siteLockUnlocked");
-
-  if (siteLockEnabled.checked) {
-    await applySiteLockIfNeeded();
-  }
+  sitePublicMessage.textContent = error ? "저장하지 못했어요." : "저장했어요.";
 });
 
 /* SEARCH */

@@ -25,21 +25,6 @@
     </div>
   </div>
 
-  <!-- EXTRA SITE LOCK -->
-  <div id="siteLockScreen" class="lock-screen hidden">
-    <div class="login-card">
-      <div class="login-icon">🔒</div>
-      <h1>잠금</h1>
-      <p class="login-description">어드민에서 설정한 PIN을 입력해주세요.</p>
-      <form id="siteLockForm">
-        <label for="siteLockPinInput">PIN</label>
-        <input id="siteLockPinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="PIN" required>
-        <button type="submit" class="login-button">잠금 해제</button>
-        <p id="siteLockMessage" class="login-message"></p>
-      </form>
-    </div>
-  </div>
-
   <!-- SITE -->
   <div id="siteApp" class="site hidden">
     <header class="header">
@@ -139,29 +124,16 @@
           </div>
         </div>
 
-        <div class="schedule-grid">
-          <section class="page-card">
-            <h2 class="card-title">일정 추가</h2>
-            <form id="scheduleForm" class="stack-form">
-              <input id="scheduleTitle" type="text" maxlength="120" placeholder="일정 이름" required>
-              <div class="date-pair">
-                <label>시작일<input id="scheduleStart" type="date" required></label>
-                <label>종료일<input id="scheduleEnd" type="date" required></label>
-              </div>
-              <textarea id="scheduleDescription" maxlength="500" placeholder="메모 (선택)"></textarea>
-              <button type="submit" class="primary-button">일정 추가</button>
-              <p id="scheduleMessage" class="form-message"></p>
-            </form>
-          </section>
-
-          <section class="page-card schedule-list-card">
-            <div class="card-title-row">
-              <h2 class="card-title">전체 일정</h2>
-              <span class="tiny-note">가까운 일정부터</span>
-            </div>
-            <div id="scheduleList" class="schedule-list"></div>
-          </section>
+        <div class="schedule-toolbar">
+          <button id="openScheduleCreateButton" type="button" class="primary-button owner-control">+ 일정 추가</button>
         </div>
+        <section class="page-card schedule-list-card">
+          <div class="card-title-row">
+            <h2 class="card-title">전체 일정</h2>
+            <span class="tiny-note">가까운 일정부터</span>
+          </div>
+          <div id="scheduleList" class="schedule-list"></div>
+        </section>
       </section>
 
       <!-- ADMIN PAGE -->
@@ -170,7 +142,7 @@
           <div>
             <span class="section-label">ADMIN</span>
             <h1 class="page-title">어드민</h1>
-            <p class="page-description">목표, 스티커, 배지와 사이트 잠금을 관리해요.</p>
+            <p class="page-description">목표, 스티커와 사이트 공개 여부를 관리해요.</p>
           </div>
         </div>
 
@@ -204,23 +176,16 @@
             <div id="stickerAdminList" class="sticker-admin-list"></div>
           </section>
 
-          <section class="page-card admin-wide">
-            <h2 class="card-title">배지 이미지</h2>
-            <p class="card-description">목표 상태와 기분에 사용할 이미지를 등록할 수 있어요.</p>
-            <div id="badgeAdminList" class="badge-admin-list"></div>
-          </section>
-
           <section class="page-card">
-            <h2 class="card-title">사이트 잠금</h2>
-            <p class="card-description">로그인 후 한 번 더 PIN을 요구하는 추가 잠금이에요.</p>
-            <div class="lock-setting">
+            <h2 class="card-title">사이트 공개 설정</h2>
+            <p class="card-description">공개 시 로그인하지 않은 방문자도 내용을 볼 수 있어요. 편집은 관리자만 가능합니다.</p>
+            <div class="visibility-setting">
               <label class="switch-row">
-                <input id="siteLockEnabled" type="checkbox">
-                <span>추가 잠금 사용</span>
+                <input id="sitePublicToggle" type="checkbox">
+                <span id="sitePublicLabel">비공개</span>
               </label>
-              <input id="siteLockAdminPin" type="password" inputmode="numeric" maxlength="12" placeholder="새 PIN (변경할 때만 입력)">
-              <button id="siteLockSaveButton" type="button" class="primary-button">잠금 설정 저장</button>
-              <p id="siteLockAdminMessage" class="form-message"></p>
+              <button id="sitePublicSaveButton" type="button" class="primary-button">공개 설정 저장</button>
+              <p id="sitePublicMessage" class="form-message"></p>
             </div>
           </section>
         </div>
@@ -231,9 +196,27 @@
   <!-- DAY PANEL -->
   <aside id="dayPanel" class="day-panel">
     <div class="day-panel-header">
-      <div>
+      <div class="day-panel-title-wrap">
         <span class="section-label">DAILY RECORD</span>
         <h2 id="selectedDateTitle"></h2>
+        <div class="day-quick-meta">
+          <label class="mood-quick-select" title="기분">
+            <span>기분</span>
+            <select id="moodSelect" class="owner-control">
+              <option value="">—</option>
+              <option value="great">😄</option>
+              <option value="good">🙂</option>
+              <option value="neutral">😐</option>
+              <option value="low">😔</option>
+              <option value="bad">😣</option>
+            </select>
+          </label>
+          <label class="period-check-label">
+            <input id="periodCheck" type="checkbox" class="owner-control">
+            <span>🩸 생리</span>
+          </label>
+          <span id="quickMetaSaveState" class="save-state"></span>
+        </div>
       </div>
       <button id="closeDayPanel" class="close-button">×</button>
     </div>
@@ -259,62 +242,98 @@
         <div id="completedQuickOnDate" class="completed-quick-on-date"></div>
       </section>
 
-      <section class="panel-placeholder">
+      <section class="panel-placeholder decoration-entry">
         <div class="panel-section-heading">
-          <div><strong>기분</strong><p>기분과 짧은 이유를 남겨요.</p></div>
-          <span id="moodSaveState" class="save-state"></span>
-        </div>
-        <div class="mood-form">
-          <select id="moodSelect">
-            <option value="">미기록</option>
-            <option value="great">아주 좋음</option>
-            <option value="good">좋음</option>
-            <option value="neutral">보통</option>
-            <option value="low">안 좋음</option>
-            <option value="bad">최악</option>
-          </select>
-          <textarea id="moodReason" maxlength="180" placeholder="이유를 짧게 적어보세요"></textarea>
-          <button id="moodSaveButton" type="button" class="small-primary">저장</button>
-        </div>
-      </section>
-
-      <section class="panel-placeholder">
-        <div class="panel-section-heading">
-          <div><strong>생리 기록</strong><p id="periodStateText">이 날짜의 기록을 확인해요.</p></div>
-        </div>
-        <div class="period-actions">
-          <button id="periodStartButton" type="button" class="secondary-button">이 날짜부터 시작</button>
-          <button id="periodEndButton" type="button" class="secondary-button">이 날짜로 종료</button>
-          <button id="periodDeleteButton" type="button" class="danger-button hidden">기록 삭제</button>
-        </div>
-      </section>
-
-      <section class="panel-placeholder">
-        <div class="panel-section-heading">
-          <div><strong>꾸미기</strong><p>스티커나 사진을 날짜 칸에 붙여요.</p></div>
-        </div>
-        <div class="decoration-tools">
-          <div class="inline-form">
-            <select id="dayStickerSelect"><option value="">스티커 선택</option></select>
-            <button id="addStickerToDayButton" type="button" class="secondary-button">붙이기</button>
+          <div>
+            <strong>다꾸</strong>
+            <p>사진과 스티커를 자유롭게 배치해요.</p>
           </div>
-          <label class="file-button">사진 붙이기<input id="dayImageInput" type="file" accept="image/*"></label>
+          <button id="openDecorationEditorButton" type="button" class="secondary-button owner-control">편집</button>
         </div>
-        <div id="dayDecorationList" class="day-decoration-list"></div>
-      </section>
-
-      <section class="panel-placeholder">
-        <div class="panel-section-heading">
-          <div><strong>일정</strong><p>이 날짜에 걸쳐 있는 일정이에요.</p></div>
+        <div id="decorationSidePreview" class="decoration-side-preview">
+          <p class="empty-text">꾸민 이미지가 없어요.</p>
         </div>
-        <form id="dayEventForm" class="mini-add-form">
-          <input id="dayEventInput" type="text" maxlength="120" placeholder="이 날짜에 일정 추가" required>
-          <button type="submit">+</button>
-        </form>
-        <div id="dayEventList" class="day-event-list"></div>
       </section>
     </div>
   </aside>
+
+
+  <!-- EVENT EDITOR -->
+  <div id="eventModal" class="modal-backdrop hidden">
+    <div class="event-modal">
+      <div class="modal-header">
+        <div>
+          <span class="section-label">SCHEDULE</span>
+          <h2 id="eventModalTitle">일정 추가</h2>
+        </div>
+        <button id="eventModalCloseButton" class="close-button">×</button>
+      </div>
+      <form id="eventModalForm" class="event-modal-form">
+        <input id="eventIdInput" type="hidden">
+        <input id="eventTitleInput" type="text" maxlength="120" placeholder="일정 이름" required>
+        <div class="date-pair">
+          <label>시작일<input id="eventStartInput" type="date" required></label>
+          <label>종료일<input id="eventEndInput" type="date" required></label>
+        </div>
+        <textarea id="eventDescriptionInput" maxlength="500" placeholder="메모 (선택)"></textarea>
+        <div class="event-modal-actions">
+          <button id="eventDeleteButton" type="button" class="danger-button hidden">삭제</button>
+          <div class="event-modal-actions-right">
+            <button id="eventCancelButton" type="button" class="secondary-button">취소</button>
+            <button type="submit" class="primary-button">저장</button>
+          </div>
+        </div>
+        <p id="eventModalMessage" class="form-message"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- DECORATION EDITOR -->
+  <div id="decorationEditorModal" class="modal-backdrop decoration-modal-backdrop hidden">
+    <div class="decoration-editor-modal">
+      <div class="modal-header">
+        <div>
+          <span class="section-label">DECO</span>
+          <h2 id="decorationEditorTitle">다꾸 편집</h2>
+        </div>
+        <button id="decorationEditorCloseButton" class="close-button">×</button>
+      </div>
+
+      <div class="decoration-editor-layout">
+        <div class="decoration-main">
+          <div class="decoration-toolbar">
+            <label class="file-button owner-control">사진 추가<input id="decoImageFileInput" type="file" accept="image/*"></label>
+            <select id="decoStickerSelect" class="owner-control"><option value="">스티커 선택</option></select>
+            <button id="decoAddStickerButton" type="button" class="secondary-button owner-control">스티커 추가</button>
+            <label class="deco-size-control owner-control">크기
+              <input id="decoScaleRange" type="range" min="0.25" max="2.5" step="0.05" value="1">
+            </label>
+          </div>
+          <div id="decorationCanvas" class="decoration-canvas">
+            <div class="deco-canvas-date" id="decoCanvasDate"></div>
+          </div>
+        </div>
+
+        <aside class="layer-panel owner-control">
+          <div class="layer-panel-title">레이어</div>
+          <p class="layer-help">위에 있을수록 앞에 보여요. 드래그해서 순서를 바꿔요.</p>
+          <div id="layerList" class="layer-list"></div>
+        </aside>
+      </div>
+
+      <div class="decoration-editor-footer owner-control">
+        <button id="decorationEditorSaveButton" type="button" class="primary-button">완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DECORATION VIEWER -->
+  <div id="decorationViewerModal" class="modal-backdrop hidden">
+    <div class="decoration-viewer-modal">
+      <button id="decorationViewerCloseButton" class="close-button viewer-close">×</button>
+      <div id="decorationViewerCanvas" class="decoration-viewer-canvas"></div>
+    </div>
+  </div>
 
   <!-- SEARCH -->
   <div id="searchModal" class="modal-backdrop hidden">

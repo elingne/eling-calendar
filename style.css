@@ -587,3 +587,434 @@ textarea { resize: vertical; }
     flex-basis: 100%;
   }
 }
+
+
+/* =========================
+   V9 COMPACT DATE META
+========================= */
+
+.day-panel-title-wrap {
+  min-width: 0;
+}
+
+.day-quick-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mood-quick-select,
+.period-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--subtext);
+  font-size: 11px;
+}
+
+.mood-quick-select > span {
+  display: none;
+}
+
+.mood-quick-select select {
+  width: 48px;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: white;
+  font-size: 16px;
+}
+
+.period-check-label input {
+  accent-color: #ed6f83;
+}
+
+.calendar-top-badges {
+  position: absolute;
+  z-index: 8;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.calendar-simple-badge {
+  width: 21px;
+  height: 21px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,.88);
+  box-shadow: 0 1px 4px rgba(40,40,60,.07);
+  font-size: 13px;
+}
+
+.period-drop {
+  color: #e34f63;
+  filter: hue-rotate(300deg) saturate(1.8);
+  font-size: 14px;
+}
+
+/* =========================
+   V9 DECORATION
+========================= */
+
+.decoration-entry .panel-section-heading {
+  align-items: center;
+}
+
+.decoration-side-preview {
+  margin-top: 12px;
+}
+
+.deco-composite {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255,255,255,.72), rgba(255,255,255,.72)),
+    #fff9fb;
+}
+
+.deco-composite-layer {
+  position: absolute;
+  width: 34%;
+  height: 34%;
+  object-fit: contain;
+  pointer-events: none;
+  transform-origin: center;
+}
+
+.deco-composite-calendar {
+  width: 70%;
+  aspect-ratio: 4 / 3;
+  margin: 4px auto 0;
+  border-radius: 8px;
+  transition: box-shadow .15s ease, transform .15s ease;
+}
+
+.calendar-deco-composite {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  cursor: zoom-in;
+}
+
+.calendar-deco-composite:hover {
+  box-shadow: 0 7px 14px rgba(40,40,60,.13);
+}
+
+.deco-composite-side {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  cursor: zoom-in;
+}
+
+.decoration-modal-backdrop {
+  padding-top: 35px;
+}
+
+.decoration-editor-modal {
+  width: min(1100px, calc(100% - 30px));
+  max-height: calc(100vh - 70px);
+  overflow: auto;
+  padding: 22px;
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 20px 70px rgba(30,32,45,.14);
+}
+
+.decoration-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.decoration-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.decoration-toolbar select {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+}
+
+.deco-size-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  color: var(--subtext);
+  font-size: 11px;
+}
+
+.decoration-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 20% 25%, rgba(245,169,189,.12), transparent 28%),
+    radial-gradient(circle at 80% 75%, rgba(168,216,239,.15), transparent 28%),
+    white;
+  touch-action: none;
+}
+
+.deco-canvas-date {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 999;
+  color: #b6b8c1;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.deco-edit-layer {
+  position: absolute;
+  width: 24%;
+  height: 24%;
+  object-fit: contain;
+  cursor: grab;
+  transform-origin: center;
+  user-select: none;
+  touch-action: none;
+}
+
+.deco-edit-layer.selected {
+  outline: 2px dashed rgba(219,120,148,.8);
+  outline-offset: 3px;
+}
+
+.layer-panel {
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fafafd;
+}
+
+.layer-panel-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.layer-help {
+  margin: 5px 0 11px;
+  color: var(--subtext);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.layer-item {
+  display: grid;
+  grid-template-columns: 36px minmax(0,1fr) 26px;
+  gap: 7px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  cursor: grab;
+}
+
+.layer-item.selected {
+  border-color: var(--pink);
+  background: var(--pink-light);
+}
+
+.layer-item img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.layer-item span {
+  overflow: hidden;
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.layer-item button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff1f4;
+  color: #d96f89;
+}
+
+.decoration-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.decoration-viewer-modal {
+  position: relative;
+  width: min(780px, calc(100% - 30px));
+  padding: 25px;
+  border-radius: 20px;
+  background: white;
+}
+
+.viewer-close {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 10px;
+}
+
+.decoration-viewer-canvas {
+  padding-top: 12px;
+}
+
+.viewer-date {
+  margin-bottom: 10px;
+  color: var(--subtext);
+  font-size: 12px;
+}
+
+.deco-composite-viewer {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+}
+
+/* =========================
+   V9 EVENT MODAL
+========================= */
+
+.event-modal {
+  width: min(520px, 100%);
+  padding: 22px;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 20px 60px rgba(30,32,45,.12);
+}
+
+.event-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.event-modal-form > input,
+.event-modal-form textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  outline: none;
+}
+
+.event-modal-form textarea {
+  min-height: 90px;
+}
+
+.event-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.event-modal-actions-right {
+  display: flex;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.calendar-event-chip {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.calendar-event-chip:hover {
+  filter: brightness(.97);
+}
+
+.schedule-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.schedule-list-card {
+  width: 100%;
+}
+
+.schedule-item-button {
+  width: 100%;
+  grid-template-columns: 130px minmax(0,1fr);
+  border: 1px solid var(--line);
+  text-align: left;
+  cursor: pointer;
+}
+
+.schedule-item-button:hover {
+  background: #fffafb;
+}
+
+/* =========================
+   V9 VISIBILITY
+========================= */
+
+.visibility-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.read-only .owner-control,
+.read-only .quick-input-row,
+.read-only #dayTodoForm,
+.read-only .quick-item-actions,
+.read-only #openScheduleCreateButton {
+  display: none !important;
+}
+
+.read-only .goal-status-select {
+  pointer-events: none;
+}
+
+.read-only .quick-item input[type="checkbox"],
+.read-only .todo-row input[type="checkbox"] {
+  pointer-events: none;
+}
+
+@media (max-width: 850px) {
+  .decoration-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .layer-panel {
+    max-height: 230px;
+    overflow: auto;
+  }
+}
