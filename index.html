@@ -28,7 +28,7 @@
   <!-- SITE -->
   <div id="siteApp" class="site hidden">
     <header class="header">
-      <div class="logo">My Calendar</div>
+      <button id="logoHomeButton" class="logo logo-button" type="button">My Calendar</button>
       <nav class="nav">
         <button class="nav-button active" data-page="calendar">캘린더</button>
         <button class="nav-button" data-page="schedule">일정</button>
@@ -180,11 +180,11 @@
             <h2 class="card-title">사이트 공개 설정</h2>
             <p class="card-description">공개 시 로그인하지 않은 방문자도 내용을 볼 수 있어요. 편집은 관리자만 가능합니다.</p>
             <div class="visibility-setting">
-              <label class="switch-row">
+              <label class="switch-control">
                 <input id="sitePublicToggle" type="checkbox">
+                <span class="switch-track"><span class="switch-knob"></span></span>
                 <span id="sitePublicLabel">비공개</span>
               </label>
-              <button id="sitePublicSaveButton" type="button" class="primary-button">공개 설정 저장</button>
               <p id="sitePublicMessage" class="form-message"></p>
             </div>
           </section>
@@ -302,12 +302,9 @@
       <div class="decoration-editor-layout">
         <div class="decoration-main">
           <div class="decoration-toolbar">
+            <button id="openStickerPickerButton" type="button" class="secondary-button owner-control">스티커 추가</button>
             <label class="file-button owner-control">사진 추가<input id="decoImageFileInput" type="file" accept="image/*"></label>
-            <select id="decoStickerSelect" class="owner-control"><option value="">스티커 선택</option></select>
-            <button id="decoAddStickerButton" type="button" class="secondary-button owner-control">스티커 추가</button>
-            <label class="deco-size-control owner-control">크기
-              <input id="decoScaleRange" type="range" min="0.25" max="2.5" step="0.05" value="1">
-            </label>
+            <span class="deco-toolbar-hint">선택 후 드래그로 이동 · 모서리로 크기 · 위 손잡이로 회전</span>
           </div>
           <div id="decorationCanvas" class="decoration-canvas">
             <div class="deco-canvas-date" id="decoCanvasDate"></div>
@@ -324,6 +321,21 @@
       <div class="decoration-editor-footer owner-control">
         <button id="decorationEditorSaveButton" type="button" class="primary-button">완료</button>
       </div>
+    </div>
+  </div>
+
+
+  <!-- STICKER PICKER -->
+  <div id="stickerPickerModal" class="modal-backdrop hidden">
+    <div class="sticker-picker-modal">
+      <div class="modal-header">
+        <div>
+          <span class="section-label">STICKERS</span>
+          <h2>스티커 추가</h2>
+        </div>
+        <button id="stickerPickerCloseButton" class="close-button">×</button>
+      </div>
+      <div id="stickerPickerGrid" class="sticker-picker-grid"></div>
     </div>
   </div>
 

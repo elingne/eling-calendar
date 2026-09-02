@@ -1018,3 +1018,334 @@ textarea { resize: vertical; }
     overflow: auto;
   }
 }
+
+
+/* =========================
+   V10 HOME / INITIAL
+========================= */
+
+.logo-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.logo-button:hover {
+  color: var(--pink-deep);
+}
+
+/* =========================
+   V10 STICKER PICKER
+========================= */
+
+.sticker-picker-modal {
+  width: min(720px, 100%);
+  max-height: 75vh;
+  overflow: auto;
+  padding: 22px;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 20px 60px rgba(30,32,45,.12);
+}
+
+.sticker-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.sticker-picker-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-height: 105px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fcfcfe;
+}
+
+.sticker-picker-card:hover {
+  border-color: var(--pink);
+  background: var(--pink-light);
+}
+
+.sticker-picker-card img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.sticker-picker-card span {
+  max-width: 100%;
+  overflow: hidden;
+  color: #696c76;
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.deco-toolbar-hint {
+  margin-left: auto;
+  color: var(--subtext);
+  font-size: 10px;
+}
+
+/* =========================
+   V10 DECO TRANSFORM HANDLES
+========================= */
+
+.deco-edit-item {
+  --deco-scale: 1;
+  --deco-rotation: 0deg;
+  position: absolute;
+  width: 24%;
+  height: 24%;
+  transform:
+    translate(-50%, -50%)
+    scale(var(--deco-scale))
+    rotate(var(--deco-rotation));
+  transform-origin: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.deco-edit-item:active {
+  cursor: grabbing;
+}
+
+.deco-edit-item .deco-edit-layer {
+  position: static;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  outline: none;
+}
+
+.deco-edit-item.selected {
+  outline: 2px dashed rgba(219,120,148,.9);
+  outline-offset: 5px;
+}
+
+.deco-resize-handle,
+.deco-rotate-handle {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2px solid white;
+  border-radius: 4px;
+  background: var(--pink-deep);
+  box-shadow: 0 1px 5px rgba(40,40,60,.2);
+}
+
+.deco-edit-item.selected .deco-resize-handle,
+.deco-edit-item.selected .deco-rotate-handle {
+  display: block;
+}
+
+.deco-resize-handle {
+  right: -12px;
+  bottom: -12px;
+  cursor: nwse-resize;
+}
+
+.deco-rotate-handle {
+  left: 50%;
+  top: -32px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  cursor: grab;
+}
+
+.deco-edit-item.selected::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -19px;
+  width: 1px;
+  height: 17px;
+  background: rgba(219,120,148,.8);
+}
+
+/* =========================
+   V10 DECO BELOW EVENTS
+========================= */
+
+.calendar-event-list {
+  position: relative;
+  z-index: 12;
+}
+
+.calendar-top-badges,
+.day-number {
+  z-index: 14;
+}
+
+.calendar-deco-composite {
+  z-index: 2;
+  top: 64%;
+  max-height: 64%;
+  pointer-events: auto;
+}
+
+.deco-composite-calendar {
+  opacity: .92;
+}
+
+/* =========================
+   V10 STICKER ADMIN
+========================= */
+
+.sticker-admin-card {
+  position: relative;
+  min-height: 104px;
+}
+
+.sticker-card-delete {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 23px;
+  height: 23px;
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0 !important;
+  border-radius: 50%;
+  background: rgba(255,241,244,.95) !important;
+  color: #d96f89 !important;
+  font-size: 15px !important;
+}
+
+.sticker-card-delete:hover {
+  background: #ffe5eb !important;
+}
+
+/* =========================
+   V10 DIRECT PUBLIC SWITCH
+========================= */
+
+.switch-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.switch-control > input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-track {
+  position: relative;
+  width: 44px;
+  height: 25px;
+  border-radius: 999px;
+  background: #dfe1e8;
+  transition: background .18s ease;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 4px rgba(30,32,45,.16);
+  transition: transform .18s ease;
+}
+
+.switch-control > input:checked + .switch-track {
+  background: var(--pink);
+}
+
+.switch-control > input:checked + .switch-track .switch-knob {
+  transform: translateX(19px);
+}
+
+/* =========================
+   V10 RED PERIOD DROP
+========================= */
+
+.period-drop {
+  filter: none !important;
+}
+
+.red-drop-icon {
+  width: 10px;
+  height: 14px;
+  display: block;
+  background: #e84b63;
+  border-radius: 70% 45% 65% 45%;
+  transform: rotate(45deg);
+}
+
+/* =========================
+   V10 CONNECTED EVENTS
+========================= */
+
+.calendar-event-list {
+  gap: 4px;
+}
+
+.calendar-event-chip {
+  position: relative;
+  z-index: 12;
+  min-height: 18px;
+  padding: 3px 6px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--blue-light);
+  color: #5c91ad;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.calendar-event-chip.event-continues-left {
+  margin-left: -11px;
+  padding-left: 11px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.calendar-event-chip.event-continues-right {
+  margin-right: -11px;
+  padding-right: 11px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.calendar-day.other-month .calendar-event-chip {
+  opacity: .6;
+}
+
+@media (max-width: 700px) {
+  .calendar-event-chip.event-continues-left {
+    margin-left: -6px;
+  }
+
+  .calendar-event-chip.event-continues-right {
+    margin-right: -6px;
+  }
+
+  .deco-toolbar-hint {
+    width: 100%;
+    margin-left: 0;
+  }
+}

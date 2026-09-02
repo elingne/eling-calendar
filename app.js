@@ -41,6 +41,7 @@ const loginMessage = $("loginMessage");
 const logoutButton = $("logoutButton");
 
 const navButtons = [...document.querySelectorAll(".nav-button")];
+const logoHomeButton = $("logoHomeButton");
 const calendarPage = $("calendarPage");
 const schedulePage = $("schedulePage");
 const adminPage = $("adminPage");
@@ -94,9 +95,10 @@ const decorationEditorTitle = $("decorationEditorTitle");
 const decorationCanvas = $("decorationCanvas");
 const decoCanvasDate = $("decoCanvasDate");
 const decoImageFileInput = $("decoImageFileInput");
-const decoStickerSelect = $("decoStickerSelect");
-const decoAddStickerButton = $("decoAddStickerButton");
-const decoScaleRange = $("decoScaleRange");
+const openStickerPickerButton = $("openStickerPickerButton");
+const stickerPickerModal = $("stickerPickerModal");
+const stickerPickerCloseButton = $("stickerPickerCloseButton");
+const stickerPickerGrid = $("stickerPickerGrid");
 const layerList = $("layerList");
 const decorationViewerModal = $("decorationViewerModal");
 const decorationViewerCloseButton = $("decorationViewerCloseButton");
@@ -120,7 +122,6 @@ const eventModalMessage = $("eventModalMessage");
 
 const sitePublicToggle = $("sitePublicToggle");
 const sitePublicLabel = $("sitePublicLabel");
-const sitePublicSaveButton = $("sitePublicSaveButton");
 const sitePublicMessage = $("sitePublicMessage");
 
 const searchButton = $("searchButton");
@@ -189,8 +190,13 @@ async function showSite() {
 
   await loadStickers();
 
-  showPage("calendar");
-  renderCalendar();
+  await showPage("calendar");
+
+  // 첫 진입 때 레이아웃 계산 전에 캘린더가 잘리는 브라우저 케이스 방지
+  requestAnimationFrame(() => {
+    renderCalendar();
+    requestAnimationFrame(() => renderCalendar());
+  });
 
   if (isOwner) {
     loadQuickTodos();
@@ -245,6 +251,14 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
 });
 
 /* NAV */
+logoHomeButton.addEventListener("click", () => {
+  showPage("calendar");
+  window.setTimeout(() => {
+    renderCalendar();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, 0);
+});
+
 navButtons.forEach((button) => {
   button.addEventListener("click", () => showPage(button.dataset.page));
 });
@@ -525,8 +539,10 @@ async function loadCalendarExtras() {
     if (periodOn) {
       const badge = document.createElement("span");
       badge.className = "calendar-simple-badge period-drop";
-      badge.textContent = "💧";
       badge.title = "생리";
+      const drop = document.createElement("i");
+      drop.className = "red-drop-icon";
+      badge.appendChild(drop);
       badgeWrap.appendChild(badge);
     }
 
@@ -535,22 +551,37 @@ async function loadCalendarExtras() {
     }
 
     const eventBox = cell.querySelector(".calendar-event-list");
-    events
+    const cellEvents = events
       .filter(event => event.start_date <= key && event.end_date >= key)
-      .slice(0, 3)
-      .forEach(event => {
-        const chip = document.createElement("button");
-        chip.type = "button";
-        chip.className = "calendar-event-chip";
-        chip.textContent = event.title;
+      .sort((a, b) => {
+        const aSpan = a.end_date.localeCompare(a.start_date);
+        const bSpan = b.end_date.localeCompare(b.start_date);
+        return a.start_date.localeCompare(b.start_date) || bSpan.localeCompare(aSpan) || a.id - b.id;
+      })
+      .slice(0, 3);
 
-        chip.addEventListener("click", (clickEvent) => {
-          clickEvent.stopPropagation();
-          openEventModal(event, true);
-        });
+    cellEvents.forEach(event => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "calendar-event-chip";
 
-        eventBox.appendChild(chip);
+      const continuesLeft = event.start_date < key;
+      const continuesRight = event.end_date > key;
+
+      if (continuesLeft) chip.classList.add("event-continues-left");
+      if (continuesRight) chip.classList.add("event-continues-right");
+
+      // 시작 칸에만 제목을 쓰고 이어지는 칸은 빈 바처럼 연결
+      chip.textContent = continuesLeft ? "" : event.title;
+      chip.title = event.title;
+
+      chip.addEventListener("click", (clickEvent) => {
+        clickEvent.stopPropagation();
+        openEventModal(event, true);
       });
+
+      eventBox.appendChild(chip);
+    });
 
     const dateDecos = decos
       .filter(item => item.record_date === key)
@@ -586,7 +617,7 @@ function buildDecorationComposite(layers, mode = "calendar") {
 
     img.style.left = `${layer.position_x ?? 50}%`;
     img.style.top = `${layer.position_y ?? 50}%`;
-    img.style.transform = `translate(-50%, -50%) scale(${layer.scale ?? 1})`;
+    img.style.transform = `translate(-50%, -50%) scale(${layer.scale ?? 1}) rotate(${layer.rotation ?? 0}deg)`;
     img.style.zIndex = String(layer.z_order ?? index);
     wrap.appendChild(img);
   });
@@ -1224,88 +1255,193 @@ function closeDecorationEditor() {
 }
 
 function renderDecorationEditor() {
-  decorationCanvas.querySelectorAll(".deco-edit-layer").forEach(node => node.remove());
+  decorationCanvas.querySelectorAll(".deco-edit-item").forEach(node => node.remove());
 
   decorationLayers
     .sort((a, b) => (a.z_order || 0) - (b.z_order || 0))
     .forEach((layer, index) => {
       layer.z_order = index;
+      if (layer.rotation === undefined || layer.rotation === null) layer.rotation = 0;
+
+      const item = document.createElement("div");
+      item.className = "deco-edit-item";
+      item.dataset.layerId = layer.id;
+      item.style.left = `${layer.position_x ?? 50}%`;
+      item.style.top = `${layer.position_y ?? 50}%`;
+      item.style.zIndex = String(index + 1);
+      item.style.setProperty("--deco-scale", layer.scale ?? 1);
+      item.style.setProperty("--deco-rotation", `${layer.rotation ?? 0}deg`);
+
+      if (layer.id === selectedDecorationLayerId) item.classList.add("selected");
 
       const img = document.createElement("img");
       img.className = "deco-edit-layer";
-      if (layer.id === selectedDecorationLayerId) img.classList.add("selected");
-
-      img.dataset.layerId = layer.id;
       img.src = layer.decoration_type === "sticker"
         ? layer.stickers?.image_url
         : layer.image_url;
+      img.draggable = false;
 
-      img.style.left = `${layer.position_x ?? 50}%`;
-      img.style.top = `${layer.position_y ?? 50}%`;
-      img.style.transform = `translate(-50%, -50%) scale(${layer.scale ?? 1})`;
-      img.style.zIndex = String(index + 1);
+      if (!img.src) return;
 
-      enableDecorationDrag(img, layer);
-      img.addEventListener("pointerdown", () => selectDecorationLayer(layer.id));
+      const resizeHandle = document.createElement("button");
+      resizeHandle.type = "button";
+      resizeHandle.className = "deco-resize-handle";
+      resizeHandle.title = "드래그해서 크기 조절";
 
-      decorationCanvas.appendChild(img);
+      const rotateHandle = document.createElement("button");
+      rotateHandle.type = "button";
+      rotateHandle.className = "deco-rotate-handle";
+      rotateHandle.title = "드래그해서 회전";
+
+      item.append(img, resizeHandle, rotateHandle);
+
+      enableDecorationMove(item, layer);
+      enableDecorationResize(resizeHandle, item, layer);
+      enableDecorationRotate(rotateHandle, item, layer);
+
+      item.addEventListener("pointerdown", event => {
+        if (
+          event.target.closest(".deco-resize-handle") ||
+          event.target.closest(".deco-rotate-handle")
+        ) return;
+
+        selectDecorationLayer(layer.id, false);
+      });
+
+      decorationCanvas.appendChild(item);
     });
 
   renderLayerList();
-  syncDecorationScaleControl();
 }
 
-function enableDecorationDrag(element, layer) {
-  element.addEventListener("pointerdown", (event) => {
+function enableDecorationMove(element, layer) {
+  element.addEventListener("pointerdown", event => {
     if (!isOwner) return;
+    if (
+      event.target.closest(".deco-resize-handle") ||
+      event.target.closest(".deco-rotate-handle")
+    ) return;
 
     event.preventDefault();
-    element.setPointerCapture(event.pointerId);
+    selectDecorationLayer(layer.id, false);
 
     const rect = decorationCanvas.getBoundingClientRect();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startPosX = Number(layer.position_x ?? 50);
+    const startPosY = Number(layer.position_y ?? 50);
 
-    const move = (moveEvent) => {
-      const x = Math.max(0, Math.min(100, ((moveEvent.clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(0, Math.min(100, ((moveEvent.clientY - rect.top) / rect.height) * 100));
+    element.setPointerCapture(event.pointerId);
 
-      layer.position_x = x;
-      layer.position_y = y;
-      element.style.left = `${x}%`;
-      element.style.top = `${y}%`;
+    const move = moveEvent => {
+      const dx = ((moveEvent.clientX - startX) / rect.width) * 100;
+      const dy = ((moveEvent.clientY - startY) / rect.height) * 100;
+
+      layer.position_x = Math.max(0, Math.min(100, startPosX + dx));
+      layer.position_y = Math.max(0, Math.min(100, startPosY + dy));
+
+      element.style.left = `${layer.position_x}%`;
+      element.style.top = `${layer.position_y}%`;
     };
 
     const up = () => {
       element.removeEventListener("pointermove", move);
       element.removeEventListener("pointerup", up);
+      element.removeEventListener("pointercancel", up);
     };
 
     element.addEventListener("pointermove", move);
     element.addEventListener("pointerup", up);
+    element.addEventListener("pointercancel", up);
   });
 }
 
-function selectDecorationLayer(id) {
+function enableDecorationResize(handle, element, layer) {
+  handle.addEventListener("pointerdown", event => {
+    if (!isOwner) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    selectDecorationLayer(layer.id, false);
+
+    const canvasRect = decorationCanvas.getBoundingClientRect();
+    const centerX = canvasRect.left + (Number(layer.position_x ?? 50) / 100) * canvasRect.width;
+    const centerY = canvasRect.top + (Number(layer.position_y ?? 50) / 100) * canvasRect.height;
+
+    const startDistance = Math.max(
+      1,
+      Math.hypot(event.clientX - centerX, event.clientY - centerY)
+    );
+    const startScale = Number(layer.scale ?? 1);
+
+    handle.setPointerCapture(event.pointerId);
+
+    const move = moveEvent => {
+      const distance = Math.hypot(moveEvent.clientX - centerX, moveEvent.clientY - centerY);
+      layer.scale = Math.max(0.2, Math.min(3.5, startScale * (distance / startDistance)));
+      element.style.setProperty("--deco-scale", layer.scale);
+    };
+
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+    };
+
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  });
+}
+
+function enableDecorationRotate(handle, element, layer) {
+  handle.addEventListener("pointerdown", event => {
+    if (!isOwner) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    selectDecorationLayer(layer.id, false);
+
+    const canvasRect = decorationCanvas.getBoundingClientRect();
+    const centerX = canvasRect.left + (Number(layer.position_x ?? 50) / 100) * canvasRect.width;
+    const centerY = canvasRect.top + (Number(layer.position_y ?? 50) / 100) * canvasRect.height;
+
+    handle.setPointerCapture(event.pointerId);
+
+    const move = moveEvent => {
+      const angle = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) * 180 / Math.PI + 90;
+      layer.rotation = Math.round(angle);
+      element.style.setProperty("--deco-rotation", `${layer.rotation}deg`);
+    };
+
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+    };
+
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  });
+}
+
+function selectDecorationLayer(id, rerender = true) {
   selectedDecorationLayerId = id;
-  renderDecorationEditor();
-}
 
-function syncDecorationScaleControl() {
-  const selected = decorationLayers.find(layer => layer.id === selectedDecorationLayerId);
-  decoScaleRange.disabled = !selected;
-  decoScaleRange.value = selected?.scale ?? 1;
-}
-
-decoScaleRange.addEventListener("input", () => {
-  const selected = decorationLayers.find(layer => layer.id === selectedDecorationLayerId);
-  if (!selected) return;
-
-  selected.scale = Number(decoScaleRange.value);
-
-  const element = decorationCanvas.querySelector(`[data-layer-id="${selected.id}"]`);
-  if (element) {
-    element.style.transform = `translate(-50%, -50%) scale(${selected.scale})`;
+  if (rerender) {
+    renderDecorationEditor();
+    return;
   }
-});
+
+  decorationCanvas.querySelectorAll(".deco-edit-item").forEach(item => {
+    item.classList.toggle("selected", String(item.dataset.layerId) === String(id));
+  });
+
+  layerList.querySelectorAll(".layer-item").forEach(item => {
+    item.classList.toggle("selected", String(item.dataset.layerId) === String(id));
+  });
+}
 
 function renderLayerList() {
   layerList.innerHTML = "";
@@ -1392,21 +1528,56 @@ function normalizeDecorationOrder() {
     .forEach((layer, index) => layer.z_order = index);
 }
 
-function renderStickerEditorOptions() {
-  decoStickerSelect.innerHTML = '<option value="">스티커 선택</option>';
+function renderStickerPicker() {
+  if (!stickerPickerGrid) return;
+
+  stickerPickerGrid.innerHTML = "";
+
+  if (!stickers.length) {
+    stickerPickerGrid.innerHTML = '<p class="empty-text">어드민에서 등록한 스티커가 없어요.</p>';
+    return;
+  }
 
   stickers.forEach(sticker => {
-    const option = document.createElement("option");
-    option.value = sticker.id;
-    option.textContent = sticker.name;
-    decoStickerSelect.appendChild(option);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sticker-picker-card";
+
+    const img = document.createElement("img");
+    img.src = sticker.image_url;
+    img.alt = sticker.name;
+
+    const name = document.createElement("span");
+    name.textContent = sticker.name;
+
+    button.append(img, name);
+
+    button.addEventListener("click", () => {
+      addStickerLayer(sticker);
+      stickerPickerModal.classList.add("hidden");
+    });
+
+    stickerPickerGrid.appendChild(button);
   });
 }
 
-decoAddStickerButton.addEventListener("click", () => {
-  const sticker = stickers.find(item => String(item.id) === decoStickerSelect.value);
-  if (!sticker) return;
+openStickerPickerButton.addEventListener("click", () => {
+  if (!isOwner) return;
+  renderStickerPicker();
+  stickerPickerModal.classList.remove("hidden");
+});
 
+stickerPickerCloseButton.addEventListener("click", () => {
+  stickerPickerModal.classList.add("hidden");
+});
+
+stickerPickerModal.addEventListener("click", event => {
+  if (event.target === stickerPickerModal) {
+    stickerPickerModal.classList.add("hidden");
+  }
+});
+
+function addStickerLayer(sticker) {
   const tempId = `temp-${crypto.randomUUID()}`;
 
   decorationLayers.push({
@@ -1419,13 +1590,13 @@ decoAddStickerButton.addEventListener("click", () => {
     position_x: 50,
     position_y: 50,
     scale: 1,
+    rotation: 0,
     z_order: decorationLayers.length
   });
 
   selectedDecorationLayerId = tempId;
-  decoStickerSelect.value = "";
   renderDecorationEditor();
-});
+}
 
 decoImageFileInput.addEventListener("change", async () => {
   const file = decoImageFileInput.files?.[0];
@@ -1444,6 +1615,7 @@ decoImageFileInput.addEventListener("change", async () => {
     position_x: 50,
     position_y: 50,
     scale: 1,
+    rotation: 0,
     z_order: decorationLayers.length
   });
 
@@ -1468,6 +1640,7 @@ decorationEditorSaveButton.addEventListener("click", async () => {
       position_x: layer.position_x ?? 50,
       position_y: layer.position_y ?? 50,
       scale: layer.scale ?? 1,
+      rotation: layer.rotation ?? 0,
       z_order: layer.z_order ?? 0
     };
 
@@ -1826,23 +1999,33 @@ function renderStickerAdminList() {
   if (!stickerAdminList) return;
   stickerAdminList.innerHTML = "";
 
-  stickers.forEach(s => {
+  stickers.forEach(sticker => {
     const item = document.createElement("div");
-    item.className = "sticker-admin-item";
+    item.className = "sticker-admin-item sticker-admin-card";
 
     const img = document.createElement("img");
-    img.src = s.image_url;
+    img.src = sticker.image_url;
+    img.alt = sticker.name;
 
     const name = document.createElement("span");
-    name.textContent = s.name;
+    name.textContent = sticker.name;
 
     const del = document.createElement("button");
-    del.textContent = "삭제";
+    del.type = "button";
+    del.className = "sticker-card-delete";
+    del.textContent = "×";
+    del.title = "삭제";
+
     del.addEventListener("click", async () => {
-      if (!confirm(`"${s.name}" 스티커를 삭제할까요?`)) return;
-      await supabaseClient.from("stickers").delete().eq("id", s.id);
-      loadStickers();
-      if (selectedRecordDate) loadDayDecorations(selectedRecordDate);
+      const { error } = await supabaseClient.from("stickers").delete().eq("id", sticker.id);
+
+      if (error) {
+        stickerMessage.textContent = "삭제하지 못했어요.";
+        return;
+      }
+
+      await loadStickers();
+      if (selectedRecordDate) await loadDecorationSidePreview(selectedRecordDate);
       renderCalendar();
     });
 
@@ -1869,23 +2052,29 @@ async function loadSiteVisibilityAdmin() {
   sitePublicMessage.textContent = "";
 }
 
-sitePublicToggle.addEventListener("change", () => {
-  sitePublicLabel.textContent = sitePublicToggle.checked ? "전체 공개" : "비공개";
-});
-
-sitePublicSaveButton.addEventListener("click", async () => {
+sitePublicToggle.addEventListener("change", async () => {
   if (!isOwner) return;
+
+  const nextPublic = sitePublicToggle.checked;
+  sitePublicLabel.textContent = nextPublic ? "전체 공개" : "비공개";
+  sitePublicMessage.textContent = "저장 중...";
 
   const { error } = await supabaseClient
     .from("site_settings")
     .upsert({
       setting_key: "site_visibility",
-      setting_value: {
-        public: sitePublicToggle.checked
-      }
+      setting_value: { public: nextPublic }
     }, { onConflict: "setting_key" });
 
-  sitePublicMessage.textContent = error ? "저장하지 못했어요." : "저장했어요.";
+  if (error) {
+    sitePublicToggle.checked = !nextPublic;
+    sitePublicLabel.textContent = sitePublicToggle.checked ? "전체 공개" : "비공개";
+    sitePublicMessage.textContent = "저장하지 못했어요.";
+    return;
+  }
+
+  sitePublicMessage.textContent = nextPublic ? "전체 공개로 변경했어요." : "비공개로 변경했어요.";
+  window.setTimeout(() => sitePublicMessage.textContent = "", 1200);
 });
 
 /* SEARCH */
@@ -1986,6 +2175,20 @@ function renderSearchResults(items) {
     searchResults.appendChild(row);
   });
 }
+
+window.addEventListener("pageshow", () => {
+  if (!siteApp.classList.contains("hidden") && !calendarPage.classList.contains("hidden")) {
+    requestAnimationFrame(() => renderCalendar());
+  }
+});
+
+let calendarResizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(calendarResizeTimer);
+  calendarResizeTimer = setTimeout(() => {
+    if (!calendarPage.classList.contains("hidden")) renderCalendar();
+  }, 120);
+});
 
 /* START */
 clearQuickTodoAutofill();
