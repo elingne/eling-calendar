@@ -516,3 +516,74 @@ textarea { resize: vertical; }
     margin-left: 27px;
   }
 }
+
+
+/* =========================
+   QUICK TODO V8 INLINE EDIT
+========================= */
+
+.quick-delete-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.quick-inline-editor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quick-inline-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--pink);
+  border-radius: 9px;
+  outline: none;
+  background: white;
+  font-size: 13px;
+}
+
+.quick-inline-save,
+.quick-inline-cancel {
+  flex: 0 0 auto;
+  padding: 7px 9px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.quick-inline-save {
+  border: 0;
+  background: var(--pink);
+  color: white;
+}
+
+.quick-inline-cancel {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--subtext);
+}
+
+.quick-item.editing .quick-item-actions {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .quick-inline-editor {
+    width: calc(100% - 28px);
+    flex-wrap: wrap;
+  }
+
+  .quick-inline-input {
+    flex-basis: 100%;
+  }
+}

@@ -915,40 +915,104 @@ function makeQuickTodoRow(item, completed) {
   editButton.type = "button";
   editButton.className = "quick-edit-button";
   editButton.textContent = "수정";
-  editButton.addEventListener("click", async () => {
-    const nextTitle = window.prompt("할 일을 수정해주세요.", item.title);
-
-    if (nextTitle === null) return;
-
-    const trimmed = nextTitle.trim();
-
-    if (!trimmed) {
-      alert("내용을 비워둘 수 없어요.");
-      return;
-    }
-
-    const { error } = await supabaseClient
-      .from("quick_todos")
-      .update({ title: trimmed })
-      .eq("id", item.id);
-
-    if (error) {
-      console.error("QUICK TODO 수정 오류:", error);
-      alert("수정하지 못했어요.");
-      return;
-    }
-
-    await loadQuickTodos();
-
-    if (selectedRecordDate) {
-      await loadDayTodos(selectedRecordDate);
-    }
-  });
 
   const deleteButton = document.createElement("button");
   deleteButton.type = "button";
   deleteButton.className = "quick-delete-button";
-  deleteButton.textContent = "삭제";
+  deleteButton.textContent = "×";
+  deleteButton.title = "삭제";
+  deleteButton.setAttribute("aria-label", `${item.title} 삭제`);
+
+  editButton.addEventListener("click", () => {
+    if (row.classList.contains("editing")) return;
+
+    row.classList.add("editing");
+    check.disabled = true;
+    editButton.classList.add("hidden");
+    deleteButton.classList.add("hidden");
+
+    const originalTitle = item.title;
+
+    const editor = document.createElement("div");
+    editor.className = "quick-inline-editor";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "quick-inline-input";
+    input.value = originalTitle;
+    input.maxLength = 120;
+    input.autocomplete = "off";
+
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.className = "quick-inline-save";
+    saveButton.textContent = "저장";
+
+    const cancelButton = document.createElement("button");
+    cancelButton.type = "button";
+    cancelButton.className = "quick-inline-cancel";
+    cancelButton.textContent = "취소";
+
+    const finishEditing = () => {
+      row.classList.remove("editing");
+      check.disabled = false;
+      editButton.classList.remove("hidden");
+      deleteButton.classList.remove("hidden");
+      editor.remove();
+      content.classList.remove("hidden");
+    };
+
+    const saveEditing = async () => {
+      const nextTitle = input.value.trim();
+
+      if (!nextTitle) {
+        input.focus();
+        return;
+      }
+
+      saveButton.disabled = true;
+
+      const { error } = await supabaseClient
+        .from("quick_todos")
+        .update({ title: nextTitle })
+        .eq("id", item.id);
+
+      if (error) {
+        console.error("QUICK TODO 수정 오류:", error);
+        saveButton.disabled = false;
+        return;
+      }
+
+      await loadQuickTodos();
+
+      if (selectedRecordDate) {
+        await loadDayTodos(selectedRecordDate);
+      }
+    };
+
+    saveButton.addEventListener("click", saveEditing);
+    cancelButton.addEventListener("click", finishEditing);
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveEditing();
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        finishEditing();
+      }
+    });
+
+    editor.append(input, saveButton, cancelButton);
+    content.classList.add("hidden");
+    row.insertBefore(editor, actions);
+
+    input.focus();
+    input.select();
+  });
+
   deleteButton.addEventListener("click", async () => {
     if (!window.confirm(`"${item.title}"을(를) 삭제할까요?`)) return;
 
@@ -959,7 +1023,6 @@ function makeQuickTodoRow(item, completed) {
 
     if (error) {
       console.error("QUICK TODO 삭제 오류:", error);
-      alert("삭제하지 못했어요.");
       return;
     }
 
