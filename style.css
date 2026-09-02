@@ -1,1 +1,188 @@
 *{box-sizing:border-box}:root{--background:#f7f8fc;--card:#fff;--text:#2f3037;--subtext:#9699a5;--line:#ececf2;--pink:#f5a9bd;--pink-deep:#db7894;--pink-light:#fff0f4;--blue:#a8d8ef;--radius:20px}html,body{margin:0;min-height:100%}body{min-height:100vh;font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--background);color:var(--text)}button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px;background:var(--background)}.login-card{width:min(420px,100%);padding:42px;background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:0 15px 45px rgba(45,47,60,.06)}.login-icon{margin-bottom:10px;font-size:34px;text-align:center}.login-card h1{margin:0;text-align:center;font-size:26px}.login-description{margin:10px 0 30px;color:var(--subtext);font-size:13px;text-align:center}.login-card label{display:block;margin:16px 0 7px;font-size:12px;font-weight:600}.login-card input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;outline:none;color:var(--text);background:#fff}.login-card input:focus{border-color:var(--pink)}.login-button{width:100%;margin-top:24px;padding:13px;border:0;border-radius:12px;background:var(--pink);color:#fff;font-weight:700}.login-button:hover{background:var(--pink-deep)}.login-button:disabled{opacity:.6;cursor:default}.login-message{min-height:18px;margin:12px 0 0;color:#dd6684;font-size:12px;text-align:center}.header{height:76px;padding:0 40px;display:flex;align-items:center;background:#fff;border-bottom:1px solid var(--line)}.logo{margin-right:55px;font-size:20px;font-weight:700}.nav{display:flex;gap:8px}.nav-button{padding:10px 18px;border:0;border-radius:12px;background:transparent;color:var(--subtext);font-size:14px}.nav-button.active{background:var(--pink-light);color:var(--pink-deep);font-weight:600}.header-actions{margin-left:auto;display:flex;align-items:center;gap:10px}.search-button{width:42px;height:42px;border:1px solid var(--line);border-radius:50%;background:#fff;font-size:22px}.logout-button{padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--subtext);font-size:12px}.main{width:min(1400px,calc(100% - 60px));margin:30px auto 70px}.quick-todo-card{margin-bottom:20px;padding:24px;background:#fff;border:1px solid var(--line);border-radius:var(--radius)}.section-title-row{display:flex;justify-content:space-between;align-items:flex-start}.section-label{color:var(--pink);font-size:11px;font-weight:700;letter-spacing:1.5px}.section-title-row h2{margin:5px 0 18px;font-size:18px}.more-button{border:0;background:transparent;color:var(--subtext)}.quick-input-row{display:flex;max-width:600px;gap:8px}.quick-input-row input{flex:1;padding:13px 15px;border:1px solid var(--line);border-radius:12px;outline:none}.quick-input-row input:focus{border-color:var(--pink)}.quick-input-row button{width:44px;border:0;border-radius:12px;background:var(--pink-light);color:var(--pink-deep);font-size:22px}.quick-todo-list{margin-top:14px}.empty-text{margin:0;color:var(--subtext);font-size:13px}.calendar-card{overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:var(--radius)}.calendar-header{height:90px;display:flex;align-items:center;justify-content:center;gap:24px}.calendar-header h1{min-width:180px;margin:0;text-align:center;font-size:24px}.month-button{width:38px;height:38px;border:1px solid var(--line);border-radius:50%;background:#fff;color:#777;font-size:24px}.month-button:hover{background:var(--pink-light)}.goal-summary-placeholder{margin:0 24px 24px;padding:18px;border-radius:14px;background:#fafafd;color:var(--subtext);font-size:13px}.weekdays{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.weekdays div{padding:14px;text-align:center;color:var(--subtext);font-size:11px;font-weight:700}.weekdays .sunday{color:#e995a6}.weekdays .saturday{color:#86bddd}.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr)}.calendar-day{position:relative;min-height:145px;padding:13px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);transition:background .15s ease}.calendar-day:nth-child(7n){border-right:0}.calendar-day:hover{background:#fffafb}.calendar-day.other-month{background:#fafafd;color:#c9cbd3}.day-number{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:13px}.calendar-day.today .day-number{background:var(--pink);color:#fff;font-weight:700}.calendar-day.sunday:not(.other-month) .day-number{color:#df8298}.calendar-day.saturday:not(.other-month) .day-number{color:#71afd1}.day-panel{position:fixed;z-index:100;top:0;right:0;width:min(440px,100%);height:100vh;padding:28px;background:#fff;border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(40,40,60,.06);transform:translateX(100%);transition:transform .25s ease;overflow-y:auto}.day-panel.open{transform:translateX(0)}.day-panel-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:30px}.day-panel-header h2{margin:5px 0 0;font-size:22px}.close-button{width:38px;height:38px;border:0;border-radius:50%;background:#f6f6f9;font-size:22px}.day-panel-content{display:flex;flex-direction:column;gap:12px}.panel-placeholder{padding:18px;border:1px solid var(--line);border-radius:15px}.panel-placeholder strong{font-size:14px}.panel-placeholder p{margin:8px 0 0;color:var(--subtext);font-size:12px}@media(max-width:700px){.header{padding:0 18px}.logo{margin-right:20px}.nav-button{padding:8px 10px}.logout-button{display:none}.main{width:calc(100% - 24px)}.calendar-day{min-height:90px;padding:7px}.login-card{padding:30px 24px}}
+
+
+/* =========================
+   PAGES / ADMIN
+========================= */
+
+.page-section {
+  width: 100%;
+}
+
+.page-card {
+  padding: 26px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.page-title {
+  margin: 6px 0 7px;
+  font-size: 26px;
+}
+
+.page-description {
+  margin: 0;
+  color: var(--subtext);
+  font-size: 13px;
+}
+
+.admin-heading {
+  margin-bottom: 20px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, .7fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.admin-card-title h2,
+.admin-coming-card h2 {
+  margin: 0 0 7px;
+  font-size: 18px;
+}
+
+.admin-card-title p,
+.admin-coming-card p {
+  margin: 0;
+  color: var(--subtext);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.goal-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.3fr) auto;
+  gap: 9px;
+  margin-top: 22px;
+}
+
+.goal-form input {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: none;
+  background: #fff;
+}
+
+.goal-form input:focus {
+  border-color: var(--pink);
+}
+
+.goal-form button {
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--pink);
+  color: #fff;
+  font-weight: 700;
+}
+
+.goal-form button:hover {
+  background: var(--pink-deep);
+}
+
+.goal-form button:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+.form-message {
+  min-height: 18px;
+  margin: 10px 0 0;
+  color: var(--pink-deep);
+  font-size: 12px;
+}
+
+.goal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.goal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fcfcfe;
+}
+
+.goal-item-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.goal-item-text strong {
+  font-size: 14px;
+}
+
+.goal-item-text span {
+  color: var(--subtext);
+  font-size: 12px;
+}
+
+.goal-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.secondary-button,
+.danger-button {
+  padding: 8px 11px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.secondary-button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+}
+
+.danger-button {
+  border: 0;
+  background: #fff1f4;
+  color: #d96f89;
+}
+
+.error-text {
+  margin: 0;
+  color: #d96f89;
+  font-size: 13px;
+}
+
+.admin-coming-card {
+  min-height: 150px;
+}
+
+@media (max-width: 900px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .goal-form {
+    grid-template-columns: 1fr;
+  }
+
+  .goal-form button {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 560px) {
+  .goal-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -38,29 +38,77 @@
     </header>
 
     <main class="main">
-      <section class="quick-todo-card">
-        <div class="section-title-row">
-          <div><span class="section-label">QUICK TODO</span><h2>지금 해야 하는 일</h2></div>
-          <button class="more-button">더보기</button>
-        </div>
-        <div class="quick-input-row">
-          <input id="quickTodoInput" type="text" placeholder="지금 해야 할 일을 적어보세요">
-          <button id="quickTodoAddButton" type="button">+</button>
-        </div>
-        <div id="quickTodoList" class="quick-todo-list"><p class="empty-text">아직 등록된 할 일이 없어요.</p></div>
+      <section id="calendarPage" class="page-section">
+        <section class="quick-todo-card">
+          <div class="section-title-row">
+            <div><span class="section-label">QUICK TODO</span><h2>지금 해야 하는 일</h2></div>
+            <button class="more-button">더보기</button>
+          </div>
+          <div class="quick-input-row">
+            <input id="quickTodoInput" type="text" placeholder="지금 해야 할 일을 적어보세요">
+            <button id="quickTodoAddButton" type="button">+</button>
+          </div>
+          <div id="quickTodoList" class="quick-todo-list"><p class="empty-text">아직 등록된 할 일이 없어요.</p></div>
+        </section>
+
+        <section class="calendar-card">
+          <div class="calendar-header">
+            <button id="prevMonth" class="month-button">‹</button>
+            <h1 id="calendarTitle"></h1>
+            <button id="nextMonth" class="month-button">›</button>
+          </div>
+          <div class="goal-summary-placeholder">목표 달성 통계가 여기에 표시됩니다.</div>
+          <div class="weekdays">
+            <div class="sunday">SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div class="saturday">SAT</div>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
       </section>
 
-      <section class="calendar-card">
-        <div class="calendar-header">
-          <button id="prevMonth" class="month-button">‹</button>
-          <h1 id="calendarTitle"></h1>
-          <button id="nextMonth" class="month-button">›</button>
+      <section id="schedulePage" class="page-section hidden">
+        <div class="page-card">
+          <span class="section-label">SCHEDULE</span>
+          <h1 class="page-title">일정</h1>
+          <p class="page-description">일정 목록은 다음 단계에서 연결할게요.</p>
         </div>
-        <div class="goal-summary-placeholder">목표 달성 통계가 여기에 표시됩니다.</div>
-        <div class="weekdays">
-          <div class="sunday">SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div class="saturday">SAT</div>
+      </section>
+
+      <section id="adminPage" class="page-section hidden">
+        <div class="admin-heading">
+          <div>
+            <span class="section-label">ADMIN</span>
+            <h1 class="page-title">어드민</h1>
+            <p class="page-description">캘린더에서 사용할 달성 목표를 관리해요.</p>
+          </div>
         </div>
-        <div id="calendarGrid" class="calendar-grid"></div>
+
+        <div class="admin-grid">
+          <section class="page-card">
+            <div class="admin-card-title">
+              <div>
+                <h2>달성 목표</h2>
+                <p>추가한 목표는 이후 날짜별 기록에 자동으로 표시됩니다.</p>
+              </div>
+            </div>
+
+            <form id="goalForm" class="goal-form">
+              <input id="goalNameInput" type="text" maxlength="60" placeholder="예: 포트폴리오 5시간" required>
+              <input id="goalDescriptionInput" type="text" maxlength="120" placeholder="설명 (선택)">
+              <button id="goalSubmitButton" type="submit">목표 추가</button>
+            </form>
+
+            <p id="goalMessage" class="form-message"></p>
+            <div id="goalList" class="goal-list">
+              <p class="empty-text">목표를 불러오는 중이에요.</p>
+            </div>
+          </section>
+
+          <section class="page-card admin-coming-card">
+            <span class="section-label">COMING NEXT</span>
+            <h2>다른 어드민 설정</h2>
+            <p>스티커 등록, 배지 이미지, 홈페이지 잠금 설정은 뒤에서 이곳에 이어서 붙일게요.</p>
+          </section>
+        </div>
       </section>
     </main>
   </div>
