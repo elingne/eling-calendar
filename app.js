@@ -757,6 +757,7 @@ function renderMonthlyGoalSummary(activeGoals, records) {
 }
 
 const todoAccordionToggle = $("todoAccordionToggle");
+const todoAccordionLabel = $("todoAccordionLabel");
 const todoAccordionBody = $("todoAccordionBody");
 
 function setTodoAccordion(open) {
@@ -783,6 +784,11 @@ async function openDayPanel(date) {
 
   selectedRecordDate = key;
   setTodoAccordion(false);
+
+  if (todoAccordionLabel) {
+    todoAccordionLabel.textContent = `${date.getMonth() + 1}월 ${date.getDate()}일에 한 일`;
+  }
+
   const weekdays = ["일요일","월요일","화요일","수요일","목요일","금요일","토요일"];
   selectedDateTitle.textContent = `${date.getFullYear()}. ${date.getMonth()+1}. ${date.getDate()}. ${weekdays[date.getDay()]}`;
   dayPanel.classList.add("open");
@@ -909,10 +915,15 @@ dayTodoForm.addEventListener("submit", async (event) => {
 
 async function loadDayTodos(date) {
   const [todosResult, quickResult] = await Promise.all([
-    supabaseClient.from("todos").select("*").eq("target_date", date).order("created_at"),
-    supabaseClient.from("quick_todos").select("*").eq("is_completed", true)
-      .gte("completed_at", `${date}T00:00:00`)
-      .lt("completed_at", `${formatDateKey(new Date(parseLocalDate(date).getTime() + 86400000))}T00:00:00`)
+    supabaseClient
+      .from("todos")
+      .select("*")
+      .eq("target_date", date)
+      .order("created_at"),
+    supabaseClient
+      .from("quick_todos")
+      .select("*")
+      .eq("is_completed", true)
       .order("completed_at")
   ]);
 
@@ -954,11 +965,14 @@ async function loadDayTodos(date) {
   }
 
   completedQuickOnDate.innerHTML = "";
-  const quicks = quickResult.data || [];
+  const quicks = (quickResult.data || []).filter(item =>
+    item.completed_at &&
+    formatDateKey(new Date(item.completed_at)) === date
+  );
 
   if (quicks.length) {
     const h = document.createElement("h4");
-    h.textContent = "이날 완료한 QUICK TODO";
+    h.textContent = "완료한 일";
     completedQuickOnDate.appendChild(h);
 
     quicks.forEach(q => {
@@ -1007,11 +1021,30 @@ async function addQuickTodo() {
 }
 
 async function loadQuickTodos() {
-  const { data, error } = await supabaseClient.from("quick_todos").select("*").order("created_at");
-  if (error) return;
+  const { data, error } = await supabaseClient
+    .from("quick_todos")
+    .select("*")
+    .order("created_at");
 
-  const active = (data || []).filter(x => !x.is_completed);
-  const completed = (data || []).filter(x => x.is_completed).sort((a,b) => new Date(b.completed_at) - new Date(a.completed_at));
+  if (error) {
+    console.error("QUICK TODO 불러오기 오류:", error);
+    return;
+  }
+
+  const rows = data || [];
+  const todayKey = formatDateKey(new Date());
+
+  const active = rows.filter(item => !item.is_completed);
+
+  // 메인의 완료 목록은 '오늘 완료한 것'만 보여준다.
+  // completed_at은 UTC로 저장되지만 Date로 변환한 뒤 브라우저 로컬 날짜를 기준으로 귀속한다.
+  const completedToday = rows
+    .filter(item =>
+      item.is_completed &&
+      item.completed_at &&
+      formatDateKey(new Date(item.completed_at)) === todayKey
+    )
+    .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
 
   quickTodoList.innerHTML = "";
 
@@ -1023,11 +1056,15 @@ async function loadQuickTodos() {
 
   quickTodoCompletedList.innerHTML = "";
 
-  if (!completed.length) {
-    quickTodoCompletedList.innerHTML = '<p class="empty-text">완료 기록이 없어요.</p>';
+  if (!completedToday.length) {
+    quickTodoCompletedList.innerHTML = '<p class="empty-text">오늘 완료한 일이 없어요.</p>';
   } else {
-    completed.forEach(item => quickTodoCompletedList.appendChild(makeQuickTodoRow(item, true)));
+    completedToday.forEach(item =>
+      quickTodoCompletedList.appendChild(makeQuickTodoRow(item, true))
+    );
   }
+
+  lastQuickTodoDateKey = todayKey;
 }
 
 function makeQuickTodoRow(item, completed) {
@@ -2345,6 +2382,31 @@ window.addEventListener("resize", () => {
   calendarResizeTimer = setTimeout(() => {
     if (!calendarPage.classList.contains("hidden")) renderCalendar();
   }, 120);
+});
+
+let lastQuickTodoDateKey = formatDateKey(new Date());
+
+function refreshQuickTodoOnDateChange() {
+  const todayKey = formatDateKey(new Date());
+
+  if (todayKey === lastQuickTodoDateKey) return;
+
+  lastQuickTodoDateKey = todayKey;
+
+  // 날짜가 넘어가면 메인 완료 목록은 새 날짜 기준으로 즉시 다시 그린다.
+  if (!siteApp.classList.contains("hidden")) {
+    loadQuickTodos();
+
+    // 열려 있는 사이드탭은 기록 날짜 자체가 고정되어 있으므로 해당 날짜 기록을 유지한다.
+    if (selectedRecordDate && dayPanel.classList.contains("open")) {
+      loadDayTodos(selectedRecordDate);
+    }
+  }
+}
+
+window.setInterval(refreshQuickTodoOnDateChange, 60 * 1000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshQuickTodoOnDateChange();
 });
 
 /* START */
