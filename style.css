@@ -2811,3 +2811,50 @@ textarea {
   border-color: #dcefe0 !important;
   color: #6d9d73 !important;
 }
+
+
+/* =========================================================
+   V21 GOAL RECORD FIX
+========================================================= */
+
+.daily-goal-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 94px;
+  align-items: center;
+  gap: 8px;
+}
+
+.daily-goal-info strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.goal-status-select {
+  width: 94px;
+}
+
+.goal-status-select.status-success {
+  background: #f3fbf6 !important;
+  border-color: #d7eadc !important;
+}
+
+.goal-status-select.status-holiday {
+  background: var(--sky-50) !important;
+  border-color: var(--sky-200) !important;
+}
+
+.goal-status-select.status-fail {
+  background: var(--pink-50) !important;
+  border-color: var(--pink-200) !important;
+}
+
+#goalRecordSaveState {
+  display: block;
+  min-height: 14px;
+  margin-top: 5px;
+  text-align: right;
+  font-size: 9px !important;
+  color: var(--ink-500);
+}
