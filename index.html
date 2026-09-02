@@ -57,7 +57,18 @@
             <h1 id="calendarTitle"></h1>
             <button id="nextMonth" class="month-button">›</button>
           </div>
-          <div class="goal-summary-placeholder">목표 달성 통계가 여기에 표시됩니다.</div>
+          <section id="goalSummary" class="goal-summary">
+            <div class="goal-summary-header">
+              <div>
+                <span class="section-label">MONTHLY GOALS</span>
+                <h2>이번 달 목표 기록</h2>
+              </div>
+              <span class="goal-summary-note">미기록은 통계에서 제외돼요.</span>
+            </div>
+            <div id="goalSummaryList" class="goal-summary-list">
+              <p class="empty-text">통계를 불러오는 중이에요.</p>
+            </div>
+          </section>
           <div class="weekdays">
             <div class="sunday">SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div class="saturday">SAT</div>
           </div>

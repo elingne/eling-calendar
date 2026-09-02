@@ -20,6 +20,7 @@ const adminPage = document.getElementById("adminPage");
 
 const calendarTitle = document.getElementById("calendarTitle");
 const calendarGrid = document.getElementById("calendarGrid");
+const goalSummaryList = document.getElementById("goalSummaryList");
 const prevMonthButton = document.getElementById("prevMonth");
 const nextMonthButton = document.getElementById("nextMonth");
 const dayPanel = document.getElementById("dayPanel");
@@ -140,6 +141,8 @@ function renderCalendar() {
   for (let date = 1; date <= remainingCells; date++) {
     createDayCell(new Date(year, month + 1, date), true);
   }
+
+  loadMonthlyGoalSummary(year, month);
 }
 
 function createDayCell(date, otherMonth) {
@@ -211,6 +214,137 @@ nextMonthButton.addEventListener("click", () => {
 });
 
 closeDayPanelButton.addEventListener("click", closeDayPanel);
+
+/* =========================
+   MONTHLY GOAL SUMMARY
+========================= */
+
+async function loadMonthlyGoalSummary(year, monthIndex) {
+  goalSummaryList.innerHTML = '<p class="empty-text">통계를 불러오는 중이에요.</p>';
+
+  const monthStart = `${year}-${String(monthIndex + 1).padStart(2, "0")}-01`;
+  const nextMonthDate = new Date(year, monthIndex + 1, 1);
+  const nextMonthStart =
+    `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, "0")}-01`;
+
+  const goalsResult = await supabaseClient
+    .from("goals")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (goalsResult.error) {
+    console.error("월간 통계 목표 불러오기 오류:", goalsResult.error);
+    goalSummaryList.innerHTML = '<p class="error-text">목표 통계를 불러오지 못했어요.</p>';
+    return;
+  }
+
+  const activeGoals = goalsResult.data || [];
+
+  if (!activeGoals.length) {
+    goalSummaryList.innerHTML =
+      '<p class="empty-text">등록된 목표가 없어요. 어드민에서 목표를 추가하면 월간 통계가 여기에 표시돼요.</p>';
+    return;
+  }
+
+  const recordsResult = await supabaseClient
+    .from("daily_goal_records")
+    .select("goal_id,status,record_date")
+    .gte("record_date", monthStart)
+    .lt("record_date", nextMonthStart);
+
+  if (recordsResult.error) {
+    console.error("월간 목표 기록 불러오기 오류:", recordsResult.error);
+    goalSummaryList.innerHTML = '<p class="error-text">목표 통계를 불러오지 못했어요.</p>';
+    return;
+  }
+
+  renderMonthlyGoalSummary(activeGoals, recordsResult.data || []);
+}
+
+function renderMonthlyGoalSummary(activeGoals, records) {
+  goalSummaryList.innerHTML = "";
+
+  const labels = {
+    success: "성공",
+    effort: "노력",
+    holiday: "휴일",
+    fail: "실패"
+  };
+
+  activeGoals.forEach((goal) => {
+    const goalRecords = records.filter((record) => record.goal_id === goal.id);
+
+    const counts = {
+      success: 0,
+      effort: 0,
+      holiday: 0,
+      fail: 0
+    };
+
+    goalRecords.forEach((record) => {
+      if (Object.prototype.hasOwnProperty.call(counts, record.status)) {
+        counts[record.status] += 1;
+      }
+    });
+
+    const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+
+    const card = document.createElement("div");
+    card.className = "goal-summary-item";
+
+    const heading = document.createElement("div");
+    heading.className = "goal-summary-item-heading";
+
+    const name = document.createElement("strong");
+    name.textContent = goal.name;
+
+    const totalText = document.createElement("span");
+    totalText.textContent = total ? `${total}일 기록` : "아직 기록 없음";
+
+    heading.append(name, totalText);
+
+    const bar = document.createElement("div");
+    bar.className = "goal-stat-bar";
+
+    ["success", "effort", "holiday", "fail"].forEach((status) => {
+      const segment = document.createElement("div");
+      segment.className = `goal-stat-segment stat-${status}`;
+
+      const percent = total ? (counts[status] / total) * 100 : 0;
+      segment.style.width = `${percent}%`;
+
+      if (percent > 0) {
+        segment.title = `${labels[status]} ${counts[status]}일 (${Math.round(percent)}%)`;
+      }
+
+      bar.appendChild(segment);
+    });
+
+    if (!total) {
+      bar.classList.add("empty");
+    }
+
+    const legend = document.createElement("div");
+    legend.className = "goal-stat-legend";
+
+    ["success", "effort", "holiday", "fail"].forEach((status) => {
+      const item = document.createElement("span");
+      item.className = "goal-stat-legend-item";
+
+      const dot = document.createElement("i");
+      dot.className = `legend-dot stat-${status}`;
+
+      const percent = total ? Math.round((counts[status] / total) * 100) : 0;
+      item.append(dot, document.createTextNode(`${labels[status]} ${percent}%`));
+      legend.appendChild(item);
+    });
+
+    card.append(heading, bar, legend);
+    goalSummaryList.appendChild(card);
+  });
+}
 
 /* =========================
    DAILY GOAL RECORDS
@@ -351,6 +485,15 @@ async function saveDailyGoalRecord(goalId, status, select) {
   }
 
   goalRecordSaveState.textContent = "저장됨";
+
+  const recordDateObject = new Date(`${selectedRecordDate}T00:00:00`);
+  if (
+    recordDateObject.getFullYear() === currentDate.getFullYear() &&
+    recordDateObject.getMonth() === currentDate.getMonth()
+  ) {
+    loadMonthlyGoalSummary(currentDate.getFullYear(), currentDate.getMonth());
+  }
+
   window.clearTimeout(saveDailyGoalRecord._timer);
   saveDailyGoalRecord._timer = window.setTimeout(() => {
     goalRecordSaveState.textContent = "";
