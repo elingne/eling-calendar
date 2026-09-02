@@ -67,7 +67,6 @@ const quickTodoCompletedList = $("quickTodoCompletedList");
 const dayTodoForm = $("dayTodoForm");
 const dayTodoInput = $("dayTodoInput");
 const dayTodoList = $("dayTodoList");
-const completedQuickOnDate = $("completedQuickOnDate");
 
 const goalForm = $("goalForm");
 const goalNameInput = $("goalNameInput");
@@ -786,7 +785,7 @@ async function openDayPanel(date) {
   setTodoAccordion(false);
 
   if (todoAccordionLabel) {
-    todoAccordionLabel.textContent = `${date.getMonth() + 1}월 ${date.getDate()}일에 한 일`;
+    todoAccordionLabel.textContent = `${date.getMonth() + 1}월 ${date.getDate()}일에 완료한 일`;
   }
 
   const weekdays = ["일요일","월요일","화요일","수요일","목요일","금요일","토요일"];
@@ -938,64 +937,81 @@ async function loadDayTodos(date) {
 
   dayTodoList.innerHTML = "";
 
-  const dayTodos = [...(todosResult.data || [])].sort((a, b) => {
-    if (a.is_completed !== b.is_completed) return a.is_completed ? -1 : 1;
-    return new Date(a.completed_at || a.created_at) - new Date(b.completed_at || b.created_at);
-  });
+  const completedDayTodos = (todosResult.data || [])
+    .filter(todo => todo.is_completed)
+    .map(todo => ({
+      source: "day",
+      id: todo.id,
+      title: todo.title,
+      completed_at: todo.completed_at || todo.created_at
+    }));
 
-  dayTodos.forEach(todo => {
+  const completedQuickTodos = (quickResult.data || [])
+    .filter(item =>
+      item.completed_at &&
+      formatDateKey(new Date(item.completed_at)) === date
+    )
+    .map(item => ({
+      source: "quick",
+      id: item.id,
+      title: item.title,
+      completed_at: item.completed_at
+    }));
+
+  const completedItems = [...completedDayTodos, ...completedQuickTodos]
+    .sort((a, b) => new Date(a.completed_at) - new Date(b.completed_at));
+
+  if (!completedItems.length) {
+    dayTodoList.innerHTML = '<p class="empty-text">아직 완료한 일이 없어요.</p>';
+    return;
+  }
+
+  completedItems.forEach(item => {
     const row = document.createElement("div");
-    row.className = `todo-row ${todo.is_completed ? "done" : ""}`;
+    row.className = "todo-row done completed-record-row";
 
-    const check = document.createElement("input");
-    check.type = "checkbox";
-    check.checked = todo.is_completed;
-    check.disabled = !isOwner;
-    check.addEventListener("change", async () => {
-      await supabaseClient.from("todos").update({
-        is_completed: check.checked,
-        completed_at: check.checked ? new Date().toISOString() : null
-      }).eq("id", todo.id);
-      loadDayTodos(date);
-    });
+    const checkMark = document.createElement("span");
+    checkMark.className = "completed-record-check";
+    checkMark.textContent = "✓";
 
     const text = document.createElement("span");
-    text.textContent = todo.title;
+    text.className = "completed-record-title";
+    text.textContent = item.title;
 
-    const del = document.createElement("button");
-    del.className = `row-delete ${isOwner ? "" : "hidden"}`;
-    del.textContent = "×";
-    del.addEventListener("click", async () => {
-      await supabaseClient.from("todos").delete().eq("id", todo.id);
-      loadDayTodos(date);
-    });
+    const sourceBadge = document.createElement("span");
+    sourceBadge.className = "completed-record-source";
+    sourceBadge.textContent = item.source === "quick" ? "QUICK" : "기록";
 
-    row.append(check, text, del);
+    row.append(checkMark, text, sourceBadge);
+
+    // 직접 '한 일 추가'로 기록한 항목은 여기서 삭제 가능.
+    // QUICK TODO 완료 기록은 메인의 완료 목록에서 관리하므로 중복 편집 UI는 만들지 않는다.
+    if (isOwner && item.source === "day") {
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "row-delete";
+      del.textContent = "×";
+      del.title = "기록 삭제";
+
+      del.addEventListener("click", async () => {
+        const { error } = await supabaseClient
+          .from("todos")
+          .delete()
+          .eq("id", item.id);
+
+        if (error) {
+          console.error("완료 기록 삭제 오류:", error);
+          return;
+        }
+
+        await loadDayTodos(date);
+      });
+
+      row.appendChild(del);
+    }
+
     dayTodoList.appendChild(row);
   });
-
-  if (!dayTodos.length) {
-    dayTodoList.innerHTML = '<p class="empty-text">아직 기록된 일이 없어요.</p>';
-  }
-
-  completedQuickOnDate.innerHTML = "";
-  const quicks = (quickResult.data || []).filter(item =>
-    item.completed_at &&
-    formatDateKey(new Date(item.completed_at)) === date
-  );
-
-  if (quicks.length) {
-    const h = document.createElement("h4");
-    h.textContent = "완료한 일";
-    completedQuickOnDate.appendChild(h);
-
-    quicks.forEach(q => {
-      const chip = document.createElement("div");
-      chip.className = "completed-quick-chip";
-      chip.textContent = `✓ ${q.title}`;
-      completedQuickOnDate.appendChild(chip);
-    });
-  }
 }
 
 function clearQuickTodoAutofill() {

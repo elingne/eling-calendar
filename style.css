@@ -2683,3 +2683,88 @@ textarea {
     width: 96vw !important;
   }
 }
+
+
+/* =========================================================
+   V18 COMPLETED LIST MERGE + SEARCH SIZE
+========================================================= */
+
+/* 사이드탭 완료 목록: 직접 기록 + QUICK TODO를 한 목록으로 */
+.completed-record-row {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 7px !important;
+}
+
+.completed-record-check {
+  color: #d982a2;
+  font-size: 12px !important;
+  font-weight: 700;
+  text-align: center;
+}
+
+.completed-record-title {
+  min-width: 0;
+}
+
+.completed-record-source {
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--sky-100);
+  color: #6ba5c3;
+  font-size: 8px !important;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+
+/* 이전 별도 QUICK 완료 영역은 더 이상 사용하지 않음 */
+.completed-quick-date-list {
+  display: none !important;
+}
+
+/* 검색 버튼은 확실히 크게 */
+.search-button {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px !important;
+  border: 1px solid var(--sky-200) !important;
+  background: var(--sky-50) !important;
+  color: #659fbe !important;
+  font-size: 24px !important;
+  line-height: 1 !important;
+  font-weight: 600;
+}
+
+.search-button:hover {
+  background: var(--sky-100) !important;
+}
+
+/* 검색 모달 안 입력창/버튼도 조금 크게 */
+.search-modal input[type="text"],
+#searchInput {
+  min-height: 42px !important;
+  padding: 9px 12px !important;
+  font-size: 14px !important;
+}
+
+.search-modal .primary-button,
+.search-modal button {
+  min-height: 38px;
+}
+
+@media (max-width: 700px) {
+  .search-button {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    font-size: 22px !important;
+  }
+}
