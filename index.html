@@ -84,14 +84,9 @@
           </div>
         </section>
 
-        <section class="calendar-card">
-          <div class="calendar-header">
-            <button id="prevMonth" class="month-button">‹</button>
-            <h1 id="calendarTitle"></h1>
-            <button id="nextMonth" class="month-button">›</button>
-          </div>
-
-          <section id="goalSummary" class="goal-summary">
+        <div class="calendar-desktop-layout">
+          <aside class="goal-summary-rail">
+            <section id="goalSummary" class="goal-summary">
             <div class="goal-summary-header">
               <div>
                 <span class="section-label">MONTHLY GOALS</span>
@@ -103,6 +98,14 @@
               <p class="empty-text">통계를 불러오는 중이에요.</p>
             </div>
           </section>
+          </aside>
+
+          <section class="calendar-card">
+          <div class="calendar-header">
+            <button id="prevMonth" class="month-button">‹</button>
+            <h1 id="calendarTitle"></h1>
+            <button id="nextMonth" class="month-button">›</button>
+          </div>
 
           <div class="calendar-tip">날짜 더블클릭: 하루 일정 · 날짜를 드래그: 여러 날 일정</div>
 
@@ -112,6 +115,7 @@
           </div>
           <div id="calendarGrid" class="calendar-grid"></div>
         </section>
+        </div>
       </section>
 
       <!-- SCHEDULE PAGE -->

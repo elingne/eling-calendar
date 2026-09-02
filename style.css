@@ -2359,3 +2359,327 @@ textarea:focus {
     width: 100% !important;
   }
 }
+
+
+/* =========================================================
+   V17 BALANCED SCALE + DESKTOP GOAL RAIL
+========================================================= */
+
+/* 전체적으로 v16보다 약 10% 크게 */
+html {
+  font-size: 15.4px;
+}
+
+.header {
+  min-height: 59px;
+  padding: 0 20px;
+  gap: 15px;
+}
+
+.logo {
+  font-size: 16.5px !important;
+}
+
+.nav-button {
+  min-height: 35px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.search-button,
+.logout-button {
+  min-height: 33px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.main {
+  width: min(1280px, calc(100% - 28px));
+  margin: 18px auto 44px;
+}
+
+.page-section {
+  gap: 13px;
+}
+
+.page-card,
+.quick-todo-card,
+.calendar-card {
+  padding: 15px !important;
+}
+
+.section-label {
+  font-size: 10px !important;
+}
+
+h1 {
+  font-size: 20px !important;
+}
+
+h2 {
+  font-size: 16.5px !important;
+}
+
+h3 {
+  font-size: 14px !important;
+}
+
+.card-description,
+.goal-summary-note,
+.empty-text,
+.form-message {
+  font-size: 11px !important;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+select,
+textarea {
+  min-height: 37px;
+  padding: 8px 10px !important;
+  font-size: 13px !important;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button,
+.file-button,
+.login-button {
+  min-height: 35px !important;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+}
+
+.quick-todo-card {
+  padding: 13px !important;
+}
+
+.quick-current,
+.quick-history {
+  padding: 11px !important;
+}
+
+#quickTodoInput {
+  min-height: 35px !important;
+}
+
+#quickTodoAddButton {
+  width: 35px !important;
+  height: 35px !important;
+}
+
+.quick-item,
+.todo-row {
+  min-height: 37px !important;
+  padding: 7px 8px !important;
+}
+
+.quick-item-title,
+.todo-row span {
+  font-size: 12px !important;
+}
+
+.quick-item-time {
+  font-size: 10px !important;
+}
+
+.quick-edit-button,
+.quick-delete-button,
+.row-delete {
+  min-width: 26px;
+  min-height: 26px;
+  font-size: 11px !important;
+}
+
+.calendar-header {
+  margin-bottom: 11px !important;
+}
+
+.month-button {
+  width: 33px !important;
+  height: 33px !important;
+}
+
+.calendar-tip {
+  font-size: 10px !important;
+}
+
+.weekdays {
+  min-height: 31px !important;
+  font-size: 10px !important;
+}
+
+.calendar-day {
+  min-height: 184px !important;
+  padding: 8px !important;
+}
+
+.day-number {
+  font-size: 11px !important;
+}
+
+.calendar-event-chip {
+  height: 19px !important;
+  min-height: 19px !important;
+  padding: 1px 6px !important;
+  font-size: 10px !important;
+}
+
+/* 데스크탑: 이번 달 목표 기록을 캘린더 왼쪽 여백으로 분리 */
+.calendar-desktop-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.goal-summary-rail {
+  position: sticky;
+  top: 74px;
+  min-width: 0;
+}
+
+.goal-summary-rail .goal-summary {
+  margin: 0 !important;
+  padding: 12px !important;
+  border-radius: 12px !important;
+}
+
+.goal-summary-rail .goal-summary-header {
+  display: block;
+  margin-bottom: 10px !important;
+}
+
+.goal-summary-rail .goal-summary-note {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.goal-summary-rail .goal-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px !important;
+}
+
+.goal-summary-rail .goal-summary-row {
+  padding: 8px !important;
+  border-radius: 9px !important;
+}
+
+/* 기존 가로형 통계가 있더라도 왼쪽 레일에서는 세로로 정돈 */
+.goal-summary-rail .goal-summary-row,
+.goal-summary-rail .goal-summary-item {
+  min-width: 0;
+}
+
+.calendar-desktop-layout > .calendar-card {
+  min-width: 0;
+}
+
+/* Side panel + admin also 10% up */
+.day-panel {
+  width: min(385px, 94vw) !important;
+}
+
+.day-panel-header {
+  padding: 15px 15px 11px !important;
+}
+
+.day-panel-content {
+  padding: 11px !important;
+  gap: 9px !important;
+}
+
+.panel-placeholder {
+  padding: 12px !important;
+}
+
+.panel-section-heading strong,
+.accordion-toggle strong {
+  font-size: 13px !important;
+}
+
+.panel-section-heading p,
+.accordion-toggle p {
+  font-size: 10px !important;
+}
+
+.daily-goal-row {
+  min-height: 37px !important;
+  padding: 7px 8px !important;
+}
+
+.accordion-toggle {
+  padding: 12px !important;
+}
+
+.accordion-body {
+  padding: 0 12px 12px !important;
+}
+
+.sticker-admin-list {
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)) !important;
+}
+
+.sticker-admin-card {
+  min-height: 99px !important;
+  padding: 8px !important;
+}
+
+.sticker-admin-thumb-wrap {
+  width: 57px !important;
+  height: 57px !important;
+}
+
+/* 태블릿/모바일에서는 목표 기록을 다시 캘린더 위쪽에 배치 */
+@media (max-width: 1080px) {
+  .calendar-desktop-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .goal-summary-rail {
+    position: static;
+    width: 100%;
+  }
+
+  .goal-summary-rail .goal-summary {
+    width: 100%;
+  }
+
+  .goal-summary-rail .goal-summary-header {
+    display: flex;
+  }
+
+  .calendar-desktop-layout > .calendar-card {
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  html {
+    font-size: 14.5px;
+  }
+
+  .header {
+    padding: 0 11px;
+  }
+
+  .main {
+    width: calc(100% - 12px);
+    margin-top: 11px;
+  }
+
+  .calendar-day {
+    min-height: 118px !important;
+    padding: 6px !important;
+  }
+
+  .day-panel {
+    width: 96vw !important;
+  }
+}
