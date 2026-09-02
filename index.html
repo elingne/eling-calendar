@@ -157,7 +157,6 @@
 
             <form id="goalForm" class="goal-form">
               <input id="goalNameInput" type="text" maxlength="60" placeholder="예: 포트폴리오 5시간" required>
-              <input id="goalDescriptionInput" type="text" maxlength="120" placeholder="설명 (선택)">
               <button id="goalSubmitButton" type="submit">목표 추가</button>
             </form>
             <p id="goalMessage" class="form-message"></p>
@@ -235,6 +234,68 @@
         </div>
         <div id="dailyGoalRecordList" class="daily-goal-record-list"></div>
       </section>
+
+      <section class="panel-placeholder goal-record-panel">
+        <div class="panel-section-heading">
+          <div><strong>목표 달성</strong><p>상태를 선택하면 바로 저장돼요.</p></div>
+          <span id="goalRecordSaveState" class="save-state"></span>
+        </div>
+        <div id="dailyGoalRecordList" class="daily-goal-record-list"></div>
+      </section>
+
+      <section class="panel-placeholder">
+        <div class="panel-section-heading">
+          <div><strong>할 일</strong><p>이 날짜의 할 일을 관리해요.</p></div>
+        </div>
+        <form id="dayTodoForm" class="mini-add-form">
+          <input id="dayTodoInput" type="text" maxlength="120" placeholder="할 일 추가" required>
+          <button type="submit">+</button>
+        </form>
+        <div id="dayTodoList" class="day-todo-list"></div>
+        <div id="completedQuickOnDate" class="completed-quick-on-date"></div>
+      </section>
+
+      <section class="panel-placeholder decoration-entry">
+        <div class="panel-section-heading">
+          <div>
+            <strong>다꾸</strong>
+            <p>사진과 스티커를 자유롭게 배치해요.</p>
+          </div>
+          <button id="openDecorationEditorButton" type="button" class="secondary-button owner-control">편집</button>
+        </div>
+        <div id="decorationSidePreview" class="decoration-side-preview">
+          <p class="empty-text">꾸민 이미지가 없어요.</p>
+        </div>
+      </section>
+
+      <section class="panel-placeholder todo-accordion">
+        <button id="todoAccordionToggle" type="button" class="accordion-toggle" aria-expanded="false">
+          <div>
+            <strong>할 일</strong>
+            <p>날짜별 할 일을 관리해요.</p>
+          </div>
+          <span class="accordion-chevron">⌄</span>
+        </button>
+        <div id="todoAccordionBody" class="accordion-body hidden">
+          <span id="goalRecordSaveState" class="save-state"></span>
+        </div>
+        <div id="dailyGoalRecordList" class="daily-goal-record-list"></div>
+      </section>
+
+      <section class="panel-placeholder">
+        <div class="panel-section-heading">
+          <div><strong>할 일</strong><p>이 날짜의 할 일을 관리해요.</p></div>
+        </div>
+        <form id="dayTodoForm" class="mini-add-form">
+          <input id="dayTodoInput" type="text" maxlength="120" placeholder="할 일 추가" required>
+          <button type="submit">+</button>
+        </form>
+        <div id="dayTodoList" class="day-todo-list"></div>
+        <div id="completedQuickOnDate" class="completed-quick-on-date"></div>
+        </div>
+      </section>
+
+      
 
       <section class="panel-placeholder">
         <div class="panel-section-heading">

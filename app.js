@@ -756,6 +756,22 @@ function renderMonthlyGoalSummary(activeGoals, records) {
   });
 }
 
+const todoAccordionToggle = $("todoAccordionToggle");
+const todoAccordionBody = $("todoAccordionBody");
+
+function setTodoAccordion(open) {
+  if (!todoAccordionToggle || !todoAccordionBody) return;
+
+  todoAccordionToggle.setAttribute("aria-expanded", String(open));
+  todoAccordionBody.classList.toggle("hidden", !open);
+  todoAccordionToggle.classList.toggle("open", open);
+}
+
+todoAccordionToggle?.addEventListener("click", () => {
+  const open = todoAccordionToggle.getAttribute("aria-expanded") !== "true";
+  setTodoAccordion(open);
+});
+
 /* DAY PANEL */
 async function openDayPanel(date) {
   const key = formatDateKey(date);
@@ -766,6 +782,7 @@ async function openDayPanel(date) {
   }
 
   selectedRecordDate = key;
+  setTodoAccordion(false);
   const weekdays = ["일요일","월요일","화요일","수요일","목요일","금요일","토요일"];
   selectedDateTitle.textContent = `${date.getFullYear()}. ${date.getMonth()+1}. ${date.getDate()}. ${weekdays[date.getDay()]}`;
   dayPanel.classList.add("open");
@@ -1980,7 +1997,7 @@ goalForm.addEventListener("submit", async (event) => {
 function startGoalEdit(goal) {
   editingGoalId = goal.id;
   goalNameInput.value = goal.name;
-  goalDescriptionInput.value = goal.description || "";
+  if (goalDescriptionInput) goalDescriptionInput.value = goal.description || "";
   goalSubmitButton.textContent = "수정 저장";
 }
 

@@ -1618,3 +1618,56 @@ textarea { resize: vertical; }
     max-height: 70px;
   }
 }
+
+
+/* =========================
+   V13 SIDE PANEL ORDER / ACCORDION
+========================= */
+
+.todo-accordion {
+  padding: 0;
+  overflow: hidden;
+}
+
+.accordion-toggle {
+  width: 100%;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.accordion-toggle strong {
+  font-size: 14px;
+}
+
+.accordion-toggle p {
+  margin: 8px 0 0;
+  color: var(--subtext);
+  font-size: 12px;
+}
+
+.accordion-chevron {
+  flex: 0 0 auto;
+  color: #a7a9b2;
+  font-size: 20px;
+  transition: transform .18s ease;
+}
+
+.accordion-toggle.open .accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.accordion-body {
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.accordion-body > *:first-child {
+  margin-top: 16px;
+}
