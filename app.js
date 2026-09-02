@@ -81,6 +81,7 @@ const stickerNameInput = $("stickerNameInput");
 const stickerFileInput = $("stickerFileInput");
 const stickerMessage = $("stickerMessage");
 const stickerAdminList = $("stickerAdminList");
+const stickerCountText = $("stickerCountText");
 
 const moodSelect = $("moodSelect");
 const periodCheck = $("periodCheck");
@@ -551,19 +552,24 @@ async function loadCalendarExtras() {
     }
 
     const eventBox = cell.querySelector(".calendar-event-list");
-    const cellEvents = events
+
+    const orderedEvents = [...events].sort((a, b) =>
+      a.start_date.localeCompare(b.start_date) ||
+      b.end_date.localeCompare(a.end_date) ||
+      a.id - b.id
+    );
+
+    // 같은 일정은 모든 날짜 칸에서 같은 세로 줄(row)을 사용해야 바가 정확히 이어진다.
+    const cellEvents = orderedEvents
       .filter(event => event.start_date <= key && event.end_date >= key)
-      .sort((a, b) => {
-        const aSpan = a.end_date.localeCompare(a.start_date);
-        const bSpan = b.end_date.localeCompare(b.start_date);
-        return a.start_date.localeCompare(b.start_date) || bSpan.localeCompare(aSpan) || a.id - b.id;
-      })
       .slice(0, 3);
 
-    cellEvents.forEach(event => {
+    cellEvents.forEach((event, rowIndex) => {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "calendar-event-chip";
+      chip.dataset.eventId = event.id;
+      chip.style.setProperty("--event-row", rowIndex);
 
       const continuesLeft = event.start_date < key;
       const continuesRight = event.end_date > key;
@@ -571,11 +577,10 @@ async function loadCalendarExtras() {
       if (continuesLeft) chip.classList.add("event-continues-left");
       if (continuesRight) chip.classList.add("event-continues-right");
 
-      // 시작 칸에만 제목을 쓰고 이어지는 칸은 빈 바처럼 연결
       chip.textContent = continuesLeft ? "" : event.title;
       chip.title = event.title;
 
-      chip.addEventListener("click", (clickEvent) => {
+      chip.addEventListener("click", clickEvent => {
         clickEvent.stopPropagation();
         openEventModal(event, true);
       });
@@ -606,21 +611,71 @@ function buildDecorationComposite(layers, mode = "calendar") {
   const wrap = document.createElement("div");
   wrap.className = `deco-composite deco-composite-${mode}`;
 
-  layers.forEach((layer, index) => {
-    const img = document.createElement("img");
-    img.className = "deco-composite-layer";
-    img.src = layer.decoration_type === "sticker"
-      ? layer.stickers?.image_url
-      : layer.image_url;
+  if (!layers.length) return wrap;
 
-    if (!img.src) return;
+  const prepared = layers
+    .map((layer, index) => ({
+      ...layer,
+      _src: layer.decoration_type === "sticker"
+        ? layer.stickers?.image_url
+        : layer.image_url,
+      _z: layer.z_order ?? index
+    }))
+    .filter(layer => layer._src);
 
-    img.style.left = `${layer.position_x ?? 50}%`;
-    img.style.top = `${layer.position_y ?? 50}%`;
-    img.style.transform = `translate(-50%, -50%) scale(${layer.scale ?? 1}) rotate(${layer.rotation ?? 0}deg)`;
-    img.style.zIndex = String(layer.z_order ?? index);
-    wrap.appendChild(img);
-  });
+  if (!prepared.length) return wrap;
+
+  // 실제 배치된 오브젝트 영역만 잡아 여백을 자동으로 잘라낸다.
+  // 기본 레이어 크기는 편집 캔버스의 약 24%이고 scale이 곱해진다.
+  const bounds = prepared.reduce((acc, layer) => {
+    const baseHalf = 12 * Number(layer.scale ?? 1);
+    const x = Number(layer.position_x ?? 50);
+    const y = Number(layer.position_y ?? 50);
+
+    acc.minX = Math.min(acc.minX, x - baseHalf);
+    acc.maxX = Math.max(acc.maxX, x + baseHalf);
+    acc.minY = Math.min(acc.minY, y - baseHalf);
+    acc.maxY = Math.max(acc.maxY, y + baseHalf);
+    return acc;
+  }, { minX: 100, maxX: 0, minY: 100, maxY: 0 });
+
+  const padding = mode === "calendar" ? 3 : 5;
+  const minX = Math.max(0, bounds.minX - padding);
+  const maxX = Math.min(100, bounds.maxX + padding);
+  const minY = Math.max(0, bounds.minY - padding);
+  const maxY = Math.min(100, bounds.maxY + padding);
+
+  const width = Math.max(8, maxX - minX);
+  const height = Math.max(8, maxY - minY);
+
+  wrap.style.setProperty("--crop-width", width);
+  wrap.style.setProperty("--crop-height", height);
+  wrap.style.aspectRatio = `${width} / ${height}`;
+
+  prepared
+    .sort((a, b) => a._z - b._z)
+    .forEach((layer, index) => {
+      const img = document.createElement("img");
+      img.className = "deco-composite-layer";
+      img.src = layer._src;
+
+      const normalizedX = ((Number(layer.position_x ?? 50) - minX) / width) * 100;
+      const normalizedY = ((Number(layer.position_y ?? 50) - minY) / height) * 100;
+
+      // 원래 캔버스 기준 24% 크기를 crop 폭/높이에 맞춰 재계산
+      const objectWidthPct = (24 / width) * 100;
+      const objectHeightPct = (24 / height) * 100;
+
+      img.style.left = `${normalizedX}%`;
+      img.style.top = `${normalizedY}%`;
+      img.style.width = `${objectWidthPct}%`;
+      img.style.height = `${objectHeightPct}%`;
+      img.style.transform =
+        `translate(-50%, -50%) scale(${layer.scale ?? 1}) rotate(${layer.rotation ?? 0}deg)`;
+      img.style.zIndex = String(layer.z_order ?? index);
+
+      wrap.appendChild(img);
+    });
 
   return wrap;
 }
@@ -1997,17 +2052,25 @@ stickerForm.addEventListener("submit", async (event) => {
 
 function renderStickerAdminList() {
   if (!stickerAdminList) return;
+
   stickerAdminList.innerHTML = "";
+  if (stickerCountText) stickerCountText.textContent = `${stickers.length}개`;
 
   stickers.forEach(sticker => {
     const item = document.createElement("div");
     item.className = "sticker-admin-item sticker-admin-card";
 
+    const imgWrap = document.createElement("div");
+    imgWrap.className = "sticker-admin-thumb-wrap";
+
     const img = document.createElement("img");
     img.src = sticker.image_url;
     img.alt = sticker.name;
+    img.loading = "lazy";
+    imgWrap.appendChild(img);
 
     const name = document.createElement("span");
+    name.className = "sticker-admin-name";
     name.textContent = sticker.name;
 
     const del = document.createElement("button");
@@ -2017,7 +2080,10 @@ function renderStickerAdminList() {
     del.title = "삭제";
 
     del.addEventListener("click", async () => {
-      const { error } = await supabaseClient.from("stickers").delete().eq("id", sticker.id);
+      const { error } = await supabaseClient
+        .from("stickers")
+        .delete()
+        .eq("id", sticker.id);
 
       if (error) {
         stickerMessage.textContent = "삭제하지 못했어요.";
@@ -2025,11 +2091,15 @@ function renderStickerAdminList() {
       }
 
       await loadStickers();
-      if (selectedRecordDate) await loadDecorationSidePreview(selectedRecordDate);
+
+      if (selectedRecordDate) {
+        await loadDecorationSidePreview(selectedRecordDate);
+      }
+
       renderCalendar();
     });
 
-    item.append(img, name, del);
+    item.append(imgWrap, name, del);
     stickerAdminList.appendChild(item);
   });
 

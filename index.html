@@ -165,14 +165,20 @@
           </section>
 
           <section class="page-card">
-            <h2 class="card-title">스티커 등록</h2>
-            <p class="card-description">작은 이미지는 자동으로 압축해 DB에 저장해요.</p>
+            <h2 class="card-title">스티커 관리</h2>
+            <p class="card-description">새 스티커를 등록하고, 등록된 스티커를 한눈에 관리해요.</p>
+
             <form id="stickerForm" class="stack-form compact-form">
               <input id="stickerNameInput" type="text" maxlength="40" placeholder="스티커 이름" required>
               <input id="stickerFileInput" type="file" accept="image/*" required>
               <button type="submit" class="primary-button">스티커 추가</button>
               <p id="stickerMessage" class="form-message"></p>
             </form>
+
+            <div class="sticker-management-heading">
+              <strong>등록된 스티커</strong>
+              <span id="stickerCountText"></span>
+            </div>
             <div id="stickerAdminList" class="sticker-admin-list"></div>
           </section>
 
@@ -213,7 +219,7 @@
           </label>
           <label class="period-check-label">
             <input id="periodCheck" type="checkbox" class="owner-control">
-            <span>🩸 생리</span>
+            <span class="period-label-content"><i class="red-drop-icon"></i> 생리</span>
           </label>
           <span id="quickMetaSaveState" class="save-state"></span>
         </div>

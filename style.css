@@ -1349,3 +1349,217 @@ textarea { resize: vertical; }
     margin-left: 0;
   }
 }
+
+
+/* =========================
+   V11 CROPPED DECO PREVIEW
+========================= */
+
+.deco-composite {
+  background: transparent;
+}
+
+.deco-composite-layer {
+  max-width: none;
+  max-height: none;
+}
+
+.deco-composite-calendar {
+  width: min(86%, 150px);
+  max-height: 78%;
+  margin: 0 auto;
+  background: transparent;
+}
+
+.calendar-deco-composite {
+  top: 61%;
+}
+
+.deco-composite-side {
+  width: min(100%, 330px);
+  margin: 0 auto;
+  background: transparent;
+  border: 0;
+}
+
+.deco-composite-viewer {
+  width: min(100%, 680px);
+  margin: 0 auto;
+  background: transparent;
+}
+
+.decoration-viewer-modal {
+  width: fit-content;
+  max-width: min(820px, calc(100% - 30px));
+}
+
+.decoration-viewer-canvas {
+  min-width: 260px;
+}
+
+/* =========================
+   V11 STICKER ADMIN
+========================= */
+
+.sticker-management-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  margin-bottom: 9px;
+}
+
+.sticker-management-heading strong {
+  font-size: 12px;
+}
+
+.sticker-management-heading span {
+  color: var(--subtext);
+  font-size: 10px;
+}
+
+.sticker-admin-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 9px;
+  margin-top: 0;
+}
+
+.sticker-admin-card {
+  position: relative;
+  min-height: 105px;
+  padding: 8px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fcfcfe;
+}
+
+.sticker-admin-thumb-wrap {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sticker-admin-thumb-wrap img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.sticker-admin-name {
+  width: 100%;
+  margin-top: 5px;
+  overflow: hidden;
+  color: #6e717b;
+  font-size: 10px;
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* =========================
+   V11 SAME PERIOD ICON
+========================= */
+
+.period-label-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.period-label-content .red-drop-icon {
+  width: 8px;
+  height: 11px;
+}
+
+/* =========================
+   V11 TRUE CONNECTED EVENT BAR
+========================= */
+
+.calendar-day {
+  overflow: visible;
+}
+
+.calendar-grid {
+  overflow: hidden;
+}
+
+.calendar-event-list {
+  position: relative;
+  z-index: 20;
+  overflow: visible;
+}
+
+.calendar-event-chip {
+  position: relative;
+  z-index: 20;
+  height: 19px;
+  min-height: 19px;
+  margin-top: 0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.calendar-event-chip.event-continues-left {
+  margin-left: -12px !important;
+  width: calc(100% + 12px);
+  padding-left: 12px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.calendar-event-chip.event-continues-right {
+  margin-right: -12px !important;
+  width: calc(100% + 12px);
+  padding-right: 12px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.calendar-event-chip.event-continues-left.event-continues-right {
+  width: calc(100% + 24px);
+}
+
+.calendar-day:not(:nth-child(7n)) .calendar-event-chip.event-continues-right {
+  box-shadow: 12px 0 0 var(--blue-light);
+}
+
+.calendar-day:not(:nth-child(7n+1)) .calendar-event-chip.event-continues-left {
+  box-shadow: -12px 0 0 var(--blue-light);
+}
+
+/* 토/일 주간 경계에서는 다음 줄로 넘어가므로 연결 그림자를 만들지 않는다. */
+.calendar-day:nth-child(7n) .event-continues-right,
+.calendar-day:nth-child(7n+1) .event-continues-left {
+  box-shadow: none;
+}
+
+@media (max-width: 700px) {
+  .calendar-event-chip.event-continues-left {
+    margin-left: -7px !important;
+    width: calc(100% + 7px);
+  }
+
+  .calendar-event-chip.event-continues-right {
+    margin-right: -7px !important;
+    width: calc(100% + 7px);
+  }
+
+  .calendar-event-chip.event-continues-left.event-continues-right {
+    width: calc(100% + 14px);
+  }
+
+  .calendar-day:not(:nth-child(7n)) .calendar-event-chip.event-continues-right {
+    box-shadow: 7px 0 0 var(--blue-light);
+  }
+
+  .calendar-day:not(:nth-child(7n+1)) .calendar-event-chip.event-continues-left {
+    box-shadow: -7px 0 0 var(--blue-light);
+  }
+}
