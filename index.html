@@ -3,11 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>My Calendar</title>
 
@@ -16,19 +12,165 @@
 
 <body>
 
-  <div id="app">
-    <h1>My Calendar 🌷</h1>
-    <p>캘린더 사이트 제작 중!</p>
+  <div class="site">
+
+    <!-- 상단 헤더 -->
+    <header class="header">
+
+      <div class="logo">
+        My Calendar
+      </div>
+
+      <nav class="nav">
+        <button class="nav-button active">캘린더</button>
+        <button class="nav-button">일정</button>
+        <button class="nav-button">어드민</button>
+      </nav>
+
+      <button class="search-button" aria-label="검색">
+        ⌕
+      </button>
+
+    </header>
+
+
+    <!-- 메인 -->
+    <main class="main">
+
+      <!-- 지금 할 일 -->
+      <section class="quick-todo-card">
+
+        <div class="section-title-row">
+          <div>
+            <span class="section-label">QUICK TODO</span>
+            <h2>지금 해야 하는 일</h2>
+          </div>
+
+          <button class="more-button">
+            더보기
+          </button>
+        </div>
+
+        <div class="quick-input-row">
+          <input
+            id="quickTodoInput"
+            type="text"
+            placeholder="지금 해야 할 일을 적어보세요"
+          >
+
+          <button id="quickTodoAddButton">
+            +
+          </button>
+        </div>
+
+        <div id="quickTodoList" class="quick-todo-list">
+          <p class="empty-text">아직 등록된 할 일이 없어요.</p>
+        </div>
+
+      </section>
+
+
+      <!-- 캘린더 -->
+      <section class="calendar-card">
+
+        <div class="calendar-header">
+
+          <button id="prevMonth" class="month-button">
+            ‹
+          </button>
+
+          <h1 id="calendarTitle"></h1>
+
+          <button id="nextMonth" class="month-button">
+            ›
+          </button>
+
+        </div>
+
+
+        <!-- 나중에 목표 통계 그래프가 들어갈 자리 -->
+        <div class="goal-summary-placeholder">
+          목표 달성 통계가 여기에 표시됩니다.
+        </div>
+
+
+        <div class="weekdays">
+          <div class="sunday">SUN</div>
+          <div>MON</div>
+          <div>TUE</div>
+          <div>WED</div>
+          <div>THU</div>
+          <div>FRI</div>
+          <div class="saturday">SAT</div>
+        </div>
+
+        <div id="calendarGrid" class="calendar-grid"></div>
+
+      </section>
+
+    </main>
+
   </div>
 
 
-  <!-- Supabase 라이브러리 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 날짜 사이드 패널 -->
+  <aside id="dayPanel" class="day-panel">
 
-  <!-- Supabase 프로젝트 연결 설정 -->
+    <div class="day-panel-header">
+
+      <div>
+        <span class="section-label">DAILY RECORD</span>
+        <h2 id="selectedDateTitle"></h2>
+      </div>
+
+      <button id="closeDayPanel" class="close-button">
+        ×
+      </button>
+
+    </div>
+
+    <div class="day-panel-content">
+
+      <div class="panel-placeholder">
+        <strong>목표 달성</strong>
+        <p>목표별 달성 상태가 들어갈 자리예요.</p>
+      </div>
+
+      <div class="panel-placeholder">
+        <strong>할 일</strong>
+        <p>날짜별 할 일이 들어갈 자리예요.</p>
+      </div>
+
+      <div class="panel-placeholder">
+        <strong>기분</strong>
+        <p>기분과 이유가 들어갈 자리예요.</p>
+      </div>
+
+      <div class="panel-placeholder">
+        <strong>생리 기록</strong>
+        <p>생리 기록 버튼이 들어갈 자리예요.</p>
+      </div>
+
+      <div class="panel-placeholder">
+        <strong>꾸미기</strong>
+        <p>이미지와 스티커가 들어갈 자리예요.</p>
+      </div>
+
+      <div class="panel-placeholder">
+        <strong>일정</strong>
+        <p>이 날짜의 일정이 들어갈 자리예요.</p>
+      </div>
+
+    </div>
+
+  </aside>
+
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase.js"></script>
 
-  <!-- 사이트 기능 -->
+  <!-- 사이트 -->
   <script src="app.js"></script>
 
 </body>
