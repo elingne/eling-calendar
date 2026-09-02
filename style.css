@@ -186,3 +186,43 @@
     flex-direction: column;
   }
 }
+
+
+/* =========================
+   GOAL DRAG SORT
+========================= */
+
+.goal-item {
+  cursor: grab;
+  user-select: none;
+}
+
+.goal-item:active {
+  cursor: grabbing;
+}
+
+.goal-item.dragging {
+  opacity: .45;
+  transform: scale(.995);
+}
+
+.goal-drag-handle {
+  flex: 0 0 auto;
+  color: #b9bbc5;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -3px;
+  cursor: grab;
+}
+
+.goal-item:hover .goal-drag-handle {
+  color: var(--pink-deep);
+}
+
+.goal-item-text {
+  flex: 1;
+}
+
+.goal-actions button {
+  cursor: pointer;
+}

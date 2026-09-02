@@ -223,6 +223,13 @@ function renderGoalList() {
   goals.forEach((goal) => {
     const item = document.createElement("div");
     item.className = "goal-item";
+    item.draggable = true;
+    item.dataset.goalId = goal.id;
+
+    const dragHandle = document.createElement("div");
+    dragHandle.className = "goal-drag-handle";
+    dragHandle.textContent = "⋮⋮";
+    dragHandle.title = "드래그해서 순서 변경";
 
     const text = document.createElement("div");
     text.className = "goal-item-text";
@@ -244,18 +251,116 @@ function renderGoalList() {
     editButton.type = "button";
     editButton.className = "secondary-button";
     editButton.textContent = "수정";
-    editButton.addEventListener("click", () => startGoalEdit(goal));
+    editButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      startGoalEdit(goal);
+    });
 
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "danger-button";
     deleteButton.textContent = "삭제";
-    deleteButton.addEventListener("click", () => deleteGoal(goal));
+    deleteButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteGoal(goal);
+    });
 
     actions.append(editButton, deleteButton);
-    item.append(text, actions);
+    item.append(dragHandle, text, actions);
+
+    item.addEventListener("dragstart", handleGoalDragStart);
+    item.addEventListener("dragover", handleGoalDragOver);
+    item.addEventListener("drop", handleGoalDrop);
+    item.addEventListener("dragend", handleGoalDragEnd);
+
     goalList.appendChild(item);
   });
+}
+
+let draggedGoalId = null;
+
+function handleGoalDragStart(event) {
+  draggedGoalId = Number(event.currentTarget.dataset.goalId);
+  event.currentTarget.classList.add("dragging");
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(draggedGoalId));
+  }
+}
+
+function handleGoalDragOver(event) {
+  event.preventDefault();
+
+  const target = event.currentTarget;
+
+  if (!draggedGoalId || Number(target.dataset.goalId) === draggedGoalId) {
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+  const insertAfter = event.clientY > rect.top + rect.height / 2;
+
+  const draggedElement = goalList.querySelector(`[data-goal-id="${draggedGoalId}"]`);
+
+  if (!draggedElement) return;
+
+  if (insertAfter) {
+    target.after(draggedElement);
+  } else {
+    target.before(draggedElement);
+  }
+}
+
+async function handleGoalDrop(event) {
+  event.preventDefault();
+  await saveGoalOrderFromDom();
+}
+
+function handleGoalDragEnd() {
+  goalList.querySelectorAll(".goal-item").forEach((item) => {
+    item.classList.remove("dragging");
+  });
+
+  draggedGoalId = null;
+}
+
+async function saveGoalOrderFromDom() {
+  const orderedIds = [...goalList.querySelectorAll(".goal-item")]
+    .map((item) => Number(item.dataset.goalId));
+
+  if (!orderedIds.length) return;
+
+  const previousGoals = [...goals];
+
+  goals = orderedIds
+    .map((id, index) => {
+      const goal = previousGoals.find((item) => item.id === id);
+      return goal ? { ...goal, sort_order: index } : null;
+    })
+    .filter(Boolean);
+
+  goalMessage.textContent = "순서 저장 중...";
+
+  const updates = goals.map((goal) =>
+    supabaseClient
+      .from("goals")
+      .update({ sort_order: goal.sort_order })
+      .eq("id", goal.id)
+  );
+
+  const results = await Promise.all(updates);
+  const failed = results.find((result) => result.error);
+
+  if (failed) {
+    console.error("목표 순서 저장 오류:", failed.error);
+    goalMessage.textContent = "순서를 저장하지 못했어요.";
+    goals = previousGoals;
+    renderGoalList();
+    return;
+  }
+
+  goalMessage.textContent = "순서를 저장했어요.";
 }
 
 goalForm.addEventListener("submit", async (event) => {
