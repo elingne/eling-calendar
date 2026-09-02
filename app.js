@@ -716,42 +716,70 @@ function renderMonthlyGoalSummary(activeGoals, records) {
     return;
   }
 
+  const labels = {
+    success: "성공",
+    holiday: "휴일",
+    fail: "실패"
+  };
+
+  const statuses = ["success", "holiday", "fail"];
 
   activeGoals.forEach((goal) => {
-    const counts = { success:0, effort:0, holiday:0, fail:0 };
+    const counts = {
+      success: 0,
+      holiday: 0,
+      fail: 0
+    };
 
-    records.filter(r => r.goal_id === goal.id).forEach(r => {
-      if (counts[r.status] !== undefined) counts[r.status]++;
-    });
+    records
+      .filter(record => record.goal_id === goal.id)
+      .forEach(record => {
+        if (Object.prototype.hasOwnProperty.call(counts, record.status)) {
+          counts[record.status] += 1;
+        }
+      });
 
-    const total = Object.values(counts).reduce((a,b) => a+b, 0);
+    const total = statuses.reduce((sum, status) => sum + counts[status], 0);
 
     const card = document.createElement("div");
     card.className = "goal-summary-item";
 
     const heading = document.createElement("div");
     heading.className = "goal-summary-item-heading";
-    heading.innerHTML = `<strong></strong><span>${total ? `${total}일 기록` : "아직 기록 없음"}</span>`;
-    heading.querySelector("strong").textContent = goal.name;
+
+    const goalName = document.createElement("strong");
+    goalName.textContent = goal.name;
+
+    const totalText = document.createElement("span");
+    totalText.textContent = total ? `${total}일 기록` : "아직 기록 없음";
+
+    heading.append(goalName, totalText);
 
     const bar = document.createElement("div");
     bar.className = "goal-stat-bar";
 
-    Object.keys(counts).forEach(status => {
+    statuses.forEach(status => {
       const segment = document.createElement("div");
       segment.className = `goal-stat-segment stat-${status}`;
-      segment.style.width = `${total ? counts[status] / total * 100 : 0}%`;
+      segment.style.width = `${total ? (counts[status] / total) * 100 : 0}%`;
       bar.appendChild(segment);
     });
 
     const legend = document.createElement("div");
     legend.className = "goal-stat-legend";
 
-    Object.keys(counts).forEach(status => {
-      const p = total ? Math.round(counts[status] / total * 100) : 0;
+    statuses.forEach(status => {
+      const percentage = total ? Math.round((counts[status] / total) * 100) : 0;
+
       const item = document.createElement("span");
       item.className = "goal-stat-legend-item";
-      item.innerHTML = `<i class="legend-dot stat-${status}"></i>${labels[status]} ${p}%`;
+
+      const dot = document.createElement("i");
+      dot.className = `legend-dot stat-${status}`;
+
+      const label = document.createTextNode(`${labels[status]} ${percentage}%`);
+
+      item.append(dot, label);
       legend.appendChild(item);
     });
 
