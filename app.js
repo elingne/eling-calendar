@@ -170,8 +170,17 @@ function createDayCell(date, otherMonth) {
 
 async function openDayPanel(date) {
   const weekdayNames = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  const clickedDateKey = formatDateKey(date);
 
-  selectedRecordDate = formatDateKey(date);
+  if (
+    dayPanel.classList.contains("open") &&
+    selectedRecordDate === clickedDateKey
+  ) {
+    closeDayPanel();
+    return;
+  }
+
+  selectedRecordDate = clickedDateKey;
 
   selectedDateTitle.textContent =
     `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}. ${weekdayNames[date.getDay()]}`;
