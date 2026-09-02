@@ -290,6 +290,8 @@ async function showPage(page) {
       loadStickers(),
       loadSiteVisibilityAdmin()
     ]);
+
+    renderStickerAdminList();
   }
 }
 
@@ -2026,27 +2028,95 @@ function handleGoalDragEnd() {
   draggedGoalId = null;
 }
 
+async function loadStickers() {
+  const { data, error } = await supabaseClient
+    .from("stickers")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("스티커 불러오기 오류:", error);
+
+    if (stickerMessage) {
+      stickerMessage.textContent = `스티커를 불러오지 못했어요: ${error.message}`;
+    }
+
+    return;
+  }
+
+  stickers = data || [];
+
+  renderStickerAdminList();
+  renderStickerPicker();
+}
+
 /* STICKER ADMIN */
 stickerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
+  if (!isOwner) {
+    stickerMessage.textContent = "관리자 로그인 상태에서만 등록할 수 있어요.";
+    return;
+  }
+
   const file = stickerFileInput.files?.[0];
   const name = stickerNameInput.value.trim();
-  if (!file || !name) return;
 
-  stickerMessage.textContent = "이미지 처리 중...";
+  if (!name) {
+    stickerMessage.textContent = "스티커 이름을 입력해주세요.";
+    stickerNameInput.focus();
+    return;
+  }
 
-  const image = await readAndCompressImage(file, 480, .82);
-  const { error } = await supabaseClient.from("stickers").insert({
-    name,
-    image_url:image
-  });
+  if (!file) {
+    stickerMessage.textContent = "스티커 이미지를 선택해주세요.";
+    return;
+  }
 
-  stickerMessage.textContent = error ? "저장 실패" : "저장했어요.";
+  if (!file.type.startsWith("image/")) {
+    stickerMessage.textContent = "이미지 파일만 등록할 수 있어요.";
+    return;
+  }
 
-  if (!error) {
+  const submitButton = stickerForm.querySelector('button[type="submit"]');
+
+  try {
+    submitButton.disabled = true;
+    submitButton.textContent = "등록 중...";
+    stickerMessage.textContent = "이미지를 처리하고 있어요...";
+
+    // DB에 data URL을 저장하므로 스티커는 작게 압축해 용량을 줄인다.
+    const image = await readAndCompressImage(file, 360, .72);
+
+    const { error } = await supabaseClient
+      .from("stickers")
+      .insert({
+        name,
+        image_url: image
+      });
+
+    if (error) {
+      console.error("스티커 등록 오류:", error);
+      stickerMessage.textContent = `등록 실패: ${error.message}`;
+      return;
+    }
+
     stickerForm.reset();
-    loadStickers();
+    stickerMessage.textContent = "스티커를 등록했어요.";
+
+    await loadStickers();
+
+    window.setTimeout(() => {
+      if (stickerMessage.textContent === "스티커를 등록했어요.") {
+        stickerMessage.textContent = "";
+      }
+    }, 1600);
+  } catch (error) {
+    console.error("스티커 처리 오류:", error);
+    stickerMessage.textContent = "이미지를 처리하지 못했어요. 다른 이미지로 다시 시도해주세요.";
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "스티커 추가";
   }
 });
 

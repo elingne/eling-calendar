@@ -1563,3 +1563,58 @@ textarea { resize: vertical; }
     box-shadow: -7px 0 0 var(--blue-light);
   }
 }
+
+
+/* =========================
+   V12 STICKER ADMIN STATUS
+========================= */
+
+#stickerForm button:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+#stickerMessage {
+  overflow-wrap: anywhere;
+}
+
+/* =========================
+   V12 TALLER CALENDAR CELLS
+========================= */
+
+.calendar-day {
+  min-height: 210px;
+  padding-bottom: 16px;
+}
+
+/* 일정은 상단, 다꾸는 그보다 아래쪽의 넓어진 공간 사용 */
+.calendar-event-list {
+  min-height: 24px;
+  margin-top: 8px;
+}
+
+.calendar-deco-composite {
+  top: 68%;
+  max-height: 58%;
+}
+
+.deco-composite-calendar {
+  width: min(88%, 165px);
+  max-height: 112px;
+}
+
+@media (max-width: 700px) {
+  .calendar-day {
+    min-height: 135px;
+    padding-bottom: 9px;
+  }
+
+  .calendar-deco-composite {
+    top: 70%;
+    max-height: 52%;
+  }
+
+  .deco-composite-calendar {
+    max-height: 70px;
+  }
+}
