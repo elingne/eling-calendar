@@ -24,7 +24,6 @@ const MOODS = [
 
 const GOAL_STATUSES = [
   { value: "success", label: "성공" },
-  { value: "effort", label: "노력은 함" },
   { value: "holiday", label: "휴일" },
   { value: "fail", label: "실패" }
 ];
@@ -309,6 +308,13 @@ function parseLocalDate(key) {
 function niceDate(key) {
   const d = parseLocalDate(key);
   return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function moodSproutIcon(value) {
+  if (value === "happy" || value === "great" || value === "good") return "🌱";
+  if (value === "neutral") return "🌿";
+  if (value === "bad" || value === "low") return "🥀";
+  return "";
 }
 
 function formatDateTime(value) {
@@ -710,7 +716,6 @@ function renderMonthlyGoalSummary(activeGoals, records) {
     return;
   }
 
-  const labels = { success:"성공", effort:"노력", holiday:"휴일", fail:"실패" };
 
   activeGoals.forEach((goal) => {
     const counts = { success:0, effort:0, holiday:0, fail:0 };
@@ -1282,7 +1287,11 @@ async function loadQuickDateMeta(date) {
     supabaseClient.from("period_records").select("*").eq("start_date", date).eq("end_date", date).maybeSingle()
   ]);
 
-  moodSelect.value = moodResult.data?.mood_type || "";
+  const storedMood = moodResult.data?.mood_type || "";
+  moodSelect.value =
+    storedMood === "great" || storedMood === "good" ? "happy" :
+    storedMood === "low" ? "bad" :
+    storedMood;
   periodCheck.checked = Boolean(periodResult.data);
 
   moodSelect.disabled = !isOwner;

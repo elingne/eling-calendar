@@ -2789,3 +2789,25 @@ textarea {
 .completed-record-source {
   display: none !important;
 }
+
+
+/* =========================================================
+   V20 GOALS + SPROUT MOODS
+========================================================= */
+
+#moodSelect {
+  min-width: 92px !important;
+  background: var(--sky-50) !important;
+  border-color: var(--sky-200) !important;
+}
+
+.daily-goal-row select {
+  min-width: 88px;
+}
+
+.mood-badge,
+.calendar-mood-badge {
+  background: #f7fff8 !important;
+  border-color: #dcefe0 !important;
+  color: #6d9d73 !important;
+}
