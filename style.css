@@ -226,3 +226,114 @@
 .goal-actions button {
   cursor: pointer;
 }
+
+
+/* =========================
+   DAILY GOAL RECORDS
+========================= */
+
+.panel-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-section-heading p {
+  margin: 6px 0 0;
+}
+
+.save-state {
+  flex: 0 0 auto;
+  min-height: 18px;
+  color: var(--subtext);
+  font-size: 11px;
+}
+
+.daily-goal-record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 15px;
+}
+
+.daily-goal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fcfcfe;
+}
+
+.daily-goal-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.daily-goal-info strong {
+  font-size: 13px;
+}
+
+.daily-goal-info span {
+  overflow: hidden;
+  color: var(--subtext);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-status-select {
+  flex: 0 0 116px;
+  padding: 9px 30px 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: none;
+  background: white;
+  color: var(--subtext);
+  font-size: 12px;
+}
+
+.goal-status-select:focus {
+  border-color: var(--pink);
+}
+
+.goal-status-select.status-success {
+  background: #fff0f4;
+  color: #d96f89;
+  border-color: #f4c3d0;
+}
+
+.goal-status-select.status-effort {
+  background: #fff8e9;
+  color: #b88a37;
+  border-color: #f2dfae;
+}
+
+.goal-status-select.status-holiday {
+  background: #eef8fd;
+  color: #669fbd;
+  border-color: #cbe7f3;
+}
+
+.goal-status-select.status-fail {
+  background: #f3f3f6;
+  color: #777b87;
+  border-color: #dedfe5;
+}
+
+@media (max-width: 430px) {
+  .daily-goal-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .goal-status-select {
+    flex-basis: auto;
+    width: 100%;
+  }
+}

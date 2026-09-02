@@ -2,6 +2,7 @@ let currentDate = new Date();
 let currentSession = null;
 let goals = [];
 let editingGoalId = null;
+let selectedRecordDate = null;
 
 const loginScreen = document.getElementById("loginScreen");
 const siteApp = document.getElementById("siteApp");
@@ -24,6 +25,8 @@ const nextMonthButton = document.getElementById("nextMonth");
 const dayPanel = document.getElementById("dayPanel");
 const closeDayPanelButton = document.getElementById("closeDayPanel");
 const selectedDateTitle = document.getElementById("selectedDateTitle");
+const dailyGoalRecordList = document.getElementById("dailyGoalRecordList");
+const goalRecordSaveState = document.getElementById("goalRecordSaveState");
 
 const goalForm = document.getElementById("goalForm");
 const goalNameInput = document.getElementById("goalNameInput");
@@ -165,11 +168,23 @@ function createDayCell(date, otherMonth) {
   calendarGrid.appendChild(day);
 }
 
-function openDayPanel(date) {
+async function openDayPanel(date) {
   const weekdayNames = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+
+  selectedRecordDate = formatDateKey(date);
+
   selectedDateTitle.textContent =
     `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}. ${weekdayNames[date.getDay()]}`;
+
   dayPanel.classList.add("open");
+  await loadDailyGoalRecords(selectedRecordDate);
+}
+
+function formatDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function closeDayPanel() {
@@ -187,6 +202,151 @@ nextMonthButton.addEventListener("click", () => {
 });
 
 closeDayPanelButton.addEventListener("click", closeDayPanel);
+
+/* =========================
+   DAILY GOAL RECORDS
+========================= */
+
+async function loadDailyGoalRecords(recordDate) {
+  dailyGoalRecordList.innerHTML = '<p class="empty-text">목표를 불러오는 중이에요.</p>';
+  goalRecordSaveState.textContent = "";
+
+  const goalsResult = await supabaseClient
+    .from("goals")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (goalsResult.error) {
+    console.error("목표 불러오기 오류:", goalsResult.error);
+    dailyGoalRecordList.innerHTML = '<p class="error-text">목표를 불러오지 못했어요.</p>';
+    return;
+  }
+
+  const activeGoals = goalsResult.data || [];
+
+  if (!activeGoals.length) {
+    dailyGoalRecordList.innerHTML = '<p class="empty-text">등록된 목표가 없어요. 어드민에서 먼저 목표를 추가해주세요.</p>';
+    return;
+  }
+
+  const recordsResult = await supabaseClient
+    .from("daily_goal_records")
+    .select("*")
+    .eq("record_date", recordDate);
+
+  if (recordsResult.error) {
+    console.error("목표 기록 불러오기 오류:", recordsResult.error);
+    dailyGoalRecordList.innerHTML = '<p class="error-text">이 날짜의 기록을 불러오지 못했어요.</p>';
+    return;
+  }
+
+  const recordMap = new Map(
+    (recordsResult.data || []).map((record) => [record.goal_id, record])
+  );
+
+  renderDailyGoalRecords(activeGoals, recordMap);
+}
+
+function renderDailyGoalRecords(activeGoals, recordMap) {
+  dailyGoalRecordList.innerHTML = "";
+
+  activeGoals.forEach((goal) => {
+    const row = document.createElement("div");
+    row.className = "daily-goal-row";
+
+    const goalInfo = document.createElement("div");
+    goalInfo.className = "daily-goal-info";
+
+    const name = document.createElement("strong");
+    name.textContent = goal.name;
+    goalInfo.appendChild(name);
+
+    if (goal.description) {
+      const description = document.createElement("span");
+      description.textContent = goal.description;
+      goalInfo.appendChild(description);
+    }
+
+    const select = document.createElement("select");
+    select.className = "goal-status-select";
+    select.dataset.goalId = goal.id;
+
+    [
+      ["", "미기록"],
+      ["success", "성공"],
+      ["effort", "노력은 함"],
+      ["holiday", "휴일"],
+      ["fail", "실패"]
+    ].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      select.appendChild(option);
+    });
+
+    select.value = recordMap.get(goal.id)?.status || "";
+    applyGoalStatusClass(select);
+
+    select.addEventListener("change", async () => {
+      applyGoalStatusClass(select);
+      await saveDailyGoalRecord(goal.id, select.value, select);
+    });
+
+    row.append(goalInfo, select);
+    dailyGoalRecordList.appendChild(row);
+  });
+}
+
+function applyGoalStatusClass(select) {
+  select.classList.remove("status-success", "status-effort", "status-holiday", "status-fail");
+  if (select.value) select.classList.add(`status-${select.value}`);
+}
+
+async function saveDailyGoalRecord(goalId, status, select) {
+  if (!selectedRecordDate) return;
+
+  select.disabled = true;
+  goalRecordSaveState.textContent = "저장 중...";
+
+  let error = null;
+
+  if (!status) {
+    const result = await supabaseClient
+      .from("daily_goal_records")
+      .delete()
+      .eq("record_date", selectedRecordDate)
+      .eq("goal_id", goalId);
+    error = result.error;
+  } else {
+    const result = await supabaseClient
+      .from("daily_goal_records")
+      .upsert(
+        {
+          record_date: selectedRecordDate,
+          goal_id: goalId,
+          status
+        },
+        { onConflict: "record_date,goal_id" }
+      );
+    error = result.error;
+  }
+
+  select.disabled = false;
+
+  if (error) {
+    console.error("목표 기록 저장 오류:", error);
+    goalRecordSaveState.textContent = "저장 실패";
+    return;
+  }
+
+  goalRecordSaveState.textContent = "저장됨";
+  window.clearTimeout(saveDailyGoalRecord._timer);
+  saveDailyGoalRecord._timer = window.setTimeout(() => {
+    goalRecordSaveState.textContent = "";
+  }, 1200);
+}
 
 /* =========================
    ADMIN: GOALS
