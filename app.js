@@ -69,7 +69,6 @@ const dayTodoList = $("dayTodoList");
 
 const goalForm = $("goalForm");
 const goalNameInput = $("goalNameInput");
-const goalDescriptionInput = $("goalDescriptionInput");
 const goalSubmitButton = $("goalSubmitButton");
 const goalMessage = $("goalMessage");
 const goalList = $("goalList");
@@ -866,12 +865,6 @@ async function loadDailyGoalRecords(date) {
     const name = document.createElement("strong");
     name.textContent = goal.name;
     info.appendChild(name);
-
-    if (goal.description) {
-      const desc = document.createElement("span");
-      desc.textContent = goal.description;
-      info.appendChild(desc);
-    }
 
     const select = document.createElement("select");
     select.className = "goal-status-select";
@@ -2031,12 +2024,6 @@ function renderGoalList() {
     name.textContent = goal.name;
     text.appendChild(name);
 
-    if (goal.description) {
-      const desc = document.createElement("span");
-      desc.textContent = goal.description;
-      text.appendChild(desc);
-    }
-
     const actions = document.createElement("div");
     actions.className = "goal-actions";
 
@@ -2065,29 +2052,45 @@ function renderGoalList() {
 goalForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
+  if (!isOwner) return;
+
   const name = goalNameInput.value.trim();
-  const description = goalDescriptionInput.value.trim();
-  if (!name) return;
+  if (!name) {
+    goalMessage.textContent = "목표 이름을 입력해주세요.";
+    return;
+  }
+
+  goalSubmitButton.disabled = true;
+  goalMessage.textContent = editingGoalId ? "수정 중..." : "추가 중...";
 
   let result;
 
   if (editingGoalId) {
-    result = await supabaseClient.from("goals").update({
-      name,
-      description:description || null
-    }).eq("id", editingGoalId);
+    result = await supabaseClient
+      .from("goals")
+      .update({
+        name
+      })
+      .eq("id", editingGoalId);
   } else {
-    const nextOrder = goals.length ? Math.max(...goals.map(g => Number(g.sort_order) || 0)) + 1 : 0;
-    result = await supabaseClient.from("goals").insert({
-      name,
-      description:description || null,
-      sort_order:nextOrder,
-      is_active:true
-    });
+    const nextOrder = goals.length
+      ? Math.max(...goals.map(goal => Number(goal.sort_order) || 0)) + 1
+      : 0;
+
+    result = await supabaseClient
+      .from("goals")
+      .insert({
+        name,
+        sort_order: nextOrder,
+        is_active: true
+      });
   }
 
+  goalSubmitButton.disabled = false;
+
   if (result.error) {
-    goalMessage.textContent = "저장하지 못했어요.";
+    console.error("목표 저장 오류:", result.error);
+    goalMessage.textContent = `저장하지 못했어요: ${result.error.message}`;
     return;
   }
 
@@ -2095,14 +2098,26 @@ goalForm.addEventListener("submit", async (event) => {
   goalForm.reset();
   goalSubmitButton.textContent = "목표 추가";
   goalMessage.textContent = "저장했어요.";
-  loadGoals();
+
+  await loadGoals();
+  await loadMonthlyGoalSummary(currentDate.getFullYear(), currentDate.getMonth());
+
+  if (selectedRecordDate && dayPanel.classList.contains("open")) {
+    await loadDailyGoalRecords(selectedRecordDate);
+  }
+
+  window.setTimeout(() => {
+    if (goalMessage.textContent === "저장했어요.") {
+      goalMessage.textContent = "";
+    }
+  }, 1200);
 });
 
 function startGoalEdit(goal) {
   editingGoalId = goal.id;
   goalNameInput.value = goal.name;
-  if (goalDescriptionInput) goalDescriptionInput.value = goal.description || "";
   goalSubmitButton.textContent = "수정 저장";
+  goalNameInput.focus();
 }
 
 async function deleteGoal(goal) {
