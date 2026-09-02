@@ -1,55 +1,244 @@
-document.addEventListener("DOMContentLoaded", async () => {
-  // app.js 자체가 실행되는지 확인
-  const testArea = document.createElement("div");
+let currentDate = new Date();
 
-  testArea.style.marginTop = "20px";
-  testArea.style.padding = "12px";
-  testArea.style.background = "#ffffff";
-  testArea.style.border = "1px solid #ddd";
-  testArea.style.borderRadius = "8px";
-  testArea.style.width = "fit-content";
+const calendarTitle = document.getElementById("calendarTitle");
+const calendarGrid = document.getElementById("calendarGrid");
 
-  testArea.innerHTML = "① app.js 실행됨";
+const prevMonthButton = document.getElementById("prevMonth");
+const nextMonthButton = document.getElementById("nextMonth");
 
-  document.getElementById("app").appendChild(testArea);
-
-  try {
-
-    // supabase.js에서 클라이언트가 만들어졌는지 확인
-    if (typeof supabaseClient === "undefined") {
-      testArea.innerHTML += "<br>❌ ② supabaseClient가 없음";
-      return;
-    }
-
-    testArea.innerHTML += "<br>✅ ② supabaseClient 확인됨";
+const dayPanel = document.getElementById("dayPanel");
+const closeDayPanelButton = document.getElementById("closeDayPanel");
+const selectedDateTitle = document.getElementById("selectedDateTitle");
 
 
-    // 실제 DB 연결 확인
-    const { data, error } = await supabaseClient
-      .from("site_settings")
-      .select("*")
-      .limit(1);
+function renderCalendar() {
 
-    if (error) {
-      console.error(error);
+  calendarGrid.innerHTML = "";
 
-      testArea.innerHTML +=
-        "<br>❌ ③ DB 읽기 실패<br>" +
-        "<small>" + error.message + "</small>";
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
 
-      return;
-    }
+  calendarTitle.textContent =
+    `${year}년 ${month + 1}월`;
 
-    testArea.innerHTML += "<br>✅ ③ Supabase 연결 성공!";
 
-    console.log("Supabase data:", data);
+  const firstDay =
+    new Date(year, month, 1).getDay();
 
-  } catch (error) {
+  const lastDate =
+    new Date(year, month + 1, 0).getDate();
 
-    console.error(error);
+  const previousMonthLastDate =
+    new Date(year, month, 0).getDate();
 
-    testArea.innerHTML +=
-      "<br>❌ 오류 발생<br>" +
-      "<small>" + error.message + "</small>";
+
+  /*
+   * 앞달 날짜
+   */
+
+  for (let i = firstDay - 1; i >= 0; i--) {
+
+    const date =
+      previousMonthLastDate - i;
+
+    const cellDate =
+      new Date(year, month - 1, date);
+
+    createDayCell(
+      cellDate,
+      true
+    );
   }
+
+
+  /*
+   * 이번 달
+   */
+
+  for (let date = 1; date <= lastDate; date++) {
+
+    const cellDate =
+      new Date(year, month, date);
+
+    createDayCell(
+      cellDate,
+      false
+    );
+  }
+
+
+  /*
+   * 뒷달 날짜
+   */
+
+  const totalCells =
+    calendarGrid.children.length;
+
+  const remainingCells =
+    totalCells <= 35
+      ? 35 - totalCells
+      : 42 - totalCells;
+
+
+  for (let date = 1; date <= remainingCells; date++) {
+
+    const cellDate =
+      new Date(year, month + 1, date);
+
+    createDayCell(
+      cellDate,
+      true
+    );
+  }
+}
+
+
+function createDayCell(date, otherMonth) {
+
+  const day = document.createElement("div");
+
+  day.classList.add("calendar-day");
+
+
+  if (otherMonth) {
+    day.classList.add("other-month");
+  }
+
+
+  const weekday =
+    date.getDay();
+
+
+  if (weekday === 0) {
+    day.classList.add("sunday");
+  }
+
+  if (weekday === 6) {
+    day.classList.add("saturday");
+  }
+
+
+  /*
+   * 오늘 표시
+   */
+
+  const today = new Date();
+
+  const isToday =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate();
+
+
+  if (isToday) {
+    day.classList.add("today");
+  }
+
+
+  const dayNumber =
+    document.createElement("div");
+
+  dayNumber.className =
+    "day-number";
+
+  dayNumber.textContent =
+    date.getDate();
+
+
+  day.appendChild(dayNumber);
+
+
+  /*
+   * 날짜 클릭
+   */
+
+  day.addEventListener("click", () => {
+    openDayPanel(date);
+  });
+
+
+  calendarGrid.appendChild(day);
+}
+
+
+function openDayPanel(date) {
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    date.getMonth() + 1;
+
+  const day =
+    date.getDate();
+
+
+  const weekdayNames = [
+    "일요일",
+    "월요일",
+    "화요일",
+    "수요일",
+    "목요일",
+    "금요일",
+    "토요일"
+  ];
+
+
+  selectedDateTitle.textContent =
+    `${year}. ${month}. ${day}. ${weekdayNames[date.getDay()]}`;
+
+
+  dayPanel.classList.add("open");
+}
+
+
+function closeDayPanel() {
+  dayPanel.classList.remove("open");
+}
+
+
+/*
+ * 이전 달
+ */
+
+prevMonthButton.addEventListener("click", () => {
+
+  currentDate =
+    new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() - 1,
+      1
+    );
+
+  renderCalendar();
 });
+
+
+/*
+ * 다음 달
+ */
+
+nextMonthButton.addEventListener("click", () => {
+
+  currentDate =
+    new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 1,
+      1
+    );
+
+  renderCalendar();
+});
+
+
+closeDayPanelButton.addEventListener(
+  "click",
+  closeDayPanel
+);
+
+
+/*
+ * 최초 실행
+ */
+
+renderCalendar();
