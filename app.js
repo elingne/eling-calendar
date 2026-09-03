@@ -1436,7 +1436,7 @@ function makeQuickTodoRow(item, completed) {
   });
 
   if (!completed) {
-    row.append(check, starButton, content, actions);
+    row.append(check, content, actions, starButton);
   } else {
     row.append(check, content, actions);
   }

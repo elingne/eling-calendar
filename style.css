@@ -2973,3 +2973,6 @@ textarea {
 .quick-inline-editor {
   user-select: text;
 }
+
+/* V27: 중요 별을 할 일 행 맨 오른쪽에 배치 */
+.quick-item:not(.quick-item-completed) .quick-star-button { margin-left: 4px; flex: 0 0 auto; }
