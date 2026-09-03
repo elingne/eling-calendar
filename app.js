@@ -1054,6 +1054,49 @@ function clearQuickTodoAutofill() {
   }, 120);
 }
 
+let quickTodoDragId = null;
+
+async function saveQuickTodoOrderFromDom() {
+  if (!isOwner) return;
+
+  const rows = [...quickTodoList.querySelectorAll(".quick-item[data-quick-todo-id]")];
+  if (!rows.length) return;
+
+  // 중요 항목은 항상 위쪽 그룹으로 유지한다.
+  const ids = rows.map(row => Number(row.dataset.quickTodoId));
+  const { data, error } = await supabaseClient
+    .from("quick_todos")
+    .select("id,is_important")
+    .in("id", ids);
+
+  if (error) {
+    console.error("QUICK TODO 순서 저장 준비 오류:", error);
+    await loadQuickTodos();
+    return;
+  }
+
+  const importantMap = new Map((data || []).map(item => [Number(item.id), Boolean(item.is_important)]));
+  const importantIds = ids.filter(id => importantMap.get(id));
+  const normalIds = ids.filter(id => !importantMap.get(id));
+  const orderedIds = [...importantIds, ...normalIds];
+
+  const updates = orderedIds.map((id, index) =>
+    supabaseClient
+      .from("quick_todos")
+      .update({ sort_order: index })
+      .eq("id", id)
+  );
+
+  const results = await Promise.all(updates);
+  const failed = results.find(result => result.error);
+
+  if (failed) {
+    console.error("QUICK TODO 순서 저장 오류:", failed.error);
+  }
+
+  await loadQuickTodos();
+}
+
 /* QUICK TODOS */
 quickTodoAddButton.addEventListener("click", addQuickTodo);
 quickTodoInput.addEventListener("keydown", (event) => {
@@ -1065,14 +1108,34 @@ async function addQuickTodo() {
   const title = quickTodoInput.value.trim();
   if (!title) return;
 
+  const { data: existingRows, error: orderError } = await supabaseClient
+    .from("quick_todos")
+    .select("sort_order")
+    .eq("is_completed", false)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  if (orderError) {
+    console.error("QUICK TODO 순서 확인 오류:", orderError);
+    return;
+  }
+
+  const nextOrder = existingRows?.length
+    ? (Number(existingRows[0].sort_order) || 0) + 1
+    : 0;
+
   const { error } = await supabaseClient.from("quick_todos").insert({
     title,
-    is_completed:false
+    is_completed: false,
+    is_important: false,
+    sort_order: nextOrder
   });
 
   if (!error) {
     quickTodoInput.value = "";
     loadQuickTodos();
+  } else {
+    console.error("QUICK TODO 추가 오류:", error);
   }
 }
 
@@ -1090,10 +1153,20 @@ async function loadQuickTodos() {
   const rows = data || [];
   const todayKey = formatDateKey(new Date());
 
-  const active = rows.filter(item => !item.is_completed);
+  const active = rows
+    .filter(item => !item.is_completed)
+    .sort((a, b) => {
+      const importantDiff = Number(Boolean(b.is_important)) - Number(Boolean(a.is_important));
+      if (importantDiff !== 0) return importantDiff;
+
+      const orderA = Number.isFinite(Number(a.sort_order)) ? Number(a.sort_order) : 0;
+      const orderB = Number.isFinite(Number(b.sort_order)) ? Number(b.sort_order) : 0;
+      if (orderA !== orderB) return orderA - orderB;
+
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
 
   // 메인의 완료 목록은 '오늘 완료한 것'만 보여준다.
-  // completed_at은 UTC로 저장되지만 Date로 변환한 뒤 브라우저 로컬 날짜를 기준으로 귀속한다.
   const completedToday = rows
     .filter(item =>
       item.is_completed &&
@@ -1126,6 +1199,46 @@ async function loadQuickTodos() {
 function makeQuickTodoRow(item, completed) {
   const row = document.createElement("div");
   row.className = `quick-item ${completed ? "quick-item-completed" : ""}`;
+  row.dataset.quickTodoId = item.id;
+
+  if (!completed && isOwner) {
+    row.draggable = true;
+    row.classList.add("quick-item-draggable");
+
+    row.addEventListener("dragstart", (event) => {
+      if (event.target.closest("button, input")) {
+        event.preventDefault();
+        return;
+      }
+      quickTodoDragId = String(item.id);
+      row.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(item.id));
+    });
+
+    row.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+
+      const dragging = quickTodoList.querySelector(".quick-item.dragging");
+      if (!dragging || dragging === row) return;
+
+      const rect = row.getBoundingClientRect();
+      const placeAfter = event.clientY > rect.top + rect.height / 2;
+      quickTodoList.insertBefore(dragging, placeAfter ? row.nextSibling : row);
+    });
+
+    row.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      await saveQuickTodoOrderFromDom();
+    });
+
+    row.addEventListener("dragend", async () => {
+      row.classList.remove("dragging");
+      quickTodoDragId = null;
+      await saveQuickTodoOrderFromDom();
+    });
+  }
 
   const check = document.createElement("input");
   check.type = "checkbox";
@@ -1150,6 +1263,34 @@ function makeQuickTodoRow(item, completed) {
     if (selectedRecordDate) {
       await loadDayTodos(selectedRecordDate);
     }
+  });
+
+  const starButton = document.createElement("button");
+  starButton.type = "button";
+  starButton.className = `quick-star-button ${item.is_important ? "active" : ""}`;
+  starButton.textContent = item.is_important ? "★" : "☆";
+  starButton.title = item.is_important ? "중요 표시 해제" : "중요 표시";
+  starButton.setAttribute("aria-label", starButton.title);
+  starButton.disabled = !isOwner;
+
+  starButton.addEventListener("click", async () => {
+    if (!isOwner) return;
+
+    const nextImportant = !Boolean(item.is_important);
+    starButton.disabled = true;
+
+    const { error } = await supabaseClient
+      .from("quick_todos")
+      .update({ is_important: nextImportant })
+      .eq("id", item.id);
+
+    if (error) {
+      console.error("QUICK TODO 중요 표시 오류:", error);
+      starButton.disabled = false;
+      return;
+    }
+
+    await loadQuickTodos();
   });
 
   const content = document.createElement("div");
@@ -1187,6 +1328,7 @@ function makeQuickTodoRow(item, completed) {
 
     row.classList.add("editing");
     check.disabled = true;
+    starButton.disabled = true;
     editButton.classList.add("hidden");
     deleteButton.classList.add("hidden");
 
@@ -1215,6 +1357,7 @@ function makeQuickTodoRow(item, completed) {
     const finishEditing = () => {
       row.classList.remove("editing");
       check.disabled = false;
+      starButton.disabled = !isOwner;
       editButton.classList.remove("hidden");
       deleteButton.classList.remove("hidden");
       editor.remove();
@@ -1292,9 +1435,13 @@ function makeQuickTodoRow(item, completed) {
     }
   });
 
-  actions.append(editButton, deleteButton);
+  if (!completed) {
+    row.append(check, starButton, content, actions);
+  } else {
+    row.append(check, content, actions);
+  }
+
   if (!isOwner) actions.classList.add("hidden");
-  row.append(check, content, actions);
 
   return row;
 }
@@ -1869,6 +2016,14 @@ function openEventModal(eventData = {}, allowEdit = false) {
   eventModalForm.querySelector('button[type="submit"]').classList.toggle("hidden", !canEdit);
 
   eventModal.classList.remove("hidden");
+
+  // 캘린더 클릭/드래그 직후 바로 일정명을 타이핑할 수 있게 한다.
+  if (!existing && canEdit) {
+    window.setTimeout(() => {
+      eventTitleInput.focus();
+      eventTitleInput.select();
+    }, 0);
+  }
 }
 
 function closeEventModal() {
@@ -1945,7 +2100,7 @@ openScheduleCreateButton.addEventListener("click", () => {
 
 /* SCHEDULE PAGE */
 async function loadSchedulePage() {
-  const { data } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("events")
     .select("*")
     .order("start_date")
@@ -1953,10 +2108,23 @@ async function loadSchedulePage() {
 
   scheduleList.innerHTML = "";
 
+  if (error) {
+    console.error("일정 불러오기 오류:", error);
+    scheduleList.innerHTML = '<p class="error-text">일정을 불러오지 못했어요.</p>';
+    return;
+  }
+
+  const todayKey = formatDateKey(new Date());
+
   (data || []).forEach(event => {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "schedule-item schedule-item-button";
+
+    // 종료일까지 완전히 지난 일정만 회색 처리한다.
+    if (event.end_date < todayKey) {
+      row.classList.add("schedule-item-past");
+    }
 
     const date = document.createElement("div");
     date.className = "schedule-date";

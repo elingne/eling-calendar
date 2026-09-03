@@ -2907,3 +2907,69 @@ textarea {
   border-radius: 50%;
   flex: 0 0 auto;
 }
+
+
+/* =========================================================
+   V26 SCHEDULE + QUICK TODO
+========================================================= */
+
+.schedule-item.schedule-item-past {
+  opacity: 0.48;
+  background: #f4f4f5 !important;
+  border-color: #e7e7e9 !important;
+  filter: grayscale(0.7);
+}
+
+.schedule-item.schedule-item-past .schedule-date,
+.schedule-item.schedule-item-past .schedule-text strong,
+.schedule-item.schedule-item-past .schedule-text span {
+  color: #98989f !important;
+}
+
+.quick-item-draggable {
+  cursor: grab;
+}
+
+.quick-item-draggable:active,
+.quick-item-draggable.dragging {
+  cursor: grabbing;
+}
+
+.quick-item.dragging {
+  opacity: 0.45;
+}
+
+.quick-star-button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  font-size: 18px !important;
+  line-height: 1;
+  color: #b7b7bd;
+  box-shadow: none !important;
+}
+
+.quick-star-button:hover {
+  transform: scale(1.08);
+}
+
+.quick-star-button.active {
+  color: #e9b94f;
+}
+
+.quick-star-button:disabled {
+  opacity: 0.5;
+}
+
+.quick-item:not(.quick-item-completed) {
+  user-select: none;
+}
+
+.quick-item .quick-item-content,
+.quick-inline-editor {
+  user-select: text;
+}

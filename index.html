@@ -290,11 +290,11 @@
       <form id="eventModalForm" class="event-modal-form">
         <input id="eventIdInput" type="hidden">
         <input id="eventTitleInput" type="text" maxlength="120" placeholder="일정 이름" required>
+        <textarea id="eventDescriptionInput" maxlength="500" placeholder="메모 (선택)"></textarea>
         <div class="date-pair">
           <label>시작일<input id="eventStartInput" type="date" required></label>
           <label>종료일<input id="eventEndInput" type="date" required></label>
         </div>
-        <textarea id="eventDescriptionInput" maxlength="500" placeholder="메모 (선택)"></textarea>
         <div class="event-modal-actions">
           <button id="eventDeleteButton" type="button" class="danger-button hidden">삭제</button>
           <div class="event-modal-actions-right">
