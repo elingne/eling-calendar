@@ -2976,3 +2976,54 @@ textarea {
 
 /* V27: 중요 별을 할 일 행 맨 오른쪽에 배치 */
 .quick-item:not(.quick-item-completed) .quick-star-button { margin-left: 4px; flex: 0 0 auto; }
+
+
+/* =========================================================
+   V28 QUICK TODO INLINE EDIT + DELETE
+========================================================= */
+
+.quick-item-editable {
+  cursor: text;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.quick-item-editable:hover .quick-item-title {
+  text-decoration: underline;
+  text-decoration-color: rgba(80, 80, 90, 0.22);
+  text-underline-offset: 3px;
+}
+
+.quick-delete-button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 !important;
+  margin-left: 2px;
+  border: 0 !important;
+  background: transparent !important;
+  color: #a7a7ad;
+  font-size: 18px !important;
+  line-height: 1;
+  box-shadow: none !important;
+  flex: 0 0 auto;
+}
+
+.quick-delete-button:hover {
+  color: #d16f87;
+  transform: scale(1.08);
+}
+
+.quick-delete-button:disabled {
+  opacity: 0.45;
+}
+
+.quick-item:not(.quick-item-completed) .quick-star-button {
+  margin-left: 4px;
+}
+
+.quick-inline-editor {
+  flex: 1 1 auto;
+  min-width: 0;
+}

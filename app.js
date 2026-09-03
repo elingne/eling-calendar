@@ -1206,10 +1206,12 @@ function makeQuickTodoRow(item, completed) {
     row.classList.add("quick-item-draggable");
 
     row.addEventListener("dragstart", (event) => {
-      if (event.target.closest("button, input")) {
+      // 텍스트 클릭은 수정 동작으로 남겨두고, 버튼/체크박스에서도 드래그하지 않는다.
+      if (event.target.closest("button, input, .quick-item-content")) {
         event.preventDefault();
         return;
       }
+
       quickTodoDragId = String(item.id);
       row.classList.add("dragging");
       event.dataTransfer.effectAllowed = "move";
@@ -1294,7 +1296,8 @@ function makeQuickTodoRow(item, completed) {
   });
 
   const content = document.createElement("div");
-  content.className = "quick-item-content";
+  content.className = "quick-item-content quick-item-editable";
+  content.title = isOwner ? "클릭해서 수정" : "";
 
   const text = document.createElement("span");
   text.className = "quick-item-title";
@@ -1308,29 +1311,22 @@ function makeQuickTodoRow(item, completed) {
     content.appendChild(time);
   }
 
-  const actions = document.createElement("div");
-  actions.className = "quick-item-actions";
-
-  const editButton = document.createElement("button");
-  editButton.type = "button";
-  editButton.className = "quick-edit-button";
-  editButton.textContent = "수정";
-
   const deleteButton = document.createElement("button");
   deleteButton.type = "button";
   deleteButton.className = "quick-delete-button";
   deleteButton.textContent = "×";
   deleteButton.title = "삭제";
   deleteButton.setAttribute("aria-label", `${item.title} 삭제`);
+  deleteButton.disabled = !isOwner;
 
-  editButton.addEventListener("click", () => {
-    if (row.classList.contains("editing")) return;
+  const beginEditing = () => {
+    if (!isOwner || row.classList.contains("editing")) return;
 
     row.classList.add("editing");
+    row.draggable = false;
     check.disabled = true;
     starButton.disabled = true;
-    editButton.classList.add("hidden");
-    deleteButton.classList.add("hidden");
+    deleteButton.disabled = true;
 
     const originalTitle = item.title;
 
@@ -1356,10 +1352,10 @@ function makeQuickTodoRow(item, completed) {
 
     const finishEditing = () => {
       row.classList.remove("editing");
-      check.disabled = false;
+      row.draggable = !completed && isOwner;
+      check.disabled = !isOwner;
       starButton.disabled = !isOwner;
-      editButton.classList.remove("hidden");
-      deleteButton.classList.remove("hidden");
+      deleteButton.disabled = !isOwner;
       editor.remove();
       content.classList.remove("hidden");
     };
@@ -1409,13 +1405,16 @@ function makeQuickTodoRow(item, completed) {
 
     editor.append(input, saveButton, cancelButton);
     content.classList.add("hidden");
-    row.insertBefore(editor, actions);
+    row.insertBefore(editor, completed ? deleteButton : starButton);
 
     input.focus();
     input.select();
-  });
+  };
+
+  content.addEventListener("click", beginEditing);
 
   deleteButton.addEventListener("click", async () => {
+    if (!isOwner) return;
     if (!window.confirm(`"${item.title}"을(를) 삭제할까요?`)) return;
 
     const { error } = await supabaseClient
@@ -1436,12 +1435,12 @@ function makeQuickTodoRow(item, completed) {
   });
 
   if (!completed) {
-    row.append(check, content, actions, starButton);
+    // 지금 해야 하는 일: 체크 → 텍스트 → 별 → X
+    row.append(check, content, starButton, deleteButton);
   } else {
-    row.append(check, content, actions);
+    // 오늘 완료한 일: 체크 → 텍스트 → X
+    row.append(check, content, deleteButton);
   }
-
-  if (!isOwner) actions.classList.add("hidden");
 
   return row;
 }
