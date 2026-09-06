@@ -406,76 +406,89 @@ function enableLongPressReorder(row, container, onCommit, options = {}) {
   let startX = 0;
   let startY = 0;
   let ghostApi = null;
-  let pointerId = null;
+  let lastX = 0;
+  let lastY = 0;
 
-  const cancelTimer = () => {
+  const clearTimer = () => {
     if (timer) window.clearTimeout(timer);
     timer = null;
   };
 
-  row.addEventListener("pointerdown", event => {
-    if (event.pointerType === "mouse") return;
-    if (options.excludeSelector && event.target.closest(options.excludeSelector)) return;
-
-    startX = event.clientX;
-    startY = event.clientY;
-    pointerId = event.pointerId;
-
-    timer = window.setTimeout(() => {
-      active = true;
-      scheduleTouchDragging = true;
-      suppressCalendarClickUntil = Date.now() + 700;
-      row.classList.add("touch-dragging");
-      row.setPointerCapture?.(pointerId);
-      ghostApi = createDragGhost(row, event.clientX, event.clientY);
-      navigator.vibrate?.(25);
-      options.onStart?.();
-    }, options.delay || 430);
-  }, { passive: true });
-
-  row.addEventListener("pointermove", event => {
-    if (event.pointerType === "mouse") return;
-
-    if (!active) {
-      if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10) cancelTimer();
-      return;
-    }
-
-    event.preventDefault();
-    ghostApi?.move(event.clientX, event.clientY);
-
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(options.targetSelector || ".quick-item");
-    if (!target || target === row || !container.contains(target)) return;
-
-    if (options.acceptTarget && !options.acceptTarget(target)) return;
-
-    const rect = target.getBoundingClientRect();
-    const after = event.clientY > rect.top + rect.height / 2;
-    container.insertBefore(row, after ? target.nextSibling : target);
-  }, { passive: false });
-
-  const finish = async event => {
-    cancelTimer();
-
-    if (!active) return;
-
-    event.preventDefault();
+  const reset = () => {
+    clearTimer();
     active = false;
     scheduleTouchDragging = false;
     row.classList.remove("touch-dragging");
     ghostApi?.ghost.remove();
     ghostApi = null;
     clearTouchDropTargets();
+  };
+
+  row.addEventListener("touchstart", event => {
+    if (!event.touches?.length) return;
+    if (options.excludeSelector && event.target.closest(options.excludeSelector)) return;
+
+    const touch = event.touches[0];
+    startX = lastX = touch.clientX;
+    startY = lastY = touch.clientY;
+
+    clearTimer();
+    timer = window.setTimeout(() => {
+      active = true;
+      scheduleTouchDragging = true;
+      suppressCalendarClickUntil = Date.now() + 1000;
+      row.classList.add("touch-dragging");
+      ghostApi = createDragGhost(row, lastX, lastY);
+      navigator.vibrate?.(25);
+      options.onStart?.();
+    }, options.delay || 430);
+  }, { passive: true });
+
+  row.addEventListener("touchmove", event => {
+    if (!event.touches?.length) return;
+
+    const touch = event.touches[0];
+    lastX = touch.clientX;
+    lastY = touch.clientY;
+
+    if (!active) {
+      // 길게 누르기 전에 확실히 스크롤을 시작한 경우에만 롱프레스를 취소
+      if (Math.hypot(lastX - startX, lastY - startY) > 18) clearTimer();
+      return;
+    }
+
+    if (event.cancelable) event.preventDefault();
+    ghostApi?.move(lastX, lastY);
+
+    const target = document
+      .elementFromPoint(lastX, lastY)
+      ?.closest(options.targetSelector || ".quick-item");
+
+    if (!target || target === row || !container.contains(target)) return;
+    if (options.acceptTarget && !options.acceptTarget(target)) return;
+
+    const rect = target.getBoundingClientRect();
+    const after = lastY > rect.top + rect.height / 2;
+    container.insertBefore(row, after ? target.nextSibling : target);
+  }, { passive: false });
+
+  const finish = async event => {
+    clearTimer();
+
+    if (!active) return;
+
+    if (event.cancelable) event.preventDefault();
 
     try {
       await onCommit?.();
     } finally {
       options.onEnd?.();
+      reset();
     }
   };
 
-  row.addEventListener("pointerup", finish, { passive: false });
-  row.addEventListener("pointercancel", finish, { passive: false });
+  row.addEventListener("touchend", finish, { passive: false });
+  row.addEventListener("touchcancel", finish, { passive: false });
 }
 
 function completedPayload(table, id, title) {
@@ -528,43 +541,64 @@ function enableCompletedTouchMove(row, item) {
   let active = false;
   let startX = 0;
   let startY = 0;
+  let lastX = 0;
+  let lastY = 0;
   let ghostApi = null;
   let highlighted = null;
 
-  row.addEventListener("pointerdown", event => {
-    if (event.pointerType === "mouse") return;
+  const clearTimer = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+  };
+
+  const clearState = () => {
+    clearTimer();
+    active = false;
+    row.classList.remove("touch-dragging");
+    ghostApi?.ghost.remove();
+    ghostApi = null;
+    highlighted?.classList.remove("touch-drop-target");
+    highlighted = null;
+  };
+
+  row.addEventListener("touchstart", event => {
+    if (!event.touches?.length) return;
     if (event.target.closest("button, input, .quick-item-editable")) return;
 
-    startX = event.clientX;
-    startY = event.clientY;
+    const touch = event.touches[0];
+    startX = lastX = touch.clientX;
+    startY = lastY = touch.clientY;
 
+    clearTimer();
     timer = window.setTimeout(() => {
       active = true;
-      suppressCalendarClickUntil = Date.now() + 800;
+      suppressCalendarClickUntil = Date.now() + 1000;
       row.classList.add("touch-dragging");
-      ghostApi = createDragGhost(row, event.clientX, event.clientY);
+      ghostApi = createDragGhost(row, lastX, lastY);
       navigator.vibrate?.(25);
 
-      // 모바일 사이드탭이 달력을 덮고 있다면 드래그 시작과 함께 달력을 다시 보이게 한다.
+      // 사이드탭의 완료 기록은 달력으로 옮겨야 하므로 드래그 시작 시 패널을 닫는다.
       if (dayPanel.classList.contains("open")) closeDayPanel();
     }, 430);
   }, { passive: true });
 
-  row.addEventListener("pointermove", event => {
-    if (event.pointerType === "mouse") return;
+  row.addEventListener("touchmove", event => {
+    if (!event.touches?.length) return;
+
+    const touch = event.touches[0];
+    lastX = touch.clientX;
+    lastY = touch.clientY;
 
     if (!active) {
-      if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10 && timer) {
-        window.clearTimeout(timer);
-        timer = null;
-      }
+      if (Math.hypot(lastX - startX, lastY - startY) > 18) clearTimer();
       return;
     }
 
-    event.preventDefault();
-    ghostApi?.move(event.clientX, event.clientY);
+    if (event.cancelable) event.preventDefault();
+    ghostApi?.move(lastX, lastY);
 
-    const cell = document.elementFromPoint(event.clientX, event.clientY)?.closest(".calendar-day");
+    const cell = document.elementFromPoint(lastX, lastY)?.closest(".calendar-day");
+
     if (cell !== highlighted) {
       highlighted?.classList.remove("touch-drop-target");
       highlighted = cell || null;
@@ -573,27 +607,21 @@ function enableCompletedTouchMove(row, item) {
   }, { passive: false });
 
   const finish = async event => {
-    if (timer) window.clearTimeout(timer);
-    timer = null;
+    clearTimer();
     if (!active) return;
 
-    event.preventDefault();
-    active = false;
-    row.classList.remove("touch-dragging");
-    ghostApi?.ghost.remove();
-    ghostApi = null;
+    if (event.cancelable) event.preventDefault();
 
     const targetDate = highlighted?.dataset.date || null;
-    highlighted?.classList.remove("touch-drop-target");
-    highlighted = null;
+    clearState();
 
     if (targetDate) {
       await moveCompletedItemToDate(item.table, item.id, targetDate);
     }
   };
 
-  row.addEventListener("pointerup", finish, { passive: false });
-  row.addEventListener("pointercancel", finish, { passive: false });
+  row.addEventListener("touchend", finish, { passive: false });
+  row.addEventListener("touchcancel", finish, { passive: false });
 }
 
 function enableCalendarTouchRange(cell) {
@@ -603,19 +631,26 @@ function enableCalendarTouchRange(cell) {
   let active = false;
   let startX = 0;
   let startY = 0;
-  let currentKey = cell.dataset.date;
+  let lastX = 0;
+  let lastY = 0;
 
-  cell.addEventListener("pointerdown", event => {
-    if (event.pointerType === "mouse") return;
+  const clearTimer = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+  };
+
+  cell.addEventListener("touchstart", event => {
+    if (!event.touches?.length) return;
     if (event.target.closest(".calendar-event-chip, .calendar-deco-composite")) return;
 
-    startX = event.clientX;
-    startY = event.clientY;
-    currentKey = cell.dataset.date;
+    const touch = event.touches[0];
+    startX = lastX = touch.clientX;
+    startY = lastY = touch.clientY;
 
+    clearTimer();
     timer = window.setTimeout(() => {
       active = true;
-      suppressCalendarClickUntil = Date.now() + 900;
+      suppressCalendarClickUntil = Date.now() + 1000;
       dragStartDate = cell.dataset.date;
       dragCurrentDate = cell.dataset.date;
       paintDragRange(dragStartDate, dragCurrentDate);
@@ -623,39 +658,40 @@ function enableCalendarTouchRange(cell) {
     }, 430);
   }, { passive: true });
 
-  cell.addEventListener("pointermove", event => {
-    if (event.pointerType === "mouse") return;
+  cell.addEventListener("touchmove", event => {
+    if (!event.touches?.length) return;
+
+    const touch = event.touches[0];
+    lastX = touch.clientX;
+    lastY = touch.clientY;
 
     if (!active) {
-      if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10 && timer) {
-        window.clearTimeout(timer);
-        timer = null;
-      }
+      if (Math.hypot(lastX - startX, lastY - startY) > 18) clearTimer();
       return;
     }
 
-    event.preventDefault();
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".calendar-day");
+    if (event.cancelable) event.preventDefault();
+
+    const target = document.elementFromPoint(lastX, lastY)?.closest(".calendar-day");
     if (!target) return;
 
-    currentKey = target.dataset.date;
-    dragCurrentDate = currentKey;
+    dragCurrentDate = target.dataset.date;
     paintDragRange(dragStartDate, dragCurrentDate);
   }, { passive: false });
 
   const finish = event => {
-    if (timer) window.clearTimeout(timer);
-    timer = null;
+    clearTimer();
     if (!active) return;
 
-    event.preventDefault();
-    active = false;
+    if (event.cancelable) event.preventDefault();
 
     const start = dragStartDate;
     const end = dragCurrentDate || start;
+
     clearDragRange();
     dragStartDate = null;
     dragCurrentDate = null;
+    active = false;
 
     if (!start || !end || start === end) return;
 
@@ -663,8 +699,8 @@ function enableCalendarTouchRange(cell) {
     openEventModal({ start_date: ordered[0], end_date: ordered[1] });
   };
 
-  cell.addEventListener("pointerup", finish, { passive: false });
-  cell.addEventListener("pointercancel", finish, { passive: false });
+  cell.addEventListener("touchend", finish, { passive: false });
+  cell.addEventListener("touchcancel", finish, { passive: false });
 }
 
 /* CALENDAR */
@@ -772,8 +808,11 @@ function createDayCell(date, otherMonth) {
   cell.addEventListener("dragover", event => {
     if (!isOwner) return;
 
-    const raw = event.dataTransfer?.types || [];
-    if ([...raw].includes("application/x-completed-item")) {
+    const raw = [...(event.dataTransfer?.types || [])];
+    if (
+      raw.includes("application/x-completed-item") ||
+      raw.includes("application/x-calendar-event")
+    ) {
       event.preventDefault();
       cell.classList.add("touch-drop-target");
     }
@@ -785,13 +824,22 @@ function createDayCell(date, otherMonth) {
 
   cell.addEventListener("drop", async event => {
     cell.classList.remove("touch-drop-target");
-    const payloadText = event.dataTransfer?.getData("application/x-completed-item");
-    if (!payloadText) return;
+
+    const completedPayloadText = event.dataTransfer?.getData("application/x-completed-item");
+    const eventId = event.dataTransfer?.getData("application/x-calendar-event");
+
+    if (eventId) {
+      event.preventDefault();
+      await moveEventToDate(eventId, cell.dataset.date);
+      return;
+    }
+
+    if (!completedPayloadText) return;
 
     event.preventDefault();
 
     try {
-      const payload = JSON.parse(payloadText);
+      const payload = JSON.parse(completedPayloadText);
       await moveCompletedItemToDate(payload.table, payload.id, cell.dataset.date);
     } catch (error) {
       console.error("완료한 일 드롭 오류:", error);
@@ -937,9 +985,27 @@ async function loadCalendarExtras() {
       chip.title = event.title;
 
       chip.addEventListener("click", clickEvent => {
+        if (Date.now() < suppressCalendarClickUntil) {
+          clickEvent.preventDefault();
+          clickEvent.stopPropagation();
+          return;
+        }
+
         clickEvent.stopPropagation();
         openEventModal(event, true);
       });
+
+      if (isOwner) {
+        chip.draggable = true;
+
+        chip.addEventListener("dragstart", dragEvent => {
+          dragEvent.stopPropagation();
+          dragEvent.dataTransfer.effectAllowed = "move";
+          dragEvent.dataTransfer.setData("application/x-calendar-event", String(event.id));
+        });
+
+        enableCalendarEventTouchMove(chip, event);
+      }
 
       eventBox.appendChild(chip);
     });
@@ -2486,6 +2552,8 @@ eventModalForm.addEventListener("submit", async event => {
     return;
   }
 
+  payload.is_completed = payload.start_date < formatDateKey(new Date());
+
   const isEditing = Boolean(eventIdInput.value);
   const movedDate = isEditing && editingEventOriginalStartDate !== payload.start_date;
 
@@ -2535,6 +2603,258 @@ openScheduleCreateButton.addEventListener("click", () => {
   openEventModal();
 });
 
+
+
+function daysBetweenKeys(startKey, endKey) {
+  const start = parseLocalDate(startKey);
+  const end = parseLocalDate(endKey);
+  return Math.round((end - start) / 86400000);
+}
+
+function addDaysToKey(key, days) {
+  const date = parseLocalDate(key);
+  date.setDate(date.getDate() + days);
+  return formatDateKey(date);
+}
+
+async function moveEventToDate(eventId, targetDate) {
+  if (!isOwner || !eventId || !targetDate) return;
+
+  const { data: eventData, error: fetchError } = await supabaseClient
+    .from("events")
+    .select("*")
+    .eq("id", Number(eventId))
+    .single();
+
+  if (fetchError || !eventData) {
+    console.error("일정 이동 대상 불러오기 오류:", fetchError);
+    return;
+  }
+
+  const duration = Math.max(0, daysBetweenKeys(eventData.start_date, eventData.end_date));
+  const newEndDate = addDaysToKey(targetDate, duration);
+  const todayKey = formatDateKey(new Date());
+  const nextOrder = await getNextScheduleOrder(targetDate);
+
+  const { error } = await supabaseClient
+    .from("events")
+    .update({
+      start_date: targetDate,
+      end_date: newEndDate,
+      sort_order: nextOrder,
+      is_completed: targetDate < todayKey
+    })
+    .eq("id", Number(eventId));
+
+  if (error) {
+    console.error("일정 날짜 이동 오류:", error);
+    return;
+  }
+
+  await loadSchedulePage();
+  renderCalendar();
+}
+
+function enableScheduleEventTouchMove(row, eventData) {
+  if (!isOwner) return;
+
+  let timer = null;
+  let active = false;
+  let startX = 0;
+  let startY = 0;
+  let lastX = 0;
+  let lastY = 0;
+  let ghostApi = null;
+  let highlightedGroup = null;
+  let highlightedRow = null;
+
+  const clearTimer = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+  };
+
+  const clearHighlights = () => {
+    highlightedGroup?.classList.remove("touch-drop-target");
+    highlightedRow?.classList.remove("touch-reorder-target");
+    highlightedGroup = null;
+    highlightedRow = null;
+  };
+
+  const reset = () => {
+    clearTimer();
+    active = false;
+    scheduleTouchDragging = false;
+    row.classList.remove("touch-dragging", "dragging");
+    ghostApi?.ghost.remove();
+    ghostApi = null;
+    clearHighlights();
+  };
+
+  row.addEventListener("touchstart", event => {
+    if (!event.touches?.length) return;
+    if (event.target.closest("button")) return;
+
+    const touch = event.touches[0];
+    startX = lastX = touch.clientX;
+    startY = lastY = touch.clientY;
+
+    clearTimer();
+    timer = window.setTimeout(() => {
+      active = true;
+      scheduleTouchDragging = true;
+      row.classList.add("touch-dragging", "dragging");
+      ghostApi = createDragGhost(row, lastX, lastY);
+      navigator.vibrate?.(25);
+    }, 430);
+  }, { passive: true });
+
+  row.addEventListener("touchmove", event => {
+    if (!event.touches?.length) return;
+
+    const touch = event.touches[0];
+    lastX = touch.clientX;
+    lastY = touch.clientY;
+
+    if (!active) {
+      if (Math.hypot(lastX - startX, lastY - startY) > 18) clearTimer();
+      return;
+    }
+
+    if (event.cancelable) event.preventDefault();
+    ghostApi?.move(lastX, lastY);
+
+    const element = document.elementFromPoint(lastX, lastY);
+    const group = element?.closest(".schedule-date-group") || null;
+    const targetRow = element?.closest(".schedule-entry[data-kind='event']") || null;
+
+    if (group !== highlightedGroup) {
+      highlightedGroup?.classList.remove("touch-drop-target");
+      highlightedGroup = group;
+      highlightedGroup?.classList.add("touch-drop-target");
+    }
+
+    if (targetRow !== highlightedRow) {
+      highlightedRow?.classList.remove("touch-reorder-target");
+      highlightedRow = targetRow && targetRow !== row ? targetRow : null;
+      highlightedRow?.classList.add("touch-reorder-target");
+    }
+
+    // 같은 날짜 그룹 안에서는 순서도 동시에 바꿀 수 있다.
+    if (highlightedGroup?.dataset.scheduleDate === eventData.start_date && highlightedRow) {
+      const body = highlightedGroup.querySelector(".schedule-group-body");
+      const rect = highlightedRow.getBoundingClientRect();
+      const after = lastY > rect.top + rect.height / 2;
+      body.insertBefore(row, after ? highlightedRow.nextSibling : highlightedRow);
+    }
+  }, { passive: false });
+
+  const finish = async event => {
+    clearTimer();
+    if (!active) return;
+
+    if (event.cancelable) event.preventDefault();
+
+    const targetDate = highlightedGroup?.dataset.scheduleDate || null;
+    const originalDate = eventData.start_date;
+
+    if (targetDate && targetDate !== originalDate) {
+      reset();
+      await moveEventToDate(eventData.id, targetDate);
+      return;
+    }
+
+    const group = row.closest(".schedule-date-group");
+    reset();
+
+    if (group) {
+      await saveScheduleGroupOrderFromDom(group);
+    }
+  };
+
+  row.addEventListener("touchend", finish, { passive: false });
+  row.addEventListener("touchcancel", finish, { passive: false });
+}
+
+function enableCalendarEventTouchMove(chip, eventData) {
+  if (!isOwner) return;
+
+  let timer = null;
+  let active = false;
+  let startX = 0;
+  let startY = 0;
+  let lastX = 0;
+  let lastY = 0;
+  let ghostApi = null;
+  let highlighted = null;
+
+  const clearTimer = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+  };
+
+  chip.addEventListener("touchstart", event => {
+    if (!event.touches?.length) return;
+
+    const touch = event.touches[0];
+    startX = lastX = touch.clientX;
+    startY = lastY = touch.clientY;
+
+    clearTimer();
+    timer = window.setTimeout(() => {
+      active = true;
+      suppressCalendarClickUntil = Date.now() + 1000;
+      chip.classList.add("touch-dragging");
+      ghostApi = createDragGhost(chip, lastX, lastY);
+      navigator.vibrate?.(25);
+    }, 430);
+  }, { passive: true });
+
+  chip.addEventListener("touchmove", event => {
+    if (!event.touches?.length) return;
+
+    const touch = event.touches[0];
+    lastX = touch.clientX;
+    lastY = touch.clientY;
+
+    if (!active) {
+      if (Math.hypot(lastX - startX, lastY - startY) > 18) clearTimer();
+      return;
+    }
+
+    if (event.cancelable) event.preventDefault();
+    ghostApi?.move(lastX, lastY);
+
+    const cell = document.elementFromPoint(lastX, lastY)?.closest(".calendar-day");
+    if (cell !== highlighted) {
+      highlighted?.classList.remove("touch-drop-target");
+      highlighted = cell || null;
+      highlighted?.classList.add("touch-drop-target");
+    }
+  }, { passive: false });
+
+  const finish = async event => {
+    clearTimer();
+    if (!active) return;
+
+    if (event.cancelable) event.preventDefault();
+
+    const targetDate = highlighted?.dataset.date || null;
+
+    active = false;
+    chip.classList.remove("touch-dragging");
+    ghostApi?.ghost.remove();
+    ghostApi = null;
+    highlighted?.classList.remove("touch-drop-target");
+    highlighted = null;
+
+    if (targetDate && targetDate !== eventData.start_date) {
+      await moveEventToDate(eventData.id, targetDate);
+    }
+  };
+
+  chip.addEventListener("touchend", finish, { passive: false });
+  chip.addEventListener("touchcancel", finish, { passive: false });
+}
 
 function formatScheduleDateHeading(key) {
   const date = parseLocalDate(key);
@@ -2616,13 +2936,19 @@ function renderScheduleGap(date, beforeItem, afterItem, group) {
       gap.replaceChildren(line, hint);
     };
 
+    let isSaving = false;
+    let isFinished = false;
+
     const save = async () => {
+      if (isSaving || isFinished) return;
+
       const body = input.value.trim();
       if (!body) {
         cancel();
         return;
       }
 
+      isSaving = true;
       input.disabled = true;
 
       // 현재 사이 순서를 기준으로 중간값에 삽입한 뒤 전체를 다시 정규화한다.
@@ -2642,10 +2968,12 @@ function renderScheduleGap(date, beforeItem, afterItem, group) {
 
       if (error) {
         console.error("일정 사이 메모 저장 오류:", error);
+        isSaving = false;
         input.disabled = false;
         return;
       }
 
+      isFinished = true;
       await loadSchedulePage();
     };
 
@@ -2660,6 +2988,7 @@ function renderScheduleGap(date, beforeItem, afterItem, group) {
     });
 
     input.addEventListener("blur", () => {
+      if (isSaving || isFinished) return;
       if (input.value.trim()) save();
       else cancel();
     }, { once: true });
@@ -2716,7 +3045,9 @@ function renderScheduleEvent(event, todayKey, group) {
   row.dataset.id = event.id;
   row.dataset.sortOrder = event.sort_order;
 
-  if (event.end_date < todayKey) row.classList.add("schedule-item-past");
+  if (event.is_completed || event.end_date < todayKey) {
+    row.classList.add("schedule-item-past");
+  }
 
   const dragHandle = document.createElement("span");
   dragHandle.className = "schedule-drag-handle owner-control";
@@ -2764,6 +3095,7 @@ function renderScheduleEvent(event, todayKey, group) {
       row.classList.add("dragging");
       eventObject.dataTransfer.effectAllowed = "move";
       eventObject.dataTransfer.setData("text/plain", String(event.id));
+      eventObject.dataTransfer.setData("application/x-schedule-event", String(event.id));
     });
 
     row.addEventListener("dragover", eventObject => {
@@ -2781,6 +3113,16 @@ function renderScheduleEvent(event, todayKey, group) {
 
     row.addEventListener("drop", async eventObject => {
       eventObject.preventDefault();
+      eventObject.stopPropagation();
+
+      const movedEventId = eventObject.dataTransfer.getData("application/x-schedule-event");
+      const targetDate = group.dataset.scheduleDate;
+
+      if (movedEventId && targetDate !== event.start_date) {
+        await moveEventToDate(movedEventId, targetDate);
+        return;
+      }
+
       await saveScheduleGroupOrderFromDom(group);
     });
 
@@ -2789,17 +3131,7 @@ function renderScheduleEvent(event, todayKey, group) {
       await saveScheduleGroupOrderFromDom(group);
     });
 
-    enableLongPressReorder(
-      row,
-      group.querySelector(".schedule-group-body"),
-      () => saveScheduleGroupOrderFromDom(group),
-      {
-        targetSelector: ".schedule-entry",
-        excludeSelector: "button",
-        onStart: () => row.classList.add("dragging"),
-        onEnd: () => row.classList.remove("dragging")
-      }
-    );
+    enableScheduleEventTouchMove(row, event);
   }
 
   return row;
@@ -2865,6 +3197,32 @@ async function loadSchedulePage() {
     body.className = "schedule-group-body";
 
     group.append(heading, body);
+
+    if (isOwner) {
+      group.addEventListener("dragover", event => {
+        if ([...event.dataTransfer.types].includes("application/x-schedule-event")) {
+          event.preventDefault();
+          group.classList.add("touch-drop-target");
+        }
+      });
+
+      group.addEventListener("dragleave", event => {
+        if (!group.contains(event.relatedTarget)) {
+          group.classList.remove("touch-drop-target");
+        }
+      });
+
+      group.addEventListener("drop", async event => {
+        const movedEventId = event.dataTransfer.getData("application/x-schedule-event");
+        if (!movedEventId) return;
+
+        event.preventDefault();
+        group.classList.remove("touch-drop-target");
+
+        await moveEventToDate(movedEventId, date);
+      });
+    }
+
     scheduleList.appendChild(group);
 
     const mixed = [
