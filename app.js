@@ -17,6 +17,8 @@ let suppressCalendarClickUntil = 0;
 let scheduleTouchDragging = false;
 let editingEventOriginalStartDate = null;
 let editingEventSortOrder = null;
+let calendarDraggedEventId = null;
+let calendarDraggedSourceDate = null;
 
 const MOODS = [
   { value: "happy", label: "기쁨", className: "mood-happy" },
@@ -970,16 +972,57 @@ async function loadCalendarExtras() {
 
     const eventBox = cell.querySelector(".calendar-event-list");
 
-    const orderedEvents = [...events].sort((a, b) =>
-      a.start_date.localeCompare(b.start_date) ||
-      (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
-      b.end_date.localeCompare(a.end_date) ||
-      a.id - b.id
-    );
+    if (isOwner) {
+      eventBox.addEventListener("dragover", dragEvent => {
+        if (!calendarDraggedEventId || calendarDraggedSourceDate !== key) return;
 
-    // 같은 일정은 모든 날짜 칸에서 같은 세로 줄(row)을 사용해야 바가 정확히 이어진다.
-    const cellEvents = orderedEvents
+        dragEvent.preventDefault();
+        dragEvent.stopPropagation();
+
+        const dragging = eventBox.querySelector(
+          `.calendar-event-chip[data-event-id="${calendarDraggedEventId}"]`
+        );
+
+        if (!dragging) return;
+
+        const candidates = [...eventBox.querySelectorAll(".calendar-event-chip")]
+          .filter(item => item !== dragging);
+
+        const next = candidates.find(item => {
+          const rect = item.getBoundingClientRect();
+          return dragEvent.clientY < rect.top + rect.height / 2;
+        });
+
+        eventBox.insertBefore(dragging, next || null);
+        cell.classList.add("calendar-ordering");
+      });
+
+      eventBox.addEventListener("drop", async dragEvent => {
+        if (!calendarDraggedEventId || calendarDraggedSourceDate !== key) return;
+
+        dragEvent.preventDefault();
+        dragEvent.stopPropagation();
+        cell.classList.remove("calendar-ordering");
+
+        const ids = [...eventBox.querySelectorAll(".calendar-event-chip[data-event-id]")]
+          .map(item => Number(item.dataset.eventId));
+
+        if (ids.length) {
+          await saveCalendarEventOrderForDate(key, ids);
+        }
+      });
+    }
+
+    // V32: 캘린더에서 바꾼 순서가 실제 표시 순서의 최우선 기준이 된다.
+    // 시작일이 서로 다른 다일 일정끼리도 현재 날짜 칸에서 자유롭게 순서를 바꿀 수 있다.
+    const cellEvents = [...events]
       .filter(event => event.start_date <= key && event.end_date >= key)
+      .sort((a, b) =>
+        (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
+        a.start_date.localeCompare(b.start_date) ||
+        b.end_date.localeCompare(a.end_date) ||
+        a.id - b.id
+      )
       .slice(0, 3);
 
     cellEvents.forEach((event, rowIndex) => {
@@ -1014,43 +1057,21 @@ async function loadCalendarExtras() {
 
         chip.addEventListener("dragstart", dragEvent => {
           dragEvent.stopPropagation();
+
+          calendarDraggedEventId = String(event.id);
+          calendarDraggedSourceDate = key;
+
           chip.classList.add("dragging");
           dragEvent.dataTransfer.effectAllowed = "move";
           dragEvent.dataTransfer.setData("application/x-calendar-event", String(event.id));
           dragEvent.dataTransfer.setData("application/x-calendar-reorder-date", key);
         });
 
-        chip.addEventListener("dragover", dragEvent => {
-          const sourceDate = dragEvent.dataTransfer.getData("application/x-calendar-reorder-date");
-          if (sourceDate !== key) return;
-
-          const dragging = eventBox.querySelector(".calendar-event-chip.dragging");
-          if (!dragging || dragging === chip) return;
-
-          dragEvent.preventDefault();
-          dragEvent.stopPropagation();
-
-          const rect = chip.getBoundingClientRect();
-          const after = dragEvent.clientY > rect.top + rect.height / 2;
-          eventBox.insertBefore(dragging, after ? chip.nextSibling : chip);
-        });
-
-        chip.addEventListener("drop", async dragEvent => {
-          const sourceDate = dragEvent.dataTransfer.getData("application/x-calendar-reorder-date");
-
-          if (sourceDate === key) {
-            dragEvent.preventDefault();
-            dragEvent.stopPropagation();
-
-            const ids = [...eventBox.querySelectorAll(".calendar-event-chip[data-event-id]")]
-              .map(el => Number(el.dataset.eventId));
-
-            await saveCalendarEventOrderForDate(key, ids);
-          }
-        });
-
         chip.addEventListener("dragend", () => {
           chip.classList.remove("dragging");
+          cell.classList.remove("calendar-ordering");
+          calendarDraggedEventId = null;
+          calendarDraggedSourceDate = null;
         });
 
         enableCalendarEventReorderTouch(chip, event, eventBox, key);
@@ -3012,13 +3033,19 @@ function enableCalendarEventReorderTouch(chip, eventData, eventBox, dateKey) {
     ghostApi?.move(lastX, lastY);
 
     const element = document.elementFromPoint(lastX, lastY);
+    const targetCell = element?.closest(".calendar-day");
     const targetChip = element?.closest(".calendar-event-chip");
 
-    // 같은 날짜 칸 안에서 칩 순서를 바꾸면 순서 변경.
-    if (targetChip && targetChip !== chip && eventBox.contains(targetChip)) {
-      const rect = targetChip.getBoundingClientRect();
-      const after = lastY > rect.top + rect.height / 2;
-      eventBox.insertBefore(chip, after ? targetChip.nextSibling : targetChip);
+    // 같은 날짜 칸 안에서는 칩 자체 또는 빈 공간을 기준으로 순서를 변경한다.
+    if (targetCell?.dataset.date === dateKey) {
+      if (targetChip && targetChip !== chip && eventBox.contains(targetChip)) {
+        const rect = targetChip.getBoundingClientRect();
+        const after = lastY > rect.top + rect.height / 2;
+        eventBox.insertBefore(chip, after ? targetChip.nextSibling : targetChip);
+      } else if (targetCell.querySelector(".calendar-event-list") === eventBox) {
+        const rect = eventBox.getBoundingClientRect();
+        if (lastY > rect.top + rect.height / 2) eventBox.appendChild(chip);
+      }
     }
   }, { passive: false });
 

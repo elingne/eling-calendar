@@ -3561,3 +3561,46 @@ textarea {
     -webkit-touch-callout: none;
   }
 }
+
+
+/* =========================================================
+   V32 CALENDAR ORDER + MOOD PICKER BORDER FIX
+========================================================= */
+
+.mood-picker-button {
+  border: 1px solid #e5e6e9 !important;
+  border-radius: 9px !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mood-picker-button:hover {
+  border-color: #d9dbdf !important;
+  background: #fbfbfc !important;
+}
+
+.mood-picker-button:focus,
+.mood-picker-button:focus-visible {
+  outline: none !important;
+  border-color: #cfdfe8 !important;
+  box-shadow: 0 0 0 2px rgba(185, 223, 241, 0.22) !important;
+}
+
+.mood-picker {
+  border: 0 !important;
+  outline: 0 !important;
+}
+
+.calendar-day.calendar-ordering .calendar-event-list {
+  outline: 1px dashed rgba(105, 164, 195, 0.42);
+  outline-offset: 2px;
+  border-radius: 5px;
+}
+
+.calendar-event-chip.dragging {
+  opacity: 0.35 !important;
+}
