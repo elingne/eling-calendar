@@ -3604,3 +3604,25 @@ textarea {
 .calendar-event-chip.dragging {
   opacity: 0.35 !important;
 }
+
+
+/* =========================================================
+   V33 GAP QUICK EVENT + TAB PERSIST
+========================================================= */
+.schedule-gap.editing-event {
+  min-height: 38px;
+}
+
+.schedule-gap-event-input {
+  border-color: #f0cfda !important;
+  background: #fff9fb !important;
+}
+
+.schedule-gap-event-input:focus {
+  border-color: #e9b8c8 !important;
+  box-shadow: 0 0 0 2px rgba(240, 169, 191, 0.12) !important;
+}
+
+.schedule-gap-hint {
+  white-space: nowrap;
+}

@@ -19,6 +19,7 @@ let editingEventOriginalStartDate = null;
 let editingEventSortOrder = null;
 let calendarDraggedEventId = null;
 let calendarDraggedSourceDate = null;
+const LAST_PAGE_STORAGE_KEY = "eling-calendar:last-page";
 
 const MOODS = [
   { value: "happy", label: "기쁨", className: "mood-happy" },
@@ -196,13 +197,27 @@ async function showSite() {
 
   await loadStickers();
 
-  await showPage("calendar");
+  let restoredPage = "calendar";
 
-  // 첫 진입 때 레이아웃 계산 전에 캘린더가 잘리는 브라우저 케이스 방지
-  requestAnimationFrame(() => {
-    renderCalendar();
-    requestAnimationFrame(() => renderCalendar());
-  });
+  try {
+    restoredPage = localStorage.getItem(LAST_PAGE_STORAGE_KEY) || "calendar";
+  } catch (error) {
+    console.warn("탭 상태 복원 실패:", error);
+  }
+
+  if (!isOwner && restoredPage === "admin") {
+    restoredPage = "calendar";
+  }
+
+  await showPage(restoredPage);
+
+  // 캘린더 탭으로 복원된 경우에만 레이아웃 재계산
+  if (restoredPage === "calendar") {
+    requestAnimationFrame(() => {
+      renderCalendar();
+      requestAnimationFrame(() => renderCalendar());
+    });
+  }
 
   if (isOwner) {
     loadQuickTodos();
@@ -270,6 +285,18 @@ navButtons.forEach((button) => {
 });
 
 async function showPage(page) {
+  const allowedPages = isOwner
+    ? ["calendar", "schedule", "admin"]
+    : ["calendar", "schedule"];
+
+  if (!allowedPages.includes(page)) page = "calendar";
+
+  try {
+    localStorage.setItem(LAST_PAGE_STORAGE_KEY, page);
+  } catch (error) {
+    console.warn("탭 상태 저장 실패:", error);
+  }
+
   calendarPage.classList.toggle("hidden", page !== "calendar");
   schedulePage.classList.toggle("hidden", page !== "schedule");
   adminPage.classList.toggle("hidden", page !== "admin");
@@ -3137,14 +3164,14 @@ async function saveScheduleGroupOrderFromDom(group) {
 function renderScheduleGap(date, beforeItem, afterItem, group) {
   const gap = document.createElement("div");
   gap.className = "schedule-gap owner-control";
-  gap.title = "클릭해서 사이 메모 추가";
+  gap.title = "클릭: 메모 추가 · 더블클릭: 일정 추가";
 
   const line = document.createElement("span");
   line.className = "schedule-gap-line";
 
   const hint = document.createElement("span");
   hint.className = "schedule-gap-hint";
-  hint.textContent = "+ 메모";
+  hint.textContent = "+ 메모 / 더블클릭 일정";
 
   gap.append(line, hint);
 
@@ -3153,8 +3180,24 @@ function renderScheduleGap(date, beforeItem, afterItem, group) {
     return gap;
   }
 
-  gap.addEventListener("click", event => {
-    event.stopPropagation();
+  let clickTimer = null;
+
+  const calculateInsertOrder = () => {
+    const beforeOrder = Number(beforeItem?.sort_order) || 0;
+    const afterOrder = Number(afterItem?.sort_order) || (beforeOrder + 2000);
+
+    let sortOrder = Math.floor((beforeOrder + afterOrder) / 2);
+    if (sortOrder <= beforeOrder) sortOrder = beforeOrder + 1;
+
+    return sortOrder;
+  };
+
+  const restoreGap = () => {
+    gap.classList.remove("editing", "editing-event");
+    gap.replaceChildren(line, hint);
+  };
+
+  const openMemoEditor = () => {
     if (gap.classList.contains("editing")) return;
 
     gap.classList.add("editing");
@@ -3166,39 +3209,32 @@ function renderScheduleGap(date, beforeItem, afterItem, group) {
     input.maxLength = 300;
     input.placeholder = "이 사이에 메모 남기기";
 
-    const cancel = () => {
-      gap.classList.remove("editing");
-      gap.replaceChildren(line, hint);
-    };
-
     let isSaving = false;
     let isFinished = false;
+
+    const cancel = () => {
+      if (isSaving || isFinished) return;
+      restoreGap();
+    };
 
     const save = async () => {
       if (isSaving || isFinished) return;
 
       const body = input.value.trim();
       if (!body) {
-        cancel();
+        restoreGap();
         return;
       }
 
       isSaving = true;
       input.disabled = true;
 
-      // 현재 사이 순서를 기준으로 중간값에 삽입한 뒤 전체를 다시 정규화한다.
-      const beforeOrder = Number(beforeItem?.sort_order) || 0;
-      const afterOrder = Number(afterItem?.sort_order) || (beforeOrder + 2000);
-      let sortOrder = Math.floor((beforeOrder + afterOrder) / 2);
-
-      if (sortOrder <= beforeOrder) sortOrder = beforeOrder + 1;
-
       const { error } = await supabaseClient
         .from("schedule_notes")
         .insert({
           note_date: date,
           body,
-          sort_order: sortOrder
+          sort_order: calculateInsertOrder()
         });
 
       if (error) {
@@ -3225,11 +3261,118 @@ function renderScheduleGap(date, beforeItem, afterItem, group) {
     input.addEventListener("blur", () => {
       if (isSaving || isFinished) return;
       if (input.value.trim()) save();
-      else cancel();
+      else restoreGap();
     }, { once: true });
 
     gap.appendChild(input);
     input.focus();
+  };
+
+  const openEventEditor = () => {
+    if (gap.classList.contains("editing")) return;
+
+    gap.classList.add("editing", "editing-event");
+    gap.innerHTML = "";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "schedule-gap-input schedule-gap-event-input";
+    input.maxLength = 120;
+    input.placeholder = "이 위치에 일정 추가";
+
+    let isSaving = false;
+    let isFinished = false;
+
+    const cancel = () => {
+      if (isSaving || isFinished) return;
+      restoreGap();
+    };
+
+    const save = async () => {
+      if (isSaving || isFinished) return;
+
+      const title = input.value.trim();
+      if (!title) {
+        restoreGap();
+        return;
+      }
+
+      isSaving = true;
+      input.disabled = true;
+
+      const todayKey = formatDateKey(new Date());
+
+      const { error } = await supabaseClient
+        .from("events")
+        .insert({
+          title,
+          start_date: date,
+          end_date: date,
+          description: null,
+          sort_order: calculateInsertOrder(),
+          is_completed: date < todayKey
+        });
+
+      if (error) {
+        console.error("일정 사이 빠른 일정 추가 오류:", error);
+        isSaving = false;
+        input.disabled = false;
+        return;
+      }
+
+      isFinished = true;
+      await loadSchedulePage();
+      renderCalendar();
+    };
+
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        save();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        cancel();
+      }
+    });
+
+    input.addEventListener("blur", () => {
+      if (isSaving || isFinished) return;
+      if (input.value.trim()) save();
+      else restoreGap();
+    }, { once: true });
+
+    gap.appendChild(input);
+    input.focus();
+  };
+
+  gap.addEventListener("click", event => {
+    event.stopPropagation();
+
+    if (gap.classList.contains("editing")) return;
+
+    // dblclick과 충돌하지 않도록 단일 클릭 실행을 잠깐 미룬다.
+    if (clickTimer) window.clearTimeout(clickTimer);
+
+    clickTimer = window.setTimeout(() => {
+      clickTimer = null;
+      openMemoEditor();
+    }, 240);
+  });
+
+  gap.addEventListener("dblclick", event => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (clickTimer) {
+      window.clearTimeout(clickTimer);
+      clickTimer = null;
+    }
+
+    if (gap.classList.contains("editing")) {
+      restoreGap();
+    }
+
+    openEventEditor();
   });
 
   if (isOwner) {
