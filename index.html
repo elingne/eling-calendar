@@ -209,15 +209,22 @@
         <span class="section-label">DAILY RECORD</span>
         <h2 id="selectedDateTitle"></h2>
         <div class="day-quick-meta">
-          <label class="mood-quick-select" title="기분">
+          <div class="mood-quick-select" title="기분">
             <span>기분</span>
-            <select id="moodSelect" aria-label="기분">
-            <option value="">기분</option>
-            <option value="happy">🌱 기쁨</option>
-            <option value="neutral">🌿 보통</option>
-            <option value="bad">🥀 나쁨</option>
-          </select>
-          </label>
+            <div id="moodPicker" class="mood-picker">
+              <button id="moodPickerButton" type="button" class="mood-picker-button" aria-haspopup="listbox" aria-expanded="false">
+                <span id="moodPickerDot" class="mood-dot mood-none"></span>
+                <span id="moodPickerLabel">기분</span>
+                <span class="mood-picker-chevron">⌄</span>
+              </button>
+              <div id="moodPickerMenu" class="mood-picker-menu hidden" role="listbox">
+                <button type="button" data-mood="" role="option"><span class="mood-dot mood-none"></span>기분 없음</button>
+                <button type="button" data-mood="happy" role="option"><span class="mood-dot mood-happy"></span>기쁨</button>
+                <button type="button" data-mood="neutral" role="option"><span class="mood-dot mood-neutral"></span>보통</button>
+                <button type="button" data-mood="bad" role="option"><span class="mood-dot mood-bad"></span>나쁨</button>
+              </div>
+            </div>
+          </div>
           <label class="period-check-label">
             <input id="periodCheck" type="checkbox" class="owner-control">
             <span class="period-label-content"><i class="red-drop-icon"></i> 생리</span>

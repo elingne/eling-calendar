@@ -13,13 +13,15 @@ let didRangeDrag = false;
 let isOwner = false;
 let decorationLayers = [];
 let selectedDecorationLayerId = null;
+let suppressCalendarClickUntil = 0;
+let scheduleTouchDragging = false;
+let editingEventOriginalStartDate = null;
+let editingEventSortOrder = null;
 
 const MOODS = [
-  { value: "great", label: "아주 좋음", fallback: "😄" },
-  { value: "good", label: "좋음", fallback: "🙂" },
-  { value: "neutral", label: "보통", fallback: "😐" },
-  { value: "low", label: "안 좋음", fallback: "😔" },
-  { value: "bad", label: "최악", fallback: "😣" }
+  { value: "happy", label: "기쁨", className: "mood-happy" },
+  { value: "neutral", label: "보통", className: "mood-neutral" },
+  { value: "bad", label: "나쁨", className: "mood-bad" }
 ];
 
 const GOAL_STATUSES = [
@@ -80,7 +82,11 @@ const stickerMessage = $("stickerMessage");
 const stickerAdminList = $("stickerAdminList");
 const stickerCountText = $("stickerCountText");
 
-const moodSelect = $("moodSelect");
+const moodPicker = $("moodPicker");
+const moodPickerButton = $("moodPickerButton");
+const moodPickerDot = $("moodPickerDot");
+const moodPickerLabel = $("moodPickerLabel");
+const moodPickerMenu = $("moodPickerMenu");
 const periodCheck = $("periodCheck");
 const quickMetaSaveState = $("quickMetaSaveState");
 
@@ -309,11 +315,28 @@ function niceDate(key) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function moodSproutIcon(value) {
-  if (value === "happy" || value === "great" || value === "good") return "🌱";
-  if (value === "neutral") return "🌿";
-  if (value === "bad" || value === "low") return "🥀";
-  return "";
+function normalizeMoodValue(value) {
+  if (value === "great" || value === "good") return "happy";
+  if (value === "low") return "bad";
+  return value || "";
+}
+
+function moodMeta(value) {
+  const normalized = normalizeMoodValue(value);
+  return MOODS.find(item => item.value === normalized) || null;
+}
+
+function setMoodPickerValue(value) {
+  const meta = moodMeta(value);
+  const normalized = meta?.value || "";
+
+  moodPicker.dataset.value = normalized;
+  moodPickerLabel.textContent = meta?.label || "기분";
+  moodPickerDot.className = `mood-dot ${meta?.className || "mood-none"}`;
+
+  moodPickerMenu.querySelectorAll("[data-mood]").forEach(button => {
+    button.classList.toggle("active", button.dataset.mood === normalized);
+  });
 }
 
 function formatDateTime(value) {
@@ -352,6 +375,296 @@ async function readAndCompressImage(file, maxSize = 900, quality = 0.8) {
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
   return canvas.toDataURL("image/webp", quality);
+}
+
+
+/* TOUCH / DRAG HELPERS */
+function createDragGhost(source, x, y) {
+  const ghost = source.cloneNode(true);
+  ghost.classList.add("touch-drag-ghost");
+  ghost.style.width = `${Math.min(source.getBoundingClientRect().width, 320)}px`;
+  document.body.appendChild(ghost);
+
+  const move = (px, py) => {
+    ghost.style.left = `${px + 12}px`;
+    ghost.style.top = `${py + 12}px`;
+  };
+
+  move(x, y);
+  return { ghost, move };
+}
+
+function clearTouchDropTargets() {
+  document.querySelectorAll(".touch-drop-target").forEach(el => el.classList.remove("touch-drop-target"));
+}
+
+function enableLongPressReorder(row, container, onCommit, options = {}) {
+  if (!isOwner) return;
+
+  let timer = null;
+  let active = false;
+  let startX = 0;
+  let startY = 0;
+  let ghostApi = null;
+  let pointerId = null;
+
+  const cancelTimer = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+  };
+
+  row.addEventListener("pointerdown", event => {
+    if (event.pointerType === "mouse") return;
+    if (options.excludeSelector && event.target.closest(options.excludeSelector)) return;
+
+    startX = event.clientX;
+    startY = event.clientY;
+    pointerId = event.pointerId;
+
+    timer = window.setTimeout(() => {
+      active = true;
+      scheduleTouchDragging = true;
+      suppressCalendarClickUntil = Date.now() + 700;
+      row.classList.add("touch-dragging");
+      row.setPointerCapture?.(pointerId);
+      ghostApi = createDragGhost(row, event.clientX, event.clientY);
+      navigator.vibrate?.(25);
+      options.onStart?.();
+    }, options.delay || 430);
+  }, { passive: true });
+
+  row.addEventListener("pointermove", event => {
+    if (event.pointerType === "mouse") return;
+
+    if (!active) {
+      if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10) cancelTimer();
+      return;
+    }
+
+    event.preventDefault();
+    ghostApi?.move(event.clientX, event.clientY);
+
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(options.targetSelector || ".quick-item");
+    if (!target || target === row || !container.contains(target)) return;
+
+    if (options.acceptTarget && !options.acceptTarget(target)) return;
+
+    const rect = target.getBoundingClientRect();
+    const after = event.clientY > rect.top + rect.height / 2;
+    container.insertBefore(row, after ? target.nextSibling : target);
+  }, { passive: false });
+
+  const finish = async event => {
+    cancelTimer();
+
+    if (!active) return;
+
+    event.preventDefault();
+    active = false;
+    scheduleTouchDragging = false;
+    row.classList.remove("touch-dragging");
+    ghostApi?.ghost.remove();
+    ghostApi = null;
+    clearTouchDropTargets();
+
+    try {
+      await onCommit?.();
+    } finally {
+      options.onEnd?.();
+    }
+  };
+
+  row.addEventListener("pointerup", finish, { passive: false });
+  row.addEventListener("pointercancel", finish, { passive: false });
+}
+
+function completedPayload(table, id, title) {
+  return JSON.stringify({ table, id: Number(id), title });
+}
+
+async function moveCompletedItemToDate(table, id, targetDate) {
+  if (!isOwner || !targetDate) return;
+
+  const completedAt = new Date(`${targetDate}T12:00:00`).toISOString();
+  let result;
+
+  if (table === "quick_todos") {
+    result = await supabaseClient
+      .from("quick_todos")
+      .update({
+        is_completed: true,
+        completed_at: completedAt
+      })
+      .eq("id", id);
+  } else {
+    result = await supabaseClient
+      .from("todos")
+      .update({
+        target_date: targetDate,
+        is_completed: true,
+        completed_at: completedAt
+      })
+      .eq("id", id);
+  }
+
+  if (result.error) {
+    console.error("완료한 일 날짜 이동 오류:", result.error);
+    return;
+  }
+
+  await loadQuickTodos();
+
+  if (selectedRecordDate && dayPanel.classList.contains("open")) {
+    await loadDayTodos(selectedRecordDate);
+  }
+
+  renderCalendar();
+}
+
+function enableCompletedTouchMove(row, item) {
+  if (!isOwner) return;
+
+  let timer = null;
+  let active = false;
+  let startX = 0;
+  let startY = 0;
+  let ghostApi = null;
+  let highlighted = null;
+
+  row.addEventListener("pointerdown", event => {
+    if (event.pointerType === "mouse") return;
+    if (event.target.closest("button, input, .quick-item-editable")) return;
+
+    startX = event.clientX;
+    startY = event.clientY;
+
+    timer = window.setTimeout(() => {
+      active = true;
+      suppressCalendarClickUntil = Date.now() + 800;
+      row.classList.add("touch-dragging");
+      ghostApi = createDragGhost(row, event.clientX, event.clientY);
+      navigator.vibrate?.(25);
+
+      // 모바일 사이드탭이 달력을 덮고 있다면 드래그 시작과 함께 달력을 다시 보이게 한다.
+      if (dayPanel.classList.contains("open")) closeDayPanel();
+    }, 430);
+  }, { passive: true });
+
+  row.addEventListener("pointermove", event => {
+    if (event.pointerType === "mouse") return;
+
+    if (!active) {
+      if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10 && timer) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      return;
+    }
+
+    event.preventDefault();
+    ghostApi?.move(event.clientX, event.clientY);
+
+    const cell = document.elementFromPoint(event.clientX, event.clientY)?.closest(".calendar-day");
+    if (cell !== highlighted) {
+      highlighted?.classList.remove("touch-drop-target");
+      highlighted = cell || null;
+      highlighted?.classList.add("touch-drop-target");
+    }
+  }, { passive: false });
+
+  const finish = async event => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+    if (!active) return;
+
+    event.preventDefault();
+    active = false;
+    row.classList.remove("touch-dragging");
+    ghostApi?.ghost.remove();
+    ghostApi = null;
+
+    const targetDate = highlighted?.dataset.date || null;
+    highlighted?.classList.remove("touch-drop-target");
+    highlighted = null;
+
+    if (targetDate) {
+      await moveCompletedItemToDate(item.table, item.id, targetDate);
+    }
+  };
+
+  row.addEventListener("pointerup", finish, { passive: false });
+  row.addEventListener("pointercancel", finish, { passive: false });
+}
+
+function enableCalendarTouchRange(cell) {
+  if (!isOwner) return;
+
+  let timer = null;
+  let active = false;
+  let startX = 0;
+  let startY = 0;
+  let currentKey = cell.dataset.date;
+
+  cell.addEventListener("pointerdown", event => {
+    if (event.pointerType === "mouse") return;
+    if (event.target.closest(".calendar-event-chip, .calendar-deco-composite")) return;
+
+    startX = event.clientX;
+    startY = event.clientY;
+    currentKey = cell.dataset.date;
+
+    timer = window.setTimeout(() => {
+      active = true;
+      suppressCalendarClickUntil = Date.now() + 900;
+      dragStartDate = cell.dataset.date;
+      dragCurrentDate = cell.dataset.date;
+      paintDragRange(dragStartDate, dragCurrentDate);
+      navigator.vibrate?.(25);
+    }, 430);
+  }, { passive: true });
+
+  cell.addEventListener("pointermove", event => {
+    if (event.pointerType === "mouse") return;
+
+    if (!active) {
+      if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10 && timer) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      return;
+    }
+
+    event.preventDefault();
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".calendar-day");
+    if (!target) return;
+
+    currentKey = target.dataset.date;
+    dragCurrentDate = currentKey;
+    paintDragRange(dragStartDate, dragCurrentDate);
+  }, { passive: false });
+
+  const finish = event => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+    if (!active) return;
+
+    event.preventDefault();
+    active = false;
+
+    const start = dragStartDate;
+    const end = dragCurrentDate || start;
+    clearDragRange();
+    dragStartDate = null;
+    dragCurrentDate = null;
+
+    if (!start || !end || start === end) return;
+
+    const ordered = [start, end].sort();
+    openEventModal({ start_date: ordered[0], end_date: ordered[1] });
+  };
+
+  cell.addEventListener("pointerup", finish, { passive: false });
+  cell.addEventListener("pointercancel", finish, { passive: false });
 }
 
 /* CALENDAR */
@@ -413,6 +726,8 @@ function createDayCell(date, otherMonth) {
   cell.appendChild(eventsBox);
 
   cell.addEventListener("click", () => {
+    if (Date.now() < suppressCalendarClickUntil || scheduleTouchDragging) return;
+
     if (didRangeDrag) {
       didRangeDrag = false;
       return;
@@ -454,6 +769,36 @@ function createDayCell(date, otherMonth) {
     }
   });
 
+  cell.addEventListener("dragover", event => {
+    if (!isOwner) return;
+
+    const raw = event.dataTransfer?.types || [];
+    if ([...raw].includes("application/x-completed-item")) {
+      event.preventDefault();
+      cell.classList.add("touch-drop-target");
+    }
+  });
+
+  cell.addEventListener("dragleave", () => {
+    cell.classList.remove("touch-drop-target");
+  });
+
+  cell.addEventListener("drop", async event => {
+    cell.classList.remove("touch-drop-target");
+    const payloadText = event.dataTransfer?.getData("application/x-completed-item");
+    if (!payloadText) return;
+
+    event.preventDefault();
+
+    try {
+      const payload = JSON.parse(payloadText);
+      await moveCompletedItemToDate(payload.table, payload.id, cell.dataset.date);
+    } catch (error) {
+      console.error("완료한 일 드롭 오류:", error);
+    }
+  });
+
+  enableCalendarTouchRange(cell);
   calendarGrid.appendChild(cell);
 }
 
@@ -530,11 +875,16 @@ async function loadCalendarExtras() {
 
     const mood = moods.find(item => item.record_date === key);
     if (mood) {
-      const meta = MOODS.find(item => item.value === mood.mood_type);
+      const meta = moodMeta(mood.mood_type);
       if (meta) {
         const badge = document.createElement("span");
-        badge.className = "calendar-simple-badge mood-badge";
-        badge.textContent = meta.fallback;
+        badge.className = `calendar-simple-badge mood-badge ${meta.className}`;
+        badge.title = meta.label;
+
+        const dot = document.createElement("i");
+        dot.className = `mood-dot ${meta.className}`;
+        badge.appendChild(dot);
+
         badgeWrap.appendChild(badge);
       }
     }
@@ -994,7 +1344,9 @@ async function loadDayTodos(date) {
 
   completedItems.forEach(item => {
     const row = document.createElement("div");
-    row.className = "todo-row done completed-record-row unified-completed-row";
+    row.className = "todo-row done completed-record-row unified-completed-row completed-movable-row";
+    row.dataset.completedTable = item.table;
+    row.dataset.completedId = item.id;
 
     const checkMark = document.createElement("span");
     checkMark.className = "completed-record-check";
@@ -1007,6 +1359,24 @@ async function loadDayTodos(date) {
     row.append(checkMark, text);
 
     if (isOwner) {
+      row.draggable = true;
+      row.title = "드래그해서 다른 날짜로 이동";
+
+      row.addEventListener("dragstart", event => {
+        if (event.target.closest("button")) {
+          event.preventDefault();
+          return;
+        }
+
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData(
+          "application/x-completed-item",
+          completedPayload(item.table, item.id, item.title)
+        );
+      });
+
+      enableCompletedTouchMove(row, item);
+
       const del = document.createElement("button");
       del.type = "button";
       del.className = "row-delete";
@@ -1026,11 +1396,7 @@ async function loadDayTodos(date) {
         }
 
         await loadDayTodos(date);
-
-        // QUICK TODO를 삭제했다면 메인 오늘 완료 목록에서도 즉시 사라지게 한다.
-        if (item.table === "quick_todos") {
-          await loadQuickTodos();
-        }
+        if (item.table === "quick_todos") await loadQuickTodos();
       });
 
       row.appendChild(del);
@@ -1200,6 +1566,31 @@ function makeQuickTodoRow(item, completed) {
   const row = document.createElement("div");
   row.className = `quick-item ${completed ? "quick-item-completed" : ""}`;
   row.dataset.quickTodoId = item.id;
+
+  if (completed && isOwner) {
+    row.draggable = true;
+    row.classList.add("completed-movable-row");
+    row.title = "드래그해서 다른 날짜로 이동";
+
+    row.addEventListener("dragstart", event => {
+      if (event.target.closest("button, input, .quick-item-editable")) {
+        event.preventDefault();
+        return;
+      }
+
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(
+        "application/x-completed-item",
+        completedPayload("quick_todos", item.id, item.title)
+      );
+    });
+
+    enableCompletedTouchMove(row, {
+      table: "quick_todos",
+      id: item.id,
+      title: item.title
+    });
+  }
 
   if (!completed && isOwner) {
     row.draggable = true;
@@ -1437,6 +1828,16 @@ function makeQuickTodoRow(item, completed) {
   if (!completed) {
     // 지금 해야 하는 일: 체크 → 텍스트 → 별 → X
     row.append(check, content, starButton, deleteButton);
+
+    enableLongPressReorder(
+      row,
+      quickTodoList,
+      saveQuickTodoOrderFromDom,
+      {
+        targetSelector: ".quick-item[data-quick-todo-id]",
+        excludeSelector: "button, input, .quick-item-content"
+      }
+    );
   } else {
     // 오늘 완료한 일: 체크 → 텍스트 → X
     row.append(check, content, deleteButton);
@@ -1447,52 +1848,75 @@ function makeQuickTodoRow(item, completed) {
 
 /* DATE META: MOOD + PERIOD */
 async function loadQuickDateMeta(date) {
-  quickMetaSaveState.textContent = "";
-
   const [moodResult, periodResult] = await Promise.all([
     supabaseClient.from("moods").select("*").eq("record_date", date).maybeSingle(),
-    supabaseClient.from("period_records").select("*").eq("start_date", date).eq("end_date", date).maybeSingle()
+    supabaseClient.from("period_records").select("*").lte("start_date", date).gte("end_date", date)
   ]);
 
-  const storedMood = moodResult.data?.mood_type || "";
-  moodSelect.value =
-    storedMood === "great" || storedMood === "good" ? "happy" :
-    storedMood === "low" ? "bad" :
-    storedMood;
-  periodCheck.checked = Boolean(periodResult.data);
+  setMoodPickerValue(moodResult.data?.mood_type || "");
 
-  moodSelect.disabled = !isOwner;
+  const periodRecord = (periodResult.data || [])[0] || null;
+  currentPeriodRecordId = periodRecord?.id || null;
+  periodCheck.checked = Boolean(periodRecord);
+
+  moodPickerButton.disabled = !isOwner;
   periodCheck.disabled = !isOwner;
 }
 
-moodSelect.addEventListener("change", async () => {
-  if (!isOwner || !selectedRecordDate) return;
+moodPickerButton.addEventListener("click", () => {
+  if (!isOwner) return;
+  const open = moodPickerMenu.classList.contains("hidden");
+  moodPickerMenu.classList.toggle("hidden", !open);
+  moodPickerButton.setAttribute("aria-expanded", String(open));
+});
 
-  quickMetaSaveState.textContent = "저장 중...";
-
-  let result;
-
-  if (!moodSelect.value) {
-    result = await supabaseClient
-      .from("moods")
-      .delete()
-      .eq("record_date", selectedRecordDate);
-  } else {
-    result = await supabaseClient
-      .from("moods")
-      .upsert({
-        record_date: selectedRecordDate,
-        mood_type: moodSelect.value,
-        reason: null
-      }, { onConflict: "record_date" });
+document.addEventListener("click", (event) => {
+  if (!moodPicker.contains(event.target)) {
+    moodPickerMenu.classList.add("hidden");
+    moodPickerButton.setAttribute("aria-expanded", "false");
   }
+});
 
-  quickMetaSaveState.textContent = result.error ? "저장 실패" : "저장됨";
+moodPickerMenu.querySelectorAll("[data-mood]").forEach(button => {
+  button.addEventListener("click", async () => {
+    if (!isOwner || !selectedRecordDate) return;
 
-  if (!result.error) {
+    const nextMood = button.dataset.mood;
+    quickMetaSaveState.textContent = "저장 중...";
+
+    let result;
+
+    if (!nextMood) {
+      result = await supabaseClient
+        .from("moods")
+        .delete()
+        .eq("record_date", selectedRecordDate);
+    } else {
+      result = await supabaseClient
+        .from("moods")
+        .upsert({
+          record_date: selectedRecordDate,
+          mood_type: nextMood,
+          reason: null
+        }, { onConflict: "record_date" });
+    }
+
+    if (result.error) {
+      console.error("기분 저장 오류:", result.error);
+      quickMetaSaveState.textContent = "저장 실패";
+      return;
+    }
+
+    setMoodPickerValue(nextMood);
+    moodPickerMenu.classList.add("hidden");
+    moodPickerButton.setAttribute("aria-expanded", "false");
+    quickMetaSaveState.textContent = "저장됨";
+
     renderCalendar();
-    window.setTimeout(() => quickMetaSaveState.textContent = "", 800);
-  }
+    window.setTimeout(() => {
+      if (quickMetaSaveState.textContent === "저장됨") quickMetaSaveState.textContent = "";
+    }, 900);
+  });
 });
 
 periodCheck.addEventListener("change", async () => {
@@ -1996,6 +2420,10 @@ decorationViewerCloseButton.addEventListener("click", () => {
 /* EVENTS */
 function openEventModal(eventData = {}, allowEdit = false) {
   const existing = Boolean(eventData.id);
+  editingEventOriginalStartDate = eventData.start_date || null;
+  editingEventSortOrder = Number.isFinite(Number(eventData.sort_order))
+    ? Number(eventData.sort_order)
+    : null;
 
   eventIdInput.value = eventData.id || "";
   eventTitleInput.value = eventData.title || "";
@@ -2058,9 +2486,18 @@ eventModalForm.addEventListener("submit", async event => {
     return;
   }
 
+  const isEditing = Boolean(eventIdInput.value);
+  const movedDate = isEditing && editingEventOriginalStartDate !== payload.start_date;
+
+  if (!isEditing || movedDate || editingEventSortOrder == null) {
+    payload.sort_order = await getNextScheduleOrder(payload.start_date);
+  } else {
+    payload.sort_order = editingEventSortOrder;
+  }
+
   let result;
 
-  if (eventIdInput.value) {
+  if (isEditing) {
     result = await supabaseClient
       .from("events")
       .update(payload)
@@ -2072,12 +2509,13 @@ eventModalForm.addEventListener("submit", async event => {
   }
 
   if (result.error) {
+    console.error("일정 저장 오류:", result.error);
     eventModalMessage.textContent = "저장하지 못했어요.";
     return;
   }
 
   closeEventModal();
-  loadSchedulePage();
+  await loadSchedulePage();
   renderCalendar();
 });
 
@@ -2097,61 +2535,366 @@ openScheduleCreateButton.addEventListener("click", () => {
   openEventModal();
 });
 
+
+function formatScheduleDateHeading(key) {
+  const date = parseLocalDate(key);
+  const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}요일`;
+}
+
+async function getNextScheduleOrder(date) {
+  const [eventsResult, notesResult] = await Promise.all([
+    supabaseClient.from("events").select("sort_order").eq("start_date", date),
+    supabaseClient.from("schedule_notes").select("sort_order").eq("note_date", date)
+  ]);
+
+  const values = [
+    ...(eventsResult.data || []).map(item => Number(item.sort_order) || 0),
+    ...(notesResult.data || []).map(item => Number(item.sort_order) || 0)
+  ];
+
+  return (values.length ? Math.max(...values) : 0) + 1000;
+}
+
+async function saveScheduleGroupOrderFromDom(group) {
+  if (!isOwner || !group) return;
+
+  const entries = [...group.querySelectorAll(".schedule-entry[data-kind][data-id]")];
+
+  const requests = entries.map((entry, index) => {
+    const sortOrder = (index + 1) * 1000;
+    const table = entry.dataset.kind === "event" ? "events" : "schedule_notes";
+
+    return supabaseClient
+      .from(table)
+      .update({ sort_order: sortOrder })
+      .eq("id", Number(entry.dataset.id));
+  });
+
+  const results = await Promise.all(requests);
+  const failed = results.find(result => result.error);
+
+  if (failed) console.error("일정 순서 저장 오류:", failed.error);
+
+  await loadSchedulePage();
+}
+
+function renderScheduleGap(date, beforeItem, afterItem, group) {
+  const gap = document.createElement("div");
+  gap.className = "schedule-gap owner-control";
+  gap.title = "클릭해서 사이 메모 추가";
+
+  const line = document.createElement("span");
+  line.className = "schedule-gap-line";
+
+  const hint = document.createElement("span");
+  hint.className = "schedule-gap-hint";
+  hint.textContent = "+ 메모";
+
+  gap.append(line, hint);
+
+  if (!isOwner) {
+    gap.classList.add("hidden");
+    return gap;
+  }
+
+  gap.addEventListener("click", event => {
+    event.stopPropagation();
+    if (gap.classList.contains("editing")) return;
+
+    gap.classList.add("editing");
+    gap.innerHTML = "";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "schedule-gap-input";
+    input.maxLength = 300;
+    input.placeholder = "이 사이에 메모 남기기";
+
+    const cancel = () => {
+      gap.classList.remove("editing");
+      gap.replaceChildren(line, hint);
+    };
+
+    const save = async () => {
+      const body = input.value.trim();
+      if (!body) {
+        cancel();
+        return;
+      }
+
+      input.disabled = true;
+
+      // 현재 사이 순서를 기준으로 중간값에 삽입한 뒤 전체를 다시 정규화한다.
+      const beforeOrder = Number(beforeItem?.sort_order) || 0;
+      const afterOrder = Number(afterItem?.sort_order) || (beforeOrder + 2000);
+      let sortOrder = Math.floor((beforeOrder + afterOrder) / 2);
+
+      if (sortOrder <= beforeOrder) sortOrder = beforeOrder + 1;
+
+      const { error } = await supabaseClient
+        .from("schedule_notes")
+        .insert({
+          note_date: date,
+          body,
+          sort_order: sortOrder
+        });
+
+      if (error) {
+        console.error("일정 사이 메모 저장 오류:", error);
+        input.disabled = false;
+        return;
+      }
+
+      await loadSchedulePage();
+    };
+
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        save();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        cancel();
+      }
+    });
+
+    input.addEventListener("blur", () => {
+      if (input.value.trim()) save();
+      else cancel();
+    }, { once: true });
+
+    gap.appendChild(input);
+    input.focus();
+  });
+
+  return gap;
+}
+
+function renderScheduleNote(note) {
+  const row = document.createElement("div");
+  row.className = "schedule-entry schedule-note-row";
+  row.dataset.kind = "note";
+  row.dataset.id = note.id;
+  row.dataset.sortOrder = note.sort_order;
+
+  const dot = document.createElement("span");
+  dot.className = "schedule-note-dot";
+
+  const text = document.createElement("span");
+  text.className = "schedule-note-text";
+  text.textContent = note.body;
+
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "schedule-note-delete owner-control";
+  del.textContent = "×";
+  del.title = "메모 삭제";
+
+  del.addEventListener("click", async () => {
+    const { error } = await supabaseClient
+      .from("schedule_notes")
+      .delete()
+      .eq("id", note.id);
+
+    if (error) {
+      console.error("일정 사이 메모 삭제 오류:", error);
+      return;
+    }
+
+    await loadSchedulePage();
+  });
+
+  row.append(dot, text, del);
+  return row;
+}
+
+function renderScheduleEvent(event, todayKey, group) {
+  const row = document.createElement("div");
+  row.className = "schedule-entry schedule-item schedule-item-button";
+  row.dataset.kind = "event";
+  row.dataset.id = event.id;
+  row.dataset.sortOrder = event.sort_order;
+
+  if (event.end_date < todayKey) row.classList.add("schedule-item-past");
+
+  const dragHandle = document.createElement("span");
+  dragHandle.className = "schedule-drag-handle owner-control";
+  dragHandle.textContent = "⋮⋮";
+  dragHandle.title = "드래그해서 순서 변경";
+
+  const text = document.createElement("button");
+  text.type = "button";
+  text.className = "schedule-event-main";
+
+  const strong = document.createElement("strong");
+  strong.textContent = event.title;
+  text.appendChild(strong);
+
+  if (event.end_date !== event.start_date) {
+    const range = document.createElement("span");
+    range.className = "schedule-event-range";
+    range.textContent = `~ ${niceDate(event.end_date)}`;
+    text.appendChild(range);
+  }
+
+  if (event.description) {
+    const desc = document.createElement("span");
+    desc.className = "schedule-event-description";
+    desc.textContent = event.description;
+    text.appendChild(desc);
+  }
+
+  text.addEventListener("click", () => {
+    if (scheduleTouchDragging) return;
+    openEventModal(event, true);
+  });
+
+  row.append(dragHandle, text);
+
+  if (isOwner) {
+    row.draggable = true;
+
+    row.addEventListener("dragstart", eventObject => {
+      if (eventObject.target.closest("button")) {
+        eventObject.preventDefault();
+        return;
+      }
+
+      row.classList.add("dragging");
+      eventObject.dataTransfer.effectAllowed = "move";
+      eventObject.dataTransfer.setData("text/plain", String(event.id));
+    });
+
+    row.addEventListener("dragover", eventObject => {
+      eventObject.preventDefault();
+      const dragging = group.querySelector(".schedule-entry.dragging");
+      if (!dragging || dragging === row) return;
+
+      const rect = row.getBoundingClientRect();
+      const after = eventObject.clientY > rect.top + rect.height / 2;
+      group.querySelector(".schedule-group-body").insertBefore(
+        dragging,
+        after ? row.nextSibling : row
+      );
+    });
+
+    row.addEventListener("drop", async eventObject => {
+      eventObject.preventDefault();
+      await saveScheduleGroupOrderFromDom(group);
+    });
+
+    row.addEventListener("dragend", async () => {
+      row.classList.remove("dragging");
+      await saveScheduleGroupOrderFromDom(group);
+    });
+
+    enableLongPressReorder(
+      row,
+      group.querySelector(".schedule-group-body"),
+      () => saveScheduleGroupOrderFromDom(group),
+      {
+        targetSelector: ".schedule-entry",
+        excludeSelector: "button",
+        onStart: () => row.classList.add("dragging"),
+        onEnd: () => row.classList.remove("dragging")
+      }
+    );
+  }
+
+  return row;
+}
+
 /* SCHEDULE PAGE */
 async function loadSchedulePage() {
-  const { data, error } = await supabaseClient
-    .from("events")
-    .select("*")
-    .order("start_date")
-    .order("created_at");
+  const [eventsResult, notesResult] = await Promise.all([
+    supabaseClient
+      .from("events")
+      .select("*")
+      .order("start_date")
+      .order("sort_order")
+      .order("created_at"),
+    supabaseClient
+      .from("schedule_notes")
+      .select("*")
+      .order("note_date")
+      .order("sort_order")
+      .order("created_at")
+  ]);
 
   scheduleList.innerHTML = "";
 
-  if (error) {
-    console.error("일정 불러오기 오류:", error);
-    scheduleList.innerHTML = '<p class="error-text">일정을 불러오지 못했어요.</p>';
+  if (eventsResult.error || notesResult.error) {
+    console.error("일정 불러오기 오류:", eventsResult.error || notesResult.error);
+    scheduleList.innerHTML = '<p class="error-text">일정을 불러오지 못했어요. v29 SQL을 실행했는지 확인해주세요.</p>';
     return;
   }
 
+  const events = eventsResult.data || [];
+  const notes = notesResult.data || [];
   const todayKey = formatDateKey(new Date());
 
-  (data || []).forEach(event => {
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "schedule-item schedule-item-button";
+  const dates = [...new Set([
+    ...events.map(item => item.start_date),
+    ...notes.map(item => item.note_date)
+  ])].sort();
 
-    // 종료일까지 완전히 지난 일정만 회색 처리한다.
-    if (event.end_date < todayKey) {
-      row.classList.add("schedule-item-past");
-    }
-
-    const date = document.createElement("div");
-    date.className = "schedule-date";
-    date.textContent = event.start_date === event.end_date
-      ? event.start_date
-      : `${event.start_date} → ${event.end_date}`;
-
-    const text = document.createElement("div");
-    text.className = "schedule-text";
-
-    const strong = document.createElement("strong");
-    strong.textContent = event.title;
-    text.appendChild(strong);
-
-    if (event.description) {
-      const desc = document.createElement("span");
-      desc.textContent = event.description;
-      text.appendChild(desc);
-    }
-
-    row.addEventListener("click", () => openEventModal(event, true));
-    row.append(date, text);
-    scheduleList.appendChild(row);
-  });
-
-  if (!(data || []).length) {
+  if (!dates.length) {
     scheduleList.innerHTML = '<p class="empty-text">등록된 일정이 없어요.</p>';
+    return;
   }
+
+  dates.forEach(date => {
+    const group = document.createElement("section");
+    group.className = "schedule-date-group";
+    group.dataset.scheduleDate = date;
+
+    const heading = document.createElement("div");
+    heading.className = "schedule-date-heading";
+
+    const title = document.createElement("strong");
+    title.textContent = formatScheduleDateHeading(date);
+
+    const count = document.createElement("span");
+    const eventCount = events.filter(item => item.start_date === date).length;
+    count.textContent = `${eventCount}개 일정`;
+
+    heading.append(title, count);
+
+    const body = document.createElement("div");
+    body.className = "schedule-group-body";
+
+    group.append(heading, body);
+    scheduleList.appendChild(group);
+
+    const mixed = [
+      ...events
+        .filter(item => item.start_date === date)
+        .map(item => ({ ...item, kind: "event", sort_order: Number(item.sort_order) || 0 })),
+      ...notes
+        .filter(item => item.note_date === date)
+        .map(item => ({ ...item, kind: "note", sort_order: Number(item.sort_order) || 0 }))
+    ].sort((a, b) => {
+      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+
+    mixed.forEach((item, index) => {
+      body.appendChild(
+        renderScheduleGap(date, mixed[index - 1] || null, item, group)
+      );
+
+      if (item.kind === "event") {
+        body.appendChild(renderScheduleEvent(item, todayKey, group));
+      } else {
+        body.appendChild(renderScheduleNote(item));
+      }
+    });
+
+    body.appendChild(
+      renderScheduleGap(date, mixed[mixed.length - 1] || null, null, group)
+    );
+  });
 }
 
 /* GOALS ADMIN */
@@ -2211,6 +2954,31 @@ function renderGoalList() {
     item.addEventListener("dragover", handleGoalDragOver);
     item.addEventListener("drop", handleGoalDrop);
     item.addEventListener("dragend", handleGoalDragEnd);
+
+    enableLongPressReorder(
+      item,
+      goalList,
+      async () => {
+        const orderedIds = [...goalList.querySelectorAll(".goal-item[data-goal-id]")]
+          .map(row => Number(row.dataset.goalId));
+
+        const results = await Promise.all(
+          orderedIds.map((id, index) =>
+            supabaseClient.from("goals").update({ sort_order: index }).eq("id", id)
+          )
+        );
+
+        if (results.some(result => result.error)) {
+          console.error("모바일 목표 순서 저장 오류");
+        }
+
+        await loadGoals();
+      },
+      {
+        targetSelector: ".goal-item[data-goal-id]",
+        excludeSelector: "button, input"
+      }
+    );
 
     goalList.appendChild(item);
   });

@@ -3027,3 +3027,459 @@ textarea {
   flex: 1 1 auto;
   min-width: 0;
 }
+
+
+/* =========================================================
+   V29 MOOD DOTS
+========================================================= */
+.mood-picker {
+  position: relative;
+}
+
+.mood-picker-button {
+  min-width: 104px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: flex-start;
+  background: #fff !important;
+}
+
+.mood-picker-chevron {
+  margin-left: auto;
+  color: #9a9aa2;
+}
+
+.mood-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 80;
+  min-width: 132px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(70, 70, 90, 0.12);
+}
+
+.mood-picker-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  padding: 8px 9px !important;
+  border: 0 !important;
+  border-radius: 8px;
+  background: transparent !important;
+  color: var(--text);
+}
+
+.mood-picker-menu button:hover,
+.mood-picker-menu button.active {
+  background: #f7f8f5 !important;
+}
+
+.mood-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  vertical-align: middle;
+}
+
+.mood-dot.mood-happy,
+.mood-badge.mood-happy .mood-dot {
+  background: #9eea36;
+  border-color: #8adc28;
+}
+
+.mood-dot.mood-neutral,
+.mood-badge.mood-neutral .mood-dot {
+  background: #d9f1ad;
+  border-color: #c9e59b;
+}
+
+.mood-dot.mood-bad,
+.mood-badge.mood-bad .mood-dot {
+  background: #d9dadd;
+  border-color: #c9cace;
+}
+
+.mood-dot.mood-none {
+  background: transparent;
+  border-color: #d9dadd;
+}
+
+.calendar-simple-badge.mood-badge {
+  width: 21px !important;
+  height: 21px !important;
+  min-width: 21px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================================
+   V29 TOUCH DRAG
+========================================================= */
+.touch-drag-ghost {
+  position: fixed !important;
+  z-index: 99999 !important;
+  pointer-events: none !important;
+  opacity: 0.88;
+  transform: scale(0.98);
+  box-shadow: 0 12px 28px rgba(60, 60, 80, 0.18);
+}
+
+.touch-dragging {
+  opacity: 0.42 !important;
+}
+
+.touch-drop-target {
+  outline: 2px solid #f0a9bf !important;
+  outline-offset: -2px;
+  background: #fff0f5 !important;
+}
+
+.completed-movable-row {
+  cursor: grab;
+}
+
+.completed-movable-row:active {
+  cursor: grabbing;
+}
+
+/* =========================================================
+   V29 SCHEDULE GROUPS + BETWEEN NOTES
+========================================================= */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.schedule-date-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #fff;
+}
+
+.schedule-date-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 13px;
+  background: #fafafd;
+  border-bottom: 1px solid var(--line);
+}
+
+.schedule-date-heading strong {
+  font-size: 13px;
+}
+
+.schedule-date-heading span {
+  color: var(--subtext);
+  font-size: 10px;
+}
+
+.schedule-group-body {
+  padding: 5px 10px 8px;
+}
+
+.schedule-entry {
+  position: relative;
+}
+
+.schedule-item.schedule-item-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+}
+
+.schedule-item.schedule-item-button:hover {
+  background: #fff9fb;
+}
+
+.schedule-drag-handle {
+  color: #c3c3c9;
+  cursor: grab;
+  text-align: center;
+  user-select: none;
+}
+
+.schedule-event-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit;
+  text-align: left;
+  box-shadow: none !important;
+}
+
+.schedule-event-main strong {
+  font-size: 13px;
+}
+
+.schedule-event-range,
+.schedule-event-description {
+  color: var(--subtext);
+  font-size: 10.5px;
+}
+
+.schedule-note-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 6px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: #f8fbff;
+  color: #5f6670;
+  font-size: 11.5px;
+}
+
+.schedule-note-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #b9d9ee;
+}
+
+.schedule-note-delete {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #aaaab1;
+  font-size: 17px !important;
+}
+
+.schedule-gap {
+  min-height: 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 1px 9px;
+  cursor: text;
+}
+
+.schedule-gap-line {
+  height: 1px;
+  flex: 1;
+  background: #ececf0;
+}
+
+.schedule-gap-hint {
+  opacity: 0;
+  color: #b0a9af;
+  font-size: 9px;
+  transition: opacity .12s ease;
+}
+
+.schedule-gap:hover .schedule-gap-hint {
+  opacity: 1;
+}
+
+.schedule-gap.editing {
+  min-height: 38px;
+}
+
+.schedule-gap-input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px !important;
+  border: 1px solid #d9e7f2 !important;
+  border-radius: 9px !important;
+  background: #f9fcff !important;
+  outline: none;
+  font-size: 11.5px !important;
+}
+
+.schedule-item.dragging,
+.schedule-entry.touch-dragging {
+  opacity: 0.35;
+}
+
+/* =========================================================
+   V29 MOBILE CALENDAR
+========================================================= */
+@media (max-width: 700px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .site,
+  .main,
+  .calendar-desktop-layout,
+  .calendar-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .main {
+    padding: 0 4px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .calendar-card {
+    padding: 0 !important;
+    overflow: hidden !important;
+    border-radius: 12px !important;
+  }
+
+  .calendar-header {
+    height: 58px !important;
+    gap: 10px !important;
+  }
+
+  .calendar-header h1 {
+    min-width: 130px !important;
+    font-size: 18px !important;
+  }
+
+  .month-button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    font-size: 20px !important;
+  }
+
+  .calendar-tip {
+    display: none !important;
+  }
+
+  .weekdays,
+  .calendar-grid {
+    width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  }
+
+  .weekdays div {
+    min-width: 0 !important;
+    padding: 7px 1px !important;
+    font-size: 9px !important;
+  }
+
+  .calendar-day {
+    min-width: 0 !important;
+    min-height: 86px !important;
+    padding: 3px 2px !important;
+    overflow: hidden !important;
+  }
+
+  .day-number {
+    width: 21px !important;
+    height: 21px !important;
+    font-size: 10px !important;
+  }
+
+  .calendar-top-badges {
+    top: 3px !important;
+    right: 2px !important;
+    gap: 1px !important;
+  }
+
+  .calendar-simple-badge.mood-badge {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+  }
+
+  .calendar-simple-badge .mood-dot {
+    width: 10px !important;
+    height: 10px !important;
+    min-width: 10px !important;
+  }
+
+  .calendar-event-list {
+    gap: 2px !important;
+  }
+
+  .calendar-event-chip {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 16px !important;
+    padding: 1px 2px !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    font-size: 8px !important;
+  }
+
+  .calendar-deco-composite {
+    max-width: 76% !important;
+    max-height: 54px !important;
+  }
+
+  .day-panel {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+
+  .quick-item,
+  .goal-item,
+  .schedule-entry,
+  .completed-movable-row {
+    touch-action: pan-y;
+  }
+
+  .schedule-list-card {
+    padding: 8px !important;
+  }
+
+  .schedule-group-body {
+    padding: 4px 6px 7px;
+  }
+
+  .schedule-date-heading {
+    padding: 9px 10px;
+  }
+
+  .schedule-gap {
+    min-height: 20px;
+  }
+
+  .schedule-gap-hint {
+    opacity: 0.7;
+  }
+
+  .mood-picker-menu {
+    left: auto;
+    right: 0;
+  }
+}
