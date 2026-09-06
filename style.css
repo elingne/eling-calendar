@@ -3524,3 +3524,40 @@ textarea {
 .schedule-entry[draggable="true"]:active {
   cursor: grabbing;
 }
+
+
+/* =========================================================
+   V31 ORDER SYNC + NOTE DRAG
+========================================================= */
+.schedule-note-row[draggable="true"] {
+  cursor: grab;
+}
+
+.schedule-note-row[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.schedule-gap-drop-target {
+  min-height: 28px !important;
+  background: #eef8ff !important;
+  border-radius: 8px;
+  outline: 1px dashed #9fcdea;
+}
+
+.calendar-event-chip.dragging,
+.schedule-entry.dragging {
+  opacity: 0.35 !important;
+}
+
+.calendar-event-list {
+  position: relative;
+}
+
+@media (max-width: 700px) {
+  .schedule-note-row,
+  .calendar-event-chip {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}

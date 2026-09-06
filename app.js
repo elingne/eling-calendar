@@ -830,7 +830,20 @@ function createDayCell(date, otherMonth) {
 
     if (eventId) {
       event.preventDefault();
-      await moveEventToDate(eventId, cell.dataset.date);
+
+      const sourceDate = event.dataTransfer?.getData("application/x-calendar-reorder-date");
+      const targetDate = cell.dataset.date;
+
+      if (sourceDate === targetDate) {
+        const box = cell.querySelector(".calendar-event-list");
+        const ids = [...box.querySelectorAll(".calendar-event-chip[data-event-id]")]
+          .map(el => Number(el.dataset.eventId));
+
+        if (ids.length) await saveCalendarEventOrderForDate(targetDate, ids);
+      } else {
+        await moveEventToDate(eventId, targetDate);
+      }
+
       return;
     }
 
@@ -959,6 +972,7 @@ async function loadCalendarExtras() {
 
     const orderedEvents = [...events].sort((a, b) =>
       a.start_date.localeCompare(b.start_date) ||
+      (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
       b.end_date.localeCompare(a.end_date) ||
       a.id - b.id
     );
@@ -1000,11 +1014,46 @@ async function loadCalendarExtras() {
 
         chip.addEventListener("dragstart", dragEvent => {
           dragEvent.stopPropagation();
+          chip.classList.add("dragging");
           dragEvent.dataTransfer.effectAllowed = "move";
           dragEvent.dataTransfer.setData("application/x-calendar-event", String(event.id));
+          dragEvent.dataTransfer.setData("application/x-calendar-reorder-date", key);
         });
 
-        enableCalendarEventTouchMove(chip, event);
+        chip.addEventListener("dragover", dragEvent => {
+          const sourceDate = dragEvent.dataTransfer.getData("application/x-calendar-reorder-date");
+          if (sourceDate !== key) return;
+
+          const dragging = eventBox.querySelector(".calendar-event-chip.dragging");
+          if (!dragging || dragging === chip) return;
+
+          dragEvent.preventDefault();
+          dragEvent.stopPropagation();
+
+          const rect = chip.getBoundingClientRect();
+          const after = dragEvent.clientY > rect.top + rect.height / 2;
+          eventBox.insertBefore(dragging, after ? chip.nextSibling : chip);
+        });
+
+        chip.addEventListener("drop", async dragEvent => {
+          const sourceDate = dragEvent.dataTransfer.getData("application/x-calendar-reorder-date");
+
+          if (sourceDate === key) {
+            dragEvent.preventDefault();
+            dragEvent.stopPropagation();
+
+            const ids = [...eventBox.querySelectorAll(".calendar-event-chip[data-event-id]")]
+              .map(el => Number(el.dataset.eventId));
+
+            await saveCalendarEventOrderForDate(key, ids);
+          }
+        });
+
+        chip.addEventListener("dragend", () => {
+          chip.classList.remove("dragging");
+        });
+
+        enableCalendarEventReorderTouch(chip, event, eventBox, key);
       }
 
       eventBox.appendChild(chip);
@@ -2725,7 +2774,7 @@ function enableScheduleEventTouchMove(row, eventData) {
 
     const element = document.elementFromPoint(lastX, lastY);
     const group = element?.closest(".schedule-date-group") || null;
-    const targetRow = element?.closest(".schedule-entry[data-kind='event']") || null;
+    const targetRow = element?.closest(".schedule-entry[data-kind][data-id]") || null;
 
     if (group !== highlightedGroup) {
       highlightedGroup?.classList.remove("touch-drop-target");
@@ -2856,6 +2905,164 @@ function enableCalendarEventTouchMove(chip, eventData) {
   chip.addEventListener("touchcancel", finish, { passive: false });
 }
 
+
+async function saveCalendarEventOrderForDate(date, orderedIds) {
+  if (!isOwner || !date || !orderedIds?.length) return;
+
+  // 캘린더에서 바꾼 순서를 일정탭과 공유한다.
+  const eventUpdates = orderedIds.map((id, index) =>
+    supabaseClient
+      .from("events")
+      .update({ sort_order: (index + 1) * 1000 })
+      .eq("id", Number(id))
+  );
+
+  const eventResults = await Promise.all(eventUpdates);
+  const eventFailed = eventResults.find(result => result.error);
+
+  if (eventFailed) {
+    console.error("캘린더 일정 순서 저장 오류:", eventFailed.error);
+    return;
+  }
+
+  // 캘린더에서 순서를 바꾸면 그날 메모는 모두 일정 하단으로 보낸다.
+  const { data: notes, error: notesError } = await supabaseClient
+    .from("schedule_notes")
+    .select("id,sort_order,created_at")
+    .eq("note_date", date)
+    .order("sort_order")
+    .order("created_at");
+
+  if (notesError) {
+    console.error("메모 순서 불러오기 오류:", notesError);
+  } else if (notes?.length) {
+    const base = (orderedIds.length + 1) * 1000;
+
+    const noteResults = await Promise.all(
+      notes.map((note, index) =>
+        supabaseClient
+          .from("schedule_notes")
+          .update({ sort_order: base + index * 1000 })
+          .eq("id", note.id)
+      )
+    );
+
+    const noteFailed = noteResults.find(result => result.error);
+    if (noteFailed) console.error("메모 하단 정렬 오류:", noteFailed.error);
+  }
+
+  await loadSchedulePage();
+  renderCalendar();
+}
+
+function enableCalendarEventReorderTouch(chip, eventData, eventBox, dateKey) {
+  if (!isOwner) return;
+
+  let timer = null;
+  let active = false;
+  let startX = 0;
+  let startY = 0;
+  let lastX = 0;
+  let lastY = 0;
+  let ghostApi = null;
+
+  const clearTimer = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+  };
+
+  const reset = () => {
+    clearTimer();
+    active = false;
+    chip.classList.remove("touch-dragging", "dragging");
+    ghostApi?.ghost.remove();
+    ghostApi = null;
+  };
+
+  chip.addEventListener("touchstart", event => {
+    if (!event.touches?.length) return;
+
+    const touch = event.touches[0];
+    startX = lastX = touch.clientX;
+    startY = lastY = touch.clientY;
+
+    clearTimer();
+    timer = window.setTimeout(() => {
+      active = true;
+      suppressCalendarClickUntil = Date.now() + 1000;
+      chip.classList.add("touch-dragging", "dragging");
+      ghostApi = createDragGhost(chip, lastX, lastY);
+      navigator.vibrate?.(25);
+    }, 430);
+  }, { passive: true });
+
+  chip.addEventListener("touchmove", event => {
+    if (!event.touches?.length) return;
+
+    const touch = event.touches[0];
+    lastX = touch.clientX;
+    lastY = touch.clientY;
+
+    if (!active) {
+      if (Math.hypot(lastX - startX, lastY - startY) > 18) clearTimer();
+      return;
+    }
+
+    if (event.cancelable) event.preventDefault();
+    ghostApi?.move(lastX, lastY);
+
+    const element = document.elementFromPoint(lastX, lastY);
+    const targetChip = element?.closest(".calendar-event-chip");
+
+    // 같은 날짜 칸 안에서 칩 순서를 바꾸면 순서 변경.
+    if (targetChip && targetChip !== chip && eventBox.contains(targetChip)) {
+      const rect = targetChip.getBoundingClientRect();
+      const after = lastY > rect.top + rect.height / 2;
+      eventBox.insertBefore(chip, after ? targetChip.nextSibling : targetChip);
+    }
+  }, { passive: false });
+
+  const finish = async event => {
+    clearTimer();
+    if (!active) return;
+
+    if (event.cancelable) event.preventDefault();
+
+    const dropCell = document.elementFromPoint(lastX, lastY)?.closest(".calendar-day");
+    const dropDate = dropCell?.dataset.date || null;
+
+    if (dropDate && dropDate !== dateKey) {
+      reset();
+      await moveEventToDate(eventData.id, dropDate);
+      return;
+    }
+
+    const ids = [...eventBox.querySelectorAll(".calendar-event-chip[data-event-id]")]
+      .map(el => Number(el.dataset.eventId));
+
+    reset();
+
+    if (ids.length) await saveCalendarEventOrderForDate(dateKey, ids);
+  };
+
+  chip.addEventListener("touchend", finish, { passive: false });
+  chip.addEventListener("touchcancel", finish, { passive: false });
+}
+
+function enableScheduleNoteTouchReorder(row, group) {
+  if (!isOwner) return;
+
+  enableLongPressReorder(
+    row,
+    group.querySelector(".schedule-group-body"),
+    () => saveScheduleGroupOrderFromDom(group),
+    {
+      targetSelector: ".schedule-entry[data-kind][data-id]",
+      excludeSelector: "button"
+    }
+  );
+}
+
 function formatScheduleDateHeading(key) {
   const date = parseLocalDate(key);
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
@@ -2897,6 +3104,7 @@ async function saveScheduleGroupOrderFromDom(group) {
   if (failed) console.error("일정 순서 저장 오류:", failed.error);
 
   await loadSchedulePage();
+  renderCalendar();
 }
 
 function renderScheduleGap(date, beforeItem, afterItem, group) {
@@ -2997,10 +3205,42 @@ function renderScheduleGap(date, beforeItem, afterItem, group) {
     input.focus();
   });
 
+  if (isOwner) {
+    gap.addEventListener("dragover", event => {
+      const body = group.querySelector(".schedule-group-body");
+      const dragging = body.querySelector(".schedule-entry.dragging");
+      if (!dragging) return;
+
+      event.preventDefault();
+      gap.classList.add("schedule-gap-drop-target");
+    });
+
+    gap.addEventListener("dragleave", () => {
+      gap.classList.remove("schedule-gap-drop-target");
+    });
+
+    gap.addEventListener("drop", async event => {
+      const body = group.querySelector(".schedule-group-body");
+      const dragging = body.querySelector(".schedule-entry.dragging");
+      if (!dragging) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      gap.classList.remove("schedule-gap-drop-target");
+
+      const nextEntry = gap.nextElementSibling?.matches(".schedule-entry")
+        ? gap.nextElementSibling
+        : null;
+
+      body.insertBefore(dragging, nextEntry);
+      await saveScheduleGroupOrderFromDom(group);
+    });
+  }
+
   return gap;
 }
 
-function renderScheduleNote(note) {
+function renderScheduleNote(note, group) {
   const row = document.createElement("div");
   row.className = "schedule-entry schedule-note-row";
   row.dataset.kind = "note";
@@ -3035,6 +3275,47 @@ function renderScheduleNote(note) {
   });
 
   row.append(dot, text, del);
+
+  if (isOwner && group) {
+    row.draggable = true;
+
+    row.addEventListener("dragstart", event => {
+      if (event.target.closest("button")) {
+        event.preventDefault();
+        return;
+      }
+
+      row.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("application/x-schedule-note", String(note.id));
+    });
+
+    row.addEventListener("dragover", event => {
+      const body = group.querySelector(".schedule-group-body");
+      const dragging = body.querySelector(".schedule-entry.dragging");
+      if (!dragging || dragging === row) return;
+
+      event.preventDefault();
+
+      const rect = row.getBoundingClientRect();
+      const after = event.clientY > rect.top + rect.height / 2;
+      body.insertBefore(dragging, after ? row.nextSibling : row);
+    });
+
+    row.addEventListener("drop", async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      await saveScheduleGroupOrderFromDom(group);
+    });
+
+    row.addEventListener("dragend", async () => {
+      row.classList.remove("dragging");
+      await saveScheduleGroupOrderFromDom(group);
+    });
+
+    enableScheduleNoteTouchReorder(row, group);
+  }
+
   return row;
 }
 
@@ -3245,7 +3526,7 @@ async function loadSchedulePage() {
       if (item.kind === "event") {
         body.appendChild(renderScheduleEvent(item, todayKey, group));
       } else {
-        body.appendChild(renderScheduleNote(item));
+        body.appendChild(renderScheduleNote(item, group));
       }
     });
 
