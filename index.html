@@ -298,6 +298,21 @@
         <input id="eventIdInput" type="hidden">
         <input id="eventTitleInput" type="text" maxlength="120" placeholder="일정 이름" required>
         <textarea id="eventDescriptionInput" maxlength="500" placeholder="메모 (선택)"></textarea>
+        <div class="event-color-field">
+          <span class="event-color-label">캘린더 표시색</span>
+          <div class="event-color-options" role="radiogroup" aria-label="일정 표시색">
+            <label class="event-color-option">
+              <input type="radio" name="eventColor" value="blue" checked>
+              <span class="event-color-swatch event-color-swatch-blue"></span>
+              <span>연파랑</span>
+            </label>
+            <label class="event-color-option">
+              <input type="radio" name="eventColor" value="pink">
+              <span class="event-color-swatch event-color-swatch-pink"></span>
+              <span>연분홍</span>
+            </label>
+          </div>
+        </div>
         <div class="date-pair">
           <label>시작일<input id="eventStartInput" type="date" required></label>
           <label>종료일<input id="eventEndInput" type="date" required></label>

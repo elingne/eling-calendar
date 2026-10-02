@@ -3626,3 +3626,66 @@ textarea {
 .schedule-gap-hint {
   white-space: nowrap;
 }
+
+
+/* =========================================================
+   V34 EVENT COLOR + ALT COPY
+========================================================= */
+.calendar-event-chip.event-color-blue {
+  background: var(--sky-100) !important;
+  color: #5f9dbd !important;
+}
+
+.calendar-event-chip.event-color-pink {
+  background: #fff0f4 !important;
+  color: #c87991 !important;
+}
+
+.event-color-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.event-color-label {
+  font-size: 12px;
+  color: var(--subtext);
+}
+
+.event-color-options {
+  display: flex;
+  gap: 8px;
+}
+
+.event-color-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.event-color-option input {
+  width: auto !important;
+  min-height: 0 !important;
+  margin: 0;
+}
+
+.event-color-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+}
+
+.event-color-swatch-blue {
+  background: var(--sky-100);
+}
+
+.event-color-swatch-pink {
+  background: #fff0f4;
+}

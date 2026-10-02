@@ -123,6 +123,7 @@ const eventTitleInput = $("eventTitleInput");
 const eventStartInput = $("eventStartInput");
 const eventEndInput = $("eventEndInput");
 const eventDescriptionInput = $("eventDescriptionInput");
+const eventColorInputs = [...document.querySelectorAll('input[name="eventColor"]')];
 const eventDeleteButton = $("eventDeleteButton");
 const eventCancelButton = $("eventCancelButton");
 const eventModalMessage = $("eventModalMessage");
@@ -862,6 +863,9 @@ function createDayCell(date, otherMonth) {
 
       const sourceDate = event.dataTransfer?.getData("application/x-calendar-reorder-date");
       const targetDate = cell.dataset.date;
+      const shouldCopy =
+        event.altKey ||
+        event.dataTransfer?.getData("application/x-calendar-copy") === "1";
 
       if (sourceDate === targetDate) {
         const box = cell.querySelector(".calendar-event-list");
@@ -869,6 +873,8 @@ function createDayCell(date, otherMonth) {
           .map(el => Number(el.dataset.eventId));
 
         if (ids.length) await saveCalendarEventOrderForDate(targetDate, ids);
+      } else if (shouldCopy) {
+        await copyEventToDate(eventId, targetDate);
       } else {
         await moveEventToDate(eventId, targetDate);
       }
@@ -1055,7 +1061,7 @@ async function loadCalendarExtras() {
     cellEvents.forEach((event, rowIndex) => {
       const chip = document.createElement("button");
       chip.type = "button";
-      chip.className = "calendar-event-chip";
+      chip.className = `calendar-event-chip event-color-${event.color_variant === "pink" ? "pink" : "blue"}`;
       chip.dataset.eventId = event.id;
       chip.style.setProperty("--event-row", rowIndex);
 
@@ -1092,6 +1098,8 @@ async function loadCalendarExtras() {
           dragEvent.dataTransfer.effectAllowed = "move";
           dragEvent.dataTransfer.setData("application/x-calendar-event", String(event.id));
           dragEvent.dataTransfer.setData("application/x-calendar-reorder-date", key);
+          dragEvent.dataTransfer.setData("application/x-calendar-copy", dragEvent.altKey ? "1" : "0");
+          dragEvent.dataTransfer.effectAllowed = dragEvent.altKey ? "copyMove" : "move";
         });
 
         chip.addEventListener("dragend", () => {
@@ -2593,12 +2601,16 @@ function openEventModal(eventData = {}, allowEdit = false) {
   eventStartInput.value = eventData.start_date || formatDateKey(new Date());
   eventEndInput.value = eventData.end_date || eventStartInput.value;
   eventDescriptionInput.value = eventData.description || "";
+  const selectedColor = eventData.color_variant === "pink" ? "pink" : "blue";
+  eventColorInputs.forEach(input => {
+    input.checked = input.value === selectedColor;
+  });
   eventModalMessage.textContent = "";
 
   const canEdit = isOwner;
   eventModalTitle.textContent = existing ? (canEdit ? "일정 수정" : "일정 보기") : "일정 추가";
 
-  [eventTitleInput, eventStartInput, eventEndInput, eventDescriptionInput].forEach(input => {
+  [eventTitleInput, eventStartInput, eventEndInput, eventDescriptionInput, ...eventColorInputs].forEach(input => {
     input.disabled = !canEdit;
   });
 
@@ -2639,7 +2651,8 @@ eventModalForm.addEventListener("submit", async event => {
     title: eventTitleInput.value.trim(),
     start_date: eventStartInput.value,
     end_date: eventEndInput.value,
-    description: eventDescriptionInput.value.trim() || null
+    description: eventDescriptionInput.value.trim() || null,
+    color_variant: eventColorInputs.find(input => input.checked)?.value || "blue"
   };
 
   if (!payload.title) return;
@@ -2712,6 +2725,46 @@ function addDaysToKey(key, days) {
   const date = parseLocalDate(key);
   date.setDate(date.getDate() + days);
   return formatDateKey(date);
+}
+
+async function copyEventToDate(eventId, targetDate) {
+  if (!isOwner || !eventId || !targetDate) return;
+
+  const { data: source, error: fetchError } = await supabaseClient
+    .from("events")
+    .select("*")
+    .eq("id", Number(eventId))
+    .single();
+
+  if (fetchError || !source) {
+    console.error("복사할 일정 불러오기 오류:", fetchError);
+    return;
+  }
+
+  const duration = Math.max(0, daysBetweenKeys(source.start_date, source.end_date));
+  const newEndDate = addDaysToKey(targetDate, duration);
+  const nextOrder = await getNextScheduleOrder(targetDate);
+  const todayKey = formatDateKey(new Date());
+
+  const { error } = await supabaseClient
+    .from("events")
+    .insert({
+      title: source.title,
+      start_date: targetDate,
+      end_date: newEndDate,
+      description: source.description || null,
+      sort_order: nextOrder,
+      is_completed: targetDate < todayKey,
+      color_variant: source.color_variant === "pink" ? "pink" : "blue"
+    });
+
+  if (error) {
+    console.error("일정 복사 오류:", error);
+    return;
+  }
+
+  await loadSchedulePage();
+  renderCalendar();
 }
 
 async function moveEventToDate(eventId, targetDate) {
@@ -3310,7 +3363,8 @@ function renderScheduleGap(date, beforeItem, afterItem, group) {
           end_date: date,
           description: null,
           sort_order: calculateInsertOrder(),
-          is_completed: date < todayKey
+          is_completed: date < todayKey,
+          color_variant: "blue"
         });
 
       if (error) {
