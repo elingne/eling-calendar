@@ -14,7 +14,7 @@
   "d1_databases": [{
     "binding": "DB",
     "database_name": "eling-calendar",
-    "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+    "database_id": "0b32f5cc-af60-493c-9b46-551e31af0518",
     "migrations_dir": "migrations"
   }]
 }
