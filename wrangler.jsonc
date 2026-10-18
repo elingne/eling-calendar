@@ -9,7 +9,7 @@
   "vars": {
     "OWNER_EMAIL": "ielingkk@gmail.com",
     "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": ""
+    "ACCESS_AUD": "f939e8c494d13078b52e86d0ee5a0267d75b8cc795dc744506ef40b4107ce0d3"
   },
   "d1_databases": [{
     "binding": "DB",
