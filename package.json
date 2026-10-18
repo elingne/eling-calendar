@@ -1,0 +1,15 @@
+{
+  "name": "eling-calendar-cloudflare",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/worker.js && node --check public/app.js && node --check public/api.js",
+    "deploy": "npm run check && npm test && wrangler d1 migrations apply eling-calendar --remote && wrangler deploy",
+    "db:local": "wrangler d1 migrations apply eling-calendar --local"
+  },
+  "dependencies": { "jose": "6.1.0" },
+  "devDependencies": { "wrangler": "4.45.0" }
+}

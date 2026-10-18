@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Calendar</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="read-only">
+
+  <!-- SITE -->
+  <div id="siteApp" class="site">
+    <header class="header">
+      <button id="logoHomeButton" class="logo logo-button" type="button">My Calendar</button>
+      <nav class="nav">
+        <button class="nav-button active" data-page="calendar">캘린더</button>
+        <button class="nav-button" data-page="schedule">일정</button>
+      </nav>
+
+      <div class="header-actions">
+        <button id="searchButton" class="search-button" aria-label="검색">⌕</button>
+        <button id="logoutButton" class="logout-button">로그아웃</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <p id="connectionMessage" role="status" aria-live="polite"></p>
+      <!-- CALENDAR PAGE -->
+      <section id="calendarPage" class="page-section">
+        <section class="quick-todo-card">
+          <div class="section-title-row">
+            <div>
+              <span class="section-label">TODAY</span>
+              <h2>지금 해야 하는 일</h2>
+            </div>
+          </div>
+
+          <div class="quick-todo-layout">
+            <div class="quick-current">
+              <div class="quick-input-row">
+                <input
+                  id="quickTodoInput"
+                  name="quick_todo_text"
+                  type="text"
+                  maxlength="120"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  placeholder="지금 해야 할 일을 적어보세요"
+                >
+                <button id="quickTodoAddButton" type="button">+</button>
+              </div>
+
+              <div id="quickTodoList" class="quick-todo-list">
+                <p class="empty-text">아직 등록된 할 일이 없어요.</p>
+              </div>
+            </div>
+
+            <aside id="quickTodoHistory" class="quick-history">
+              <div class="quick-history-header">
+                <strong>오늘 완료한 일</strong>
+              </div>
+              <div id="quickTodoCompletedList" class="quick-completed-list"></div>
+            </aside>
+          </div>
+        </section>
+
+        <div class="calendar-desktop-layout">
+          <section class="calendar-card">
+          <div class="calendar-header">
+            <button id="prevMonth" class="month-button">‹</button>
+            <h1 id="calendarTitle"></h1>
+            <button id="nextMonth" class="month-button">›</button>
+          </div>
+
+          <div class="calendar-tip">일정을 누르면 내용을 확인할 수 있어요. 관리자 로그인 후 편집할 수 있어요.</div>
+
+          <div class="weekdays">
+            <div class="sunday">SUN</div><div>MON</div><div>TUE</div><div>WED</div>
+            <div>THU</div><div>FRI</div><div class="saturday">SAT</div>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+        </div>
+      </section>
+
+      <!-- SCHEDULE PAGE -->
+      <section id="schedulePage" class="page-section hidden">
+        <div class="page-heading">
+          <div>
+            <span class="section-label">SCHEDULE</span>
+            <h1 class="page-title">일정</h1>
+            <p class="page-description">하루 일정과 기간 일정을 한곳에서 관리해요.</p>
+          </div>
+        </div>
+
+        <div class="schedule-toolbar">
+          <button id="openScheduleCreateButton" type="button" class="primary-button owner-control">+ 일정 추가</button>
+        </div>
+        <section class="page-card schedule-list-card">
+          <div class="card-title-row">
+            <h2 class="card-title">전체 일정</h2>
+            <span class="tiny-note">가까운 일정부터</span>
+          </div>
+          <div id="scheduleList" class="schedule-list"></div>
+        </section>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- DAY PANEL -->
+  <aside id="dayPanel" class="day-panel">
+    <div class="day-panel-header">
+      <div class="day-panel-title-wrap">
+        <span class="section-label">DAILY RECORD</span>
+        <h2 id="selectedDateTitle"></h2>
+        <div class="day-quick-meta">
+          <div class="mood-quick-select" title="기분">
+            <span>기분</span>
+            <div id="moodPicker" class="mood-picker">
+              <button id="moodPickerButton" type="button" class="mood-picker-button" aria-haspopup="listbox" aria-expanded="false">
+                <span id="moodPickerDot" class="mood-dot mood-none"></span>
+                <span id="moodPickerLabel">기분</span>
+                <span class="mood-picker-chevron">⌄</span>
+              </button>
+              <div id="moodPickerMenu" class="mood-picker-menu hidden" role="listbox">
+                <button type="button" data-mood="" role="option"><span class="mood-dot mood-none"></span>기분 없음</button>
+                <button type="button" data-mood="happy" role="option"><span class="mood-dot mood-happy"></span>기쁨</button>
+                <button type="button" data-mood="neutral" role="option"><span class="mood-dot mood-neutral"></span>보통</button>
+                <button type="button" data-mood="bad" role="option"><span class="mood-dot mood-bad"></span>나쁨</button>
+              </div>
+            </div>
+          </div>
+          <label class="period-check-label">
+            <input id="periodCheck" type="checkbox" class="owner-control">
+            <span class="period-label-content"><i class="red-drop-icon"></i> 생리</span>
+          </label>
+          <span id="quickMetaSaveState" class="save-state"></span>
+        </div>
+      </div>
+      <button id="closeDayPanel" class="close-button">×</button>
+    </div>
+
+    
+<div class="day-panel-content">
+
+      <section class="panel-placeholder todo-accordion">
+        <button id="todoAccordionToggle" type="button" class="accordion-toggle" aria-expanded="false">
+          <div>
+            <strong id="todoAccordionLabel">~월 ~일에 완료한 일</strong>
+            <p>이날 완료한 일을 모아봐요.</p>
+          </div>
+          <span class="accordion-chevron">⌄</span>
+        </button>
+
+        <div id="todoAccordionBody" class="accordion-body hidden">
+          <form id="dayTodoForm" class="inline-form owner-control">
+            <input id="dayTodoInput" type="text" maxlength="120" placeholder="한 일 추가">
+            <button type="submit" class="primary-button">추가</button>
+          </form>
+          <div id="dayTodoList" class="todo-list"></div>
+        </div>
+      </section>
+
+    </div>
+  </aside>
+
+
+  <!-- EVENT EDITOR -->
+  <div id="eventModal" class="modal-backdrop hidden">
+    <div class="event-modal">
+      <div class="modal-header">
+        <div>
+          <span class="section-label">SCHEDULE</span>
+          <h2 id="eventModalTitle">일정 추가</h2>
+        </div>
+        <button id="eventModalCloseButton" class="close-button">×</button>
+      </div>
+      <form id="eventModalForm" class="event-modal-form">
+        <input id="eventIdInput" type="hidden">
+        <input id="eventTitleInput" type="text" maxlength="120" placeholder="일정 이름" required>
+        <textarea id="eventDescriptionInput" maxlength="500" placeholder="메모 (선택)"></textarea>
+        <div class="event-color-field">
+          <span class="event-color-label">캘린더 표시색</span>
+          <div class="event-color-options" role="radiogroup" aria-label="일정 표시색">
+            <label class="event-color-option">
+              <input type="radio" name="eventColor" value="blue" checked>
+              <span class="event-color-swatch event-color-swatch-blue"></span>
+              <span>연파랑</span>
+            </label>
+            <label class="event-color-option">
+              <input type="radio" name="eventColor" value="pink">
+              <span class="event-color-swatch event-color-swatch-pink"></span>
+              <span>연분홍</span>
+            </label>
+          </div>
+        </div>
+        <div class="date-pair">
+          <label>시작일<input id="eventStartInput" type="date" required></label>
+          <label>종료일<input id="eventEndInput" type="date" required></label>
+        </div>
+        <div class="event-modal-actions">
+          <button id="eventDeleteButton" type="button" class="danger-button hidden">삭제</button>
+          <div class="event-modal-actions-right">
+            <button id="eventCancelButton" type="button" class="secondary-button">취소</button>
+            <button type="submit" class="primary-button">저장</button>
+          </div>
+        </div>
+        <p id="eventModalMessage" class="form-message"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- SEARCH -->
+  <div id="searchModal" class="modal-backdrop hidden">
+    <div class="search-modal">
+      <div class="modal-header">
+        <h2>검색</h2>
+        <button id="searchCloseButton" class="close-button">×</button>
+      </div>
+      <input id="searchInput" class="search-input" type="search" placeholder="할 일, 일정, 기분 메모 검색">
+      <div id="searchResults" class="search-results">
+        <p class="empty-text">검색어를 입력해주세요.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
