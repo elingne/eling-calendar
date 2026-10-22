@@ -2726,3 +2726,12 @@ textarea {
 .read-only .quick-todo-card, .read-only [data-page="schedule"], .read-only #searchButton { display:none !important; }
 #connectionMessage:empty { display:none; }
 #connectionMessage { color:#b23c57; padding:12px; }
+
+/* Korean public holidays and schedule entry position */
+.calendar-day.public-holiday .day-number { color: #d6384b !important; }
+.calendar-day.public-holiday.today .day-number { background: #fff0f2 !important; box-shadow: inset 0 0 0 1px #e99aa6; }
+.calendar-holiday-name { position:relative; z-index:14; height:15px; line-height:15px; min-width:0; font-size:10px; font-weight:500; color:#d6384b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.calendar-day.other-month .calendar-holiday-name { opacity:.65; }
+.schedule-date-group { scroll-margin-top:24px; }
+.schedule-today > .schedule-date-heading strong { color:var(--pink-deep); }
+@media(max-width:700px) { .calendar-holiday-name { font-size:9px; height:13px; line-height:13px; } }
