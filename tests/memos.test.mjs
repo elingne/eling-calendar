@@ -9,30 +9,60 @@ import worker from '../src/worker.js';
 
 function database(){
  const sqlite=new DatabaseSync(':memory:');
- for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
+ for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
  const statement=(sql,values=[])=>({bind(...v){return statement(sql,v);},async all(){return {results:sqlite.prepare(sql).all(...values)};},async first(){return sqlite.prepare(sql).get(...values)||null;},async run(){return sqlite.prepare(sql).run(...values.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v));}});
  return {sqlite,prepare:sql=>statement(sql),async batch(statements){sqlite.exec('BEGIN');try{const r=[];for(const s of statements)r.push(await s.run());sqlite.exec('COMMIT');return r;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 }
 const request=(body,path='/api/private/memos')=>new Request('https://calendar.example'+path,body?{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://calendar.example'},body:JSON.stringify(body)}:{});
-test('migration preserves records; memo grouping, rename, extraction and folder dissolve persist',async()=>{
- const db=database();const env={DB:db};
- db.sqlite.exec(`INSERT INTO records VALUES('quick_todos',9,'{"id":9,"title":"기존 데이터"}')`);
+test('migration 0004 keeps the old visual order; create appends; reorder, unfold and folder dissolve persist',async()=>{
+ // Start from the schema before 0004 with memos that were placed freely on the board.
+ const db=database(),env={DB:db};
  const call=async body=>(await memos(request(body),env,'/api/private/memos')).json();
- const a=(await call({action:'create',x:24,y:40})).id,b=(await call({action:'create',x:280,y:40})).id;
+ const ids=()=>db.sqlite.prepare('SELECT id FROM memo_items ORDER BY sort_order,id').all().map(r=>r.id);
+ db.sqlite.exec(`INSERT INTO records VALUES('quick_todos',9,'{"id":9,"title":"기존 데이터"}')`);
+ const legacy=new DatabaseSync(':memory:');
+ for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql'])legacy.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
+ legacy.exec(`INSERT INTO memo_items(id,kind,title,content,x,y,updated_at) VALUES('c','note','C','cc',24,300,'t'),('b','note','B','bb',280,24,'t'),('a','note','A','aa',24,24,'t')`);
+ legacy.exec(`INSERT INTO memo_items(id,kind,title,folder_id,x,y,updated_at) VALUES('f','folder','폴더',NULL,24,600,'t')`);
+ legacy.exec(`UPDATE memo_items SET folder_id='f',x=50,y=10 WHERE id='b'`);
+ legacy.exec(`INSERT INTO memo_items(id,kind,title,folder_id,x,y,updated_at) VALUES('d','note','D','f',10,10,'t')`);
+ legacy.exec(fs.readFileSync(new URL('../migrations/0004_memo_order.sql',import.meta.url),'utf8'));
+ const order=legacy.prepare("SELECT id,sort_order FROM memo_items WHERE folder_id IS NULL ORDER BY sort_order").all();
+ assert.deepEqual(order.map(r=>r.id),['a','c','f']);assert.deepEqual(order.map(r=>r.sort_order),[1,2,3]);
+ assert.deepEqual(legacy.prepare("SELECT id FROM memo_items WHERE folder_id='f' ORDER BY sort_order").all().map(r=>r.id),['d','b']);
+ assert.equal(legacy.prepare("SELECT x,y FROM memo_items WHERE id='c'").get().y,300);legacy.close();
+
+ const a=(await call({action:'create'})).id,b=(await call({action:'create'})).id,c=(await call({action:'create'})).id;
+ assert.deepEqual(ids(),[a,b,c]);
  await call({action:'save',id:a,title:'사진 메모',content:'앞<img src="/api/private/memo-images/example">뒤'});
- await call({action:'group',id:a,target:b,title:'아이디어'});
- let items=(await call()).data,folder=items.find(i=>i.kind==='folder');
- assert.equal(items.filter(i=>i.folder_id===folder.id).length,2);
- await call({action:'save',id:folder.id,title:'바꾼 이름',content:''});
- await call({action:'move',id:a,x:40,y:80,folder_id:null});
- assert.equal((await call()).data.find(i=>i.id===a).folder_id,null);
- await call({action:'group',id:a,target:folder.id,title:'바꾼 이름'});
- await call({action:'delete',id:folder.id});
- items=(await call()).data;assert.equal(items.length,2);assert.ok(items.every(i=>i.folder_id===null));
+ assert.deepEqual(ids(),[a,b,c],'saving never changes the order');
+ await call({action:'reorder',folder_id:null,ids:[c,a,b]});
+ assert.deepEqual((await call()).data.map(i=>i.id),[c,a,b]);
+ await assert.rejects(call({action:'reorder',folder_id:null,ids:[c,a]}),/바뀌었어요/);
+ await assert.rejects(call({action:'reorder',folder_id:null,ids:[c,a,a]}),/바뀌었어요/);
+ await assert.rejects(call({action:'reorder',folder_id:null,ids:[c,a,'x']}),/바뀌었어요/);
+ await assert.rejects(call({action:'reorder',folder_id:'nope',ids:[]}),/폴더/);
+ assert.deepEqual(ids(),[c,a,b]);
+ await assert.rejects(call({action:'move',id:a,x:1,y:2}),/Unknown action/);
+ await assert.rejects(call({action:'group',id:a,target:b,title:'x'}),/Unknown action/);
+
+ // Folders that already exist keep working: reorder inside, take a memo out, dissolve.
+ const folder=(await call({action:'create'})).id;
+ db.sqlite.prepare("UPDATE memo_items SET kind='folder',title='폴더' WHERE id=?").run(folder);
+ const inner1=(await call({action:'create',folder_id:folder})).id,inner2=(await call({action:'create',folder_id:folder})).id;
+ await call({action:'reorder',folder_id:folder,ids:[inner2,inner1]});
+ assert.deepEqual(db.sqlite.prepare('SELECT id FROM memo_items WHERE folder_id=? ORDER BY sort_order').all(folder).map(r=>r.id),[inner2,inner1]);
+ await assert.rejects(call({action:'reorder',folder_id:folder,ids:[inner1]}),/바뀌었어요/);
+ await call({action:'unfold',id:inner2});
+ assert.equal(db.sqlite.prepare('SELECT folder_id FROM memo_items WHERE id=?').get(inner2).folder_id,null);
+ assert.equal(db.sqlite.prepare('SELECT id FROM memo_items WHERE folder_id IS NULL ORDER BY sort_order DESC LIMIT 1').get().id,inner2);
+ await call({action:'save',id:folder,title:'바꾼 이름',content:''});
+ await call({action:'delete',id:folder});
+ const items=(await call()).data;assert.equal(items.length,5);assert.ok(items.every(i=>i.folder_id===null));
+ assert.equal(items[items.length-1].id,inner1,'dissolved folder memos go to the end');
+ assert.equal(new Set(items.map(i=>i.sort_order)).size,items.length,'no ties in order');
  assert.match(items.find(i=>i.id===a).content,/앞<img.*뒤/);
  assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM records').get().n,1);
- await assert.rejects(call({action:'move',id:a,x:-1,y:20}),/position/);
- await assert.rejects(call({action:'group',id:a,target:a,title:'실패'}));
  await assert.rejects(call({action:'save',id:a,title:'x'.repeat(121),content:''}));
  db.sqlite.close();
 });
@@ -58,9 +88,9 @@ async function frontend(){
   if(url==='/api/private/memo-images')return response({url:'/api/private/memo-images/photo-1'});
   if(!options?.body)return response({data:rows.map(r=>({...r}))});
   const q=JSON.parse(options.body);calls.push(q);
-  if(q.action==='create'){const key='memo-'+(++id);rows.push({id:key,kind:'note',title:'',content:'',folder_id:q.folder_id||null,x:q.x,y:q.y});return response({id:key});}
+  if(q.action==='create'){const key='memo-'+(++id);rows.push({id:key,kind:'note',title:'',content:'',folder_id:q.folder_id||null});return response({id:key});}
   const item=rows.find(r=>r.id===q.id);if(q.action==='save')Object.assign(item,{title:q.title,content:q.content});
-  if(q.action==='move')Object.assign(item,{folder_id:q.folder_id,x:q.x,y:q.y});
+  if(q.action==='reorder'){const pos=new Map(q.ids.map((x,i)=>[x,i]));rows.sort((p,r)=>(pos.get(p.id)??1e9)-(pos.get(r.id)??1e9));}
   return response({ok:true});
  };
  Object.defineProperty(w.document.getElementById('memoBoard'),'clientWidth',{value:1000});
@@ -68,9 +98,9 @@ async function frontend(){
  const flush=async()=>{await new Promise(r=>setTimeout(r,15));};
  return {dom,w,rows,calls,flush,$:id=>w.document.getElementById(id)};
 }
-test('blank-board creation, safe previews, text paste at cursor, image drop at cursor, save and reload',async()=>{
+test('new memo button creation, safe previews, text paste at cursor, image drop at cursor, save and reload',async()=>{
  const {dom,w,rows,calls,flush,$}=await frontend();
- $('memoBoard').dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:100,clientY:70}));await flush();
+ $('newMemoButton').click();await flush();
  assert.equal(rows.length,1);assert.equal($('memoModal').classList.contains('hidden'),false);
  $('memoTitle').value='내 메모';const editor=$('memoEditor');editor.textContent='앞뒤';
  const range=w.document.createRange();range.setStart(editor.firstChild,1);range.collapse(true);w.getSelection().removeAllRanges();w.getSelection().addRange(range);editor.dispatchEvent(new w.Event('keyup'));
@@ -94,17 +124,40 @@ test('completed list input adds a completed item immediately and blocks double s
  form.dispatchEvent(new w.Event('submit',{cancelable:true}));form.dispatchEvent(new w.Event('submit',{cancelable:true}));await new Promise(r=>setTimeout(r,20));
  assert.equal(calls.length,1);assert.equal(calls[0].values.is_completed,true);assert.ok(Date.parse(calls[0].values.completed_at));assert.equal(input.value,'');dom.window.close();
 });
-test('dragging a note over another card requests a named folder',async()=>{
+test('memos are a plain ordered list: no free positioning, no board-click creation, no folder-by-drop',async()=>{
  const {dom,w,rows,calls,flush,$}=await frontend();
- rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null,x:24,y:24},{id:'b',kind:'note',title:'B',content:'',folder_id:null,x:300,y:24});
+ rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null,x:900,y:900},{id:'b',kind:'note',title:'B',content:'',folder_id:null,x:5,y:5});
  await w.loadMemoBoard();
- for(const card of $('memoBoard').querySelectorAll('.memo-card'))card.getBoundingClientRect=()=>({left:parseFloat(card.style.left),top:parseFloat(card.style.top),right:parseFloat(card.style.left)+240,bottom:parseFloat(card.style.top)+254,width:240,height:254});
- const handle=$('memoBoard').querySelector('.memo-drag-handle');handle.setPointerCapture=()=>{};
+ for(const card of $('memoBoard').querySelectorAll('.memo-card'))assert.equal(card.style.left+card.style.top,'','cards are laid out by CSS, not by stored position');
+ $('memoBoard').dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:100,clientY:70}));await flush();
+ assert.equal(rows.length,2);assert.equal(calls.length,0);
+ dom.window.close();
+});
+test('dragging a memo onto another reorders it; arrow keys move it one place',async()=>{
+ const {dom,w,rows,calls,flush,$}=await frontend();
+ rows.push(...['a','b','c'].map(id=>({id,kind:'note',title:id.toUpperCase(),content:'',folder_id:null})));
+ await w.loadMemoBoard();
+ const cardsOf=()=>[...$('memoBoard').querySelectorAll('.memo-card')];
+ cardsOf().forEach((card,i)=>card.getBoundingClientRect=()=>({left:i*260,top:0,right:i*260+240,bottom:254,width:240,height:254}));
+ const handle=cardsOf()[0].querySelector('.memo-drag-handle');handle.setPointerCapture=()=>{};
  handle.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:40,clientY:40,button:0}));
- handle.dispatchEvent(new w.MouseEvent('pointermove',{clientX:316,clientY:40,button:0}));
- assert.ok($('memoBoard').querySelector('.memo-drop-target'));
- handle.dispatchEvent(new w.MouseEvent('pointerup',{clientX:316,clientY:40,button:0}));await flush();
- assert.ok(calls.some(q=>q.action==='group'&&q.id==='a'&&q.target==='b'&&q.title==='폴더'));dom.window.close();
+ handle.dispatchEvent(new w.MouseEvent('pointermove',{clientX:540,clientY:40,button:0}));   // over the third card
+ assert.ok(cardsOf()[2].classList.contains('memo-drop-target'));
+ handle.dispatchEvent(new w.MouseEvent('pointerup',{clientX:540,clientY:40,button:0}));await flush();
+ assert.deepEqual(calls.filter(q=>q.action==='reorder').map(q=>q.ids),[['b','c','a']]);
+ assert.deepEqual(cardsOf().map(c=>c.dataset.memoId),['b','c','a']);
+ assert.ok(calls.every(q=>q.action==='reorder'),'no move/group request is ever sent');
+ // Dropping on empty space changes nothing.
+ calls.length=0;
+ const h2=cardsOf()[0].querySelector('.memo-drag-handle');h2.setPointerCapture=()=>{};
+ h2.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:40,clientY:40,button:0}));
+ h2.dispatchEvent(new w.MouseEvent('pointermove',{clientX:40,clientY:900,button:0}));
+ h2.dispatchEvent(new w.MouseEvent('pointerup',{clientX:40,clientY:900,button:0}));await flush();
+ assert.equal(calls.length,0);
+ // Keyboard: ArrowRight on the first card moves it one place later.
+ cardsOf()[0].querySelector('.memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));await flush();
+ assert.deepEqual(calls.filter(q=>q.action==='reorder').map(q=>q.ids),[['c','b','a']]);
+ dom.window.close();
 });
 test('all frontend scripts initialize for both public visitors and owners returning to memo tab',async()=>{
  for(const role of [false,true]){

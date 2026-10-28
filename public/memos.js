@@ -51,17 +51,11 @@
     byId('memoBack').classList.toggle('hidden',!folderId);
     byId('memoFolderTitle').textContent=folderId?items.find(i=>i.id===folderId)?.title:'';
     const visible=items.filter(i=>(i.folder_id||null)===folderId);
-    if(!visible.length){const hint=document.createElement('span');hint.className='memo-empty-hint';hint.textContent='빈 곳을 눌러 메모를 추가하세요';board.appendChild(hint);}
-    let bottom=550;
-    const compact=board.clientWidth<560;
-    const columns=board.clientWidth>=390?2:1;
-    const width=compact?Math.min(240,(board.clientWidth-12*(columns+1))/columns):240;
-    for(const [index,item] of visible.entries()){
+    if(!visible.length){const hint=document.createElement('span');hint.className='memo-empty-hint';hint.textContent='+ 메모를 눌러 메모를 추가하세요';board.appendChild(hint);}
+    for(const item of visible){
       const card=document.createElement('article');card.className='memo-card '+(item.kind==='folder'?'memo-folder':'');card.dataset.memoId=item.id;
-      const x=compact?12+(index%columns)*(width+12):Math.min(item.x,Math.max(8,board.clientWidth-width-12)), y=compact?12+Math.floor(index/columns)*280:Math.max(12,item.y);
-      card.style.left=x+'px';card.style.top=y+'px';card.style.width=width+'px';bottom=Math.max(bottom,y+290);
       const header=document.createElement('div');header.className='memo-card-header';
-      const handle=button('⠿',()=>{},'memo-drag-handle');handle.setAttribute('aria-label','메모 이동');handle.title='여기를 끌어 이동하거나 다른 메모 위에 놓으세요';
+      const handle=button('⠿',()=>{},'memo-drag-handle');handle.setAttribute('aria-label','메모 순서 바꾸기');handle.title='끌어서 순서를 바꾸세요 (키보드: 방향키)';
       const title=button((item.kind==='folder'?'📁 ':'')+(item.title||'제목 없는 메모'),()=>item.kind==='folder'?openFolder(item):openEditor(item),'memo-card-title');
       header.append(handle,title);card.appendChild(header);
       const preview=document.createElement('div');preview.className='memo-preview';
@@ -79,59 +73,62 @@
           await api({action:'save',id:item.id,title:title.trim(),content:''});await window.loadMemoBoard();
         }));
         actions.appendChild(button('폴더 풀기',async()=>{await api({action:'delete',id:item.id});await window.loadMemoBoard();}));
-      }else if(folderId)actions.appendChild(button('폴더 밖으로',async()=>{await api({action:'move',id:item.id,x:24+items.length%3*24,y:24+items.length%5*32,folder_id:null});await window.loadMemoBoard();}));
-      card.appendChild(actions);board.appendChild(card);enableDrag(handle,card,item);
+      }else if(folderId)actions.appendChild(button('폴더 밖으로',async()=>{await api({action:'unfold',id:item.id});await window.loadMemoBoard();}));
+      card.appendChild(actions);board.appendChild(card);enableReorder(handle,card,item);
     }
-    board.style.minHeight=bottom+'px';
   }
   function plainText(html){const div=document.createElement('div');div.appendChild(safeContent(html));return div.textContent;}
   function openFolder(item){folderId=item.id;render();}
   byId('memoBack').addEventListener('click',()=>{folderId=null;render();});
-  async function create(x=24,y=24){
+  async function create(){
     if(!isOwner||busy)return;busy=true;
-    try{const {id}=await api({action:'create',x,y,folder_id:folderId});await window.loadMemoBoard();const item=items.find(i=>i.id===id);if(item)openEditor(item);}
+    try{const {id}=await api({action:'create',folder_id:folderId});await window.loadMemoBoard();const item=items.find(i=>i.id===id);if(item)openEditor(item);}
     catch(error){status(error.message);}finally{busy=false;}
   }
-  board.addEventListener('click',event=>{
-    if(Date.now()<suppressClick||event.target.closest('.memo-card'))return;
-    const rect=board.getBoundingClientRect();create(Math.max(12,Math.min(event.clientX-rect.left-30,board.clientWidth-252)),Math.max(12,event.clientY-rect.top-20));
-  });
-  byId('newMemoButton').addEventListener('click',()=>create(24+items.length%4*25,24+items.length%5*30));
-  function enableDrag(handle,card,item){
+  byId('newMemoButton').addEventListener('click',()=>create());
+  // Order of the memos shown now (board or the open folder), with `id` moved to `index`.
+  function orderedIds(id,index){
+    const ids=items.filter(i=>(i.folder_id||null)===folderId).map(i=>i.id);
+    const from=ids.indexOf(id);if(from<0||index<0||index>=ids.length||index===from)return null;
+    ids.splice(from,1);ids.splice(index,0,id);return ids;
+  }
+  async function saveOrder(ids){
+    busy=true;
+    try{await api({action:'reorder',folder_id:folderId,ids});await window.loadMemoBoard();}
+    catch(error){status(error.message);render();}finally{busy=false;}
+  }
+  function enableReorder(handle,card,item){
+    // Keyboard: arrow keys move the memo one place earlier/later.
+    handle.addEventListener('keydown',event=>{
+      const step={ArrowUp:-1,ArrowLeft:-1,ArrowDown:1,ArrowRight:1}[event.key];if(!step||busy)return;
+      event.preventDefault();event.stopPropagation();
+      const visible=items.filter(i=>(i.folder_id||null)===folderId).map(i=>i.id);
+      const ids=orderedIds(item.id,visible.indexOf(item.id)+step);
+      if(ids)saveOrder(ids).then(()=>board.querySelector(`[data-memo-id="${item.id}"] .memo-drag-handle`)?.focus());
+    });
     handle.addEventListener('pointerdown',event=>{
       if(event.button!==0||busy)return;
-      const startX=event.clientX,startY=event.clientY,initialX=parseFloat(card.style.left),initialY=parseFloat(card.style.top);
+      const startX=event.clientX,startY=event.clientY;
       let moved=false,target=null;
       handle.setPointerCapture(event.pointerId);
+      const cards=()=>[...board.querySelectorAll('.memo-card')].filter(el=>el!==card);
       const move=e=>{
         if(Math.hypot(e.clientX-startX,e.clientY-startY)<7&&!moved)return;
         moved=true;card.classList.add('memo-dragging');
-        card.style.left=Math.max(8,Math.min(board.clientWidth-card.offsetWidth-8,initialX+e.clientX-startX))+'px';
-        card.style.top=Math.max(12,initialY+e.clientY-startY)+'px';
-        board.style.minHeight=Math.max(parseFloat(board.style.minHeight),parseFloat(card.style.top)+290)+'px';
+        // The card follows the pointer visually only; the layout itself never changes.
+        card.style.transform=`translate(${e.clientX-startX}px,${e.clientY-startY}px)`;
         board.querySelectorAll('.memo-drop-target').forEach(el=>el.classList.remove('memo-drop-target'));
-        target=null;
-        if(item.kind==='note'){
-          const candidates=[...board.querySelectorAll('.memo-card')].filter(el=>el!==card);
-          const a=card.getBoundingClientRect();
-          target=candidates.find(el=>{const b=el.getBoundingClientRect();const cx=a.left+a.width/2,cy=a.top+a.height/2;return cx>b.left&&cx<b.right&&cy>b.top&&cy<b.bottom;})||null;
-          target?.classList.add('memo-drop-target');
-        }
+        target=cards().find(el=>{const b=el.getBoundingClientRect();return e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom;})||null;
+        target?.classList.add('memo-drop-target');
       };
-      const finish=async e=>{
-        handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',finish);handle.removeEventListener('pointercancel',cancel);
-        card.classList.remove('memo-dragging');if(!moved)return;
-        suppressClick=Date.now()+450;busy=true;
-        try{
-          if(target){
-            const other=items.find(i=>i.id===target.dataset.memoId);
-            const title=other.kind==='folder'?other.title:window.prompt('새 폴더 이름','새 폴더');
-            if(title!==null&&title.trim())await api({action:'group',id:item.id,target:other.id,title:title.trim()});
-          }else await api({action:'move',id:item.id,x:parseFloat(card.style.left),y:parseFloat(card.style.top),folder_id:folderId});
-          await window.loadMemoBoard();
-        }catch(error){status(error.message);render();}finally{busy=false;}
+      const stop=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',finish);handle.removeEventListener('pointercancel',cancel);card.classList.remove('memo-dragging');card.style.transform='';board.querySelectorAll('.memo-drop-target').forEach(el=>el.classList.remove('memo-drop-target'));};
+      const finish=()=>{
+        stop();if(!moved)return;suppressClick=Date.now()+450;
+        if(!target)return;
+        const ids=orderedIds(item.id,items.filter(i=>(i.folder_id||null)===folderId).findIndex(i=>i.id===target.dataset.memoId));
+        if(ids)saveOrder(ids);
       };
-      const cancel=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',finish);handle.removeEventListener('pointercancel',cancel);suppressClick=Date.now()+450;render();};
+      const cancel=()=>{stop();suppressClick=Date.now()+450;};
       handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',cancel);
     });
   }

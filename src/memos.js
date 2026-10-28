@@ -43,7 +43,7 @@ export async function memos(request, env, path) {
     await db.prepare('INSERT INTO memo_images(id,mime,bytes,created_at) VALUES(?,?,?,?)').bind(id,mime,bytes,new Date().toISOString()).run();
     return json({url:'/api/private/memo-images/'+id});
   }
-  if(request.method==='GET')return json({data:(await db.prepare('SELECT * FROM memo_items ORDER BY updated_at,id').all()).results});
+  if(request.method==='GET')return json({data:(await db.prepare('SELECT * FROM memo_items ORDER BY sort_order,id').all()).results});
   if(request.method!=='POST')return json({error:'Method not allowed'},405);
   if(!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'JSON required'},415);
   const text=await request.text();
@@ -51,39 +51,37 @@ export async function memos(request, env, path) {
   let q;try{q=JSON.parse(text);}catch{throw fail('Invalid JSON');}
   const now=new Date().toISOString();
   const get=async id=>validId(id) ? db.prepare('SELECT * FROM memo_items WHERE id=?').bind(id).first() : null;
+  // New memos go to the end of the board (or of the folder they are created in).
+  const nextOrder=async folder=>((await db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM memo_items WHERE COALESCE(folder_id,\'\')=?').bind(folder||'').first()).n);
   if(q.action==='create') {
     const id=crypto.randomUUID();
     if(q.folder_id && (await get(q.folder_id))?.kind!=='folder')throw fail('폴더를 찾을 수 없어요.');
-    const x=Number(q.x), y=Number(q.y);
-    if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>10000||y>100000)throw fail('Invalid position');
-    await db.prepare("INSERT INTO memo_items(id,kind,folder_id,x,y,updated_at) VALUES(?,'note',?,?,?,?)").bind(id,q.folder_id||null,x,y,now).run();
+    await db.prepare("INSERT INTO memo_items(id,kind,folder_id,sort_order,updated_at) VALUES(?,'note',?,?,?)").bind(id,q.folder_id||null,await nextOrder(q.folder_id),now).run();
     return json({id});
+  }
+  if(q.action==='reorder') {
+    // Only the order of the memos that are shown together (the board, or one folder) can change.
+    const folder=q.folder_id||null;
+    if(folder && (await get(folder))?.kind!=='folder')throw fail('폴더를 찾을 수 없어요.');
+    if(!Array.isArray(q.ids)||q.ids.length>2000||!q.ids.every(validId))throw fail('Invalid order');
+    const current=(await db.prepare("SELECT id FROM memo_items WHERE COALESCE(folder_id,'')=?").bind(folder||'').all()).results.map(r=>r.id);
+    if(new Set(q.ids).size!==q.ids.length||q.ids.length!==current.length||!current.every(id=>q.ids.includes(id)))throw fail('메모 목록이 바뀌었어요. 새로고침한 뒤 다시 시도해주세요.');
+    await db.batch(q.ids.map((id,index)=>db.prepare('UPDATE memo_items SET sort_order=? WHERE id=?').bind(index+1,id)));
+    return json({ok:true});
   }
   const item=await get(q.id);
   if(!item)throw fail('메모를 찾을 수 없어요.');
   if(q.action==='save') {
     if(typeof q.title!=='string'||q.title.length>120||typeof q.content!=='string'||q.content.length>200000)throw fail('메모 제목 또는 본문이 너무 길어요.');
     await db.prepare('UPDATE memo_items SET title=?,content=?,updated_at=? WHERE id=?').bind(q.title,q.content,now,item.id).run();
-  } else if(q.action==='move') {
-    if(!Number.isFinite(q.x)||!Number.isFinite(q.y)||q.x<0||q.y<0||q.x>10000||q.y>100000)throw fail('Invalid position');
-    if(q.folder_id && (item.kind==='folder'||(await get(q.folder_id))?.kind!=='folder'))throw fail('Invalid folder');
-    await db.prepare('UPDATE memo_items SET x=?,y=?,folder_id=?,updated_at=? WHERE id=?').bind(q.x,q.y,q.folder_id||null,now,item.id).run();
-  } else if(q.action==='group') {
-    const target=await get(q.target);
-    if(item.kind!=='note'||!target||target.id===item.id||item.folder_id!==target.folder_id)throw fail('Invalid grouping');
-    if(target.kind==='folder') {
-      await db.prepare('UPDATE memo_items SET folder_id=?,updated_at=? WHERE id=?').bind(target.id,now,item.id).run();
-    } else {
-      if(typeof q.title!=='string'||!q.title.trim()||q.title.length>120)throw fail('폴더 이름을 입력해주세요.');
-      const id=crypto.randomUUID();
-      await db.batch([
-        db.prepare("INSERT INTO memo_items(id,kind,title,x,y,updated_at) VALUES(?,'folder',?,?,?,?)").bind(id,q.title.trim(),target.x,target.y,now),
-        db.prepare('UPDATE memo_items SET folder_id=?,updated_at=? WHERE id IN (?,?)').bind(id,now,item.id,target.id)
-      ]);
-    }
+  } else if(q.action==='unfold') {
+    // Take a memo out of its folder; it goes to the end of the board.
+    if(!item.folder_id)throw fail('Invalid folder');
+    await db.prepare('UPDATE memo_items SET folder_id=NULL,sort_order=?,updated_at=? WHERE id=?').bind(await nextOrder(null),now,item.id).run();
   } else if(q.action==='delete') {
     await db.batch([
-      db.prepare('UPDATE memo_items SET folder_id=NULL WHERE folder_id=?').bind(item.id),
+      // Memos of a dissolved folder move to the end of the board and keep their order.
+      db.prepare("UPDATE memo_items SET sort_order=sort_order+(SELECT COALESCE(MAX(sort_order),0) FROM memo_items WHERE folder_id IS NULL),folder_id=NULL WHERE folder_id=?").bind(item.id),
       db.prepare('DELETE FROM memo_items WHERE id=?').bind(item.id)
     ]);
   } else throw fail('Unknown action');

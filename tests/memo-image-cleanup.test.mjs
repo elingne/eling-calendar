@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {memos} from '../src/memos.js';
 
 const migration=name=>fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8');
-const allMigrations=['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql'];
+const allMigrations=['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql'];
 function database(names=allMigrations,{failImageDelete=false}={}) {
   const sqlite=new DatabaseSync(':memory:');
   for(const name of names)sqlite.exec(migration(name));
@@ -33,7 +33,7 @@ const withPhoto=id=>`앞<img src="/api/private/memo-images/${id}">뒤`;
 test('saving a memo removes old unused photos but keeps used and recent ones',async()=>{
   const db=database(),env={DB:db};
   const used=await upload(env),usedByOther=await upload(env),oldOrphan=await upload(env),freshOrphan=await upload(env);
-  const a=(await call(env,{action:'create',x:24,y:24})).id,b=(await call(env,{action:'create',x:300,y:24})).id;
+  const a=(await call(env,{action:'create'})).id,b=(await call(env,{action:'create'})).id;
   await call(env,{action:'save',id:b,title:'다른 메모',content:withPhoto(usedByOther)});
   for(const id of [used,usedByOther,oldOrphan])age(db,id,48);   // freshOrphan stays recent (editor may still be open)
   await call(env,{action:'save',id:a,title:'사진 메모',content:withPhoto(used)});
@@ -44,7 +44,7 @@ test('saving a memo removes old unused photos but keeps used and recent ones',as
 test('a photo removed from a memo is cleaned up after the grace period; deleting a memo cleans its photos',async()=>{
   const db=database(),env={DB:db};
   const photo=await upload(env),other=await upload(env);
-  const a=(await call(env,{action:'create',x:24,y:24})).id,b=(await call(env,{action:'create',x:300,y:24})).id;
+  const a=(await call(env,{action:'create'})).id,b=(await call(env,{action:'create'})).id;
   await call(env,{action:'save',id:a,title:'a',content:withPhoto(photo)});
   await call(env,{action:'save',id:b,title:'b',content:withPhoto(other)});
   // Photo is dropped from memo a, but it is still recent: it must survive for now.
@@ -61,18 +61,18 @@ test('a photo removed from a memo is cleaned up after the grace period; deleting
   db.sqlite.close();
 });
 
-test('moving or grouping memos does not trigger photo cleanup',async()=>{
+test('reordering memos does not trigger photo cleanup',async()=>{
   const db=database(),env={DB:db};
   const orphan=await upload(env);age(db,orphan,48);
-  const a=(await call(env,{action:'create',x:24,y:24})).id;
-  await call(env,{action:'move',id:a,x:40,y:60,folder_id:null});
+  const a=(await call(env,{action:'create'})).id,b=(await call(env,{action:'create'})).id;
+  await call(env,{action:'reorder',folder_id:null,ids:[b,a]});
   assert.deepEqual(imageIds(db),[orphan]);
   db.sqlite.close();
 });
 
 test('a failing cleanup never breaks saving or deleting a memo',async()=>{
   const db=database(allMigrations,{failImageDelete:true}),env={DB:db};
-  const a=(await call(env,{action:'create',x:24,y:24})).id;
+  const a=(await call(env,{action:'create'})).id;
   assert.deepEqual(await call(env,{action:'save',id:a,title:'저장됨',content:'본문'}),{ok:true});
   assert.equal(db.sqlite.prepare('SELECT title FROM memo_items WHERE id=?').get(a).title,'저장됨');
   assert.deepEqual(await call(env,{action:'delete',id:a}),{ok:true});
@@ -84,12 +84,13 @@ test('migration 0003 keeps existing photos and gives them a timestamp (so they a
   db.sqlite.prepare('INSERT INTO memo_images(id,mime,bytes) VALUES(?,?,?)').run('legacy-1','image/png',new Uint8Array(png));
   db.sqlite.prepare("INSERT INTO records VALUES('events',1,'{\"id\":1,\"title\":\"기존 일정\"}')").run();
   db.sqlite.exec(migration('0003_memo_image_cleanup.sql'));
+  db.sqlite.exec(migration('0004_memo_order.sql'));
   const row=db.sqlite.prepare('SELECT id,length(bytes) n,created_at FROM memo_images').get();
   assert.equal(row.id,'legacy-1');assert.equal(row.n,png.length);
   assert.ok(Date.parse(row.created_at)>Date.now()-60e3,'legacy photo should get a fresh timestamp');
   assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM records').get().n,1);
   // A legacy photo that is unused must not be removed right away.
-  const env={DB:db};const a=(await call(env,{action:'create',x:1,y:1})).id;
+  const env={DB:db};const a=(await call(env,{action:'create'})).id;
   await call(env,{action:'save',id:a,title:'t',content:'c'});
   assert.deepEqual(imageIds(db),['legacy-1']);
   db.sqlite.close();
