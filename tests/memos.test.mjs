@@ -130,13 +130,26 @@ test('completed list input adds a completed item immediately and blocks double s
  form.dispatchEvent(new w.Event('submit',{cancelable:true}));form.dispatchEvent(new w.Event('submit',{cancelable:true}));await new Promise(r=>setTimeout(r,20));
  assert.equal(calls.length,1);assert.equal(calls[0].values.is_completed,true);assert.ok(Date.parse(calls[0].values.completed_at));assert.equal(input.value,'');dom.window.close();
 });
-test('memos are a plain ordered list: no free positioning, no board-click creation',async()=>{
+test('memos are a plain ordered list; clicking empty space (not a card or text) adds a memo',async()=>{
  const {dom,w,rows,calls,flush,$}=await frontend();
  rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null,x:900,y:900},{id:'b',kind:'note',title:'B',content:'',folder_id:null,x:5,y:5});
  await w.loadMemoBoard();
  for(const card of $('memoBoard').querySelectorAll('.memo-card'))assert.equal(card.style.left+card.style.top,'','cards are laid out by CSS, not by stored position');
+ $('memosPage').querySelector('h1').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await flush();
+ $('memoBoard').querySelector('.memo-card .memo-preview').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await flush();
+ assert.equal(rows.length,2,'title text and cards never create a memo');
+ w.document.getElementById('memoClose').click();await flush();
  $('memoBoard').dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:100,clientY:70}));await flush();
- assert.equal(rows.length,2);assert.equal(calls.length,0);
+ assert.equal(rows.length,3);assert.equal($('memoModal').classList.contains('hidden'),false);
+ dom.window.close();
+});
+test('photo size and alignment are kept, everything else on an image is dropped',async()=>{
+ const {dom,w,rows,$}=await frontend();
+ rows.push({id:'p',kind:'note',title:'P',content:'<img src="/api/private/memo-images/a" data-width="40" data-align="center" style="position:fixed" onerror="x()"><img src="/api/private/memo-images/b" data-width="900" data-align="evil">',folder_id:null});
+ await w.loadMemoBoard();
+ const [a,b]=$('memoBoard').querySelectorAll('img');
+ assert.equal(a.dataset.width,'40');assert.equal(a.dataset.align,'center');assert.equal(a.getAttribute('style'),'width: 40%;');assert.equal(a.getAttribute('onerror'),null);
+ assert.equal(b.dataset.width,undefined);assert.equal(b.dataset.align,undefined);assert.equal(b.getAttribute('style'),null);
  dom.window.close();
 });
 test('dropping on a card edge reorders, on its middle makes a folder; arrow keys move one place',async()=>{

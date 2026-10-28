@@ -25,7 +25,8 @@
       if(node.tagName==='IMG'){
         const src=node.getAttribute('src')||'';
         if(/^\/api\/private\/memo-images\/[a-zA-Z0-9-]{1,80}$/.test(src)){
-          const img=document.createElement('img');img.src=src;img.alt='메모 사진';img.loading='lazy';parent.appendChild(img);
+          const img=document.createElement('img');img.src=src;img.alt='메모 사진';img.loading='lazy';
+          setImageLayout(img,node.getAttribute('data-width'),node.getAttribute('data-align'));parent.appendChild(img);
         }
         return;
       }
@@ -35,6 +36,13 @@
     };
     for(const node of template.content.childNodes)copy(node,fragment);
     return fragment;
+  }
+  // Photo size (10-100% of the memo width) and alignment are the only image attributes ever kept.
+  function setImageLayout(img,width,align){
+    const w=Math.round(Number(width));
+    if(Number.isFinite(w)&&w>=10&&w<100){img.dataset.width=String(w);img.style.width=w+'%';}
+    else{delete img.dataset.width;img.style.removeProperty('width');}
+    if(['left','center','right'].includes(align))img.dataset.align=align;else delete img.dataset.align;
   }
   function contentHTML(){const div=document.createElement('div');div.appendChild(safeContent(editor.innerHTML));return div.innerHTML;}
   function button(text,action,cls='memo-small-button') {
@@ -51,7 +59,7 @@
     byId('memoBack').classList.toggle('hidden',!folderId);
     byId('memoFolderTitle').textContent=folderId?items.find(i=>i.id===folderId)?.title:'';
     const visible=items.filter(i=>(i.folder_id||null)===folderId);
-    if(!visible.length){const hint=document.createElement('span');hint.className='memo-empty-hint';hint.textContent='+ 메모를 눌러 메모를 추가하세요';board.appendChild(hint);}
+    if(!visible.length){const hint=document.createElement('span');hint.className='memo-empty-hint';hint.textContent='빈 곳을 누르거나 + 메모를 눌러 메모를 추가하세요';board.appendChild(hint);}
     for(const item of visible){
       const card=document.createElement('article');card.className='memo-card '+(item.kind==='folder'?'memo-folder':'');card.dataset.memoId=item.id;
       const header=document.createElement('div');header.className='memo-card-header';
@@ -86,6 +94,13 @@
     catch(error){status(error.message);}finally{busy=false;}
   }
   byId('newMemoButton').addEventListener('click',()=>create());
+  // Clicking any empty part of the memo tab (not a card, button, field or text) adds a memo.
+  byId('memosPage').addEventListener('click',event=>{
+    if(Date.now()<suppressClick||busy)return;
+    if(event.target.closest('.memo-card,button,a,input,textarea,select,label,[contenteditable="true"],h1,h2,p,.section-label,#memoStatus'))return;
+    if(String(window.getSelection?.()||''))return;
+    create();
+  });
   // Order of the memos shown now (board or the open folder), with `id` moved to `index`.
   function orderedIds(id,index){
     const ids=items.filter(i=>(i.folder_id||null)===folderId).map(i=>i.id);
@@ -108,7 +123,7 @@
     });
     handle.addEventListener('pointerdown',event=>{
       if(event.button!==0||busy)return;
-      const startX=event.clientX,startY=event.clientY;
+      const startX=event.clientX,startY=event.clientY,startScroll=window.scrollY;
       let moved=false,hit=null;   // hit = {el, zone:'before'|'after'|'group'}
       handle.setPointerCapture(event.pointerId);
       const cards=()=>[...board.querySelectorAll('.memo-card')].filter(el=>el!==card);
@@ -117,7 +132,9 @@
         if(Math.hypot(e.clientX-startX,e.clientY-startY)<7&&!moved)return;
         moved=true;card.classList.add('memo-dragging');
         // The card follows the pointer visually only; the layout itself never changes.
-        card.style.transform=`translate(${e.clientX-startX}px,${e.clientY-startY}px)`;
+        // Near the top/bottom of the screen the page scrolls, so long lists can be reordered on a phone.
+        if(e.clientY<70)window.scrollBy(0,-16);else if(e.clientY>window.innerHeight-70)window.scrollBy(0,16);
+        card.style.transform=`translate(${e.clientX-startX}px,${e.clientY-startY+window.scrollY-startScroll}px)`;
         clear();hit=null;
         const el=cards().find(c=>{const b=c.getBoundingClientRect();return e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom;});
         if(!el)return;
@@ -150,15 +167,80 @@
       handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',cancel);
     });
   }
+  // ---- Photo size / position inside the editor ----
+  let selectedImg=null;
+  const imageTools=byId('memoImageTools'),sizeInput=byId('memoImageSize');
+  function selectImage(img){
+    editor.querySelectorAll('img.memo-img-selected').forEach(el=>el.classList.remove('memo-img-selected'));
+    selectedImg=img&&editor.contains(img)?img:null;
+    imageTools.classList.toggle('hidden',!selectedImg);
+    if(!selectedImg)return;
+    selectedImg.classList.add('memo-img-selected');
+    const w=Number(selectedImg.dataset.width)||100;sizeInput.value=w;byId('memoImageSizeLabel').textContent=w+'%';
+    const align=selectedImg.dataset.align||'left';
+    imageTools.querySelectorAll('[data-align]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.align===align)));
+  }
+  function applyImage(width,align){
+    if(!selectedImg)return;
+    setImageLayout(selectedImg,width??selectedImg.dataset.width,align??selectedImg.dataset.align);
+    selectImage(selectedImg);
+  }
+  sizeInput.addEventListener('input',()=>applyImage(Number(sizeInput.value)));
+  imageTools.querySelectorAll('[data-align]').forEach(b=>b.addEventListener('click',()=>applyImage(undefined,b.dataset.align)));
+  byId('memoImageRemove').addEventListener('click',()=>{if(!selectedImg)return;const img=selectedImg;selectImage(null);img.remove();rememberRange();});
+  editor.addEventListener('click',event=>selectImage(event.target.tagName==='IMG'?event.target:null));
+  editor.addEventListener('keydown',event=>{
+    if(selectedImg&&(event.key==='Delete'||event.key==='Backspace')&&!String(window.getSelection())){event.preventDefault();const img=selectedImg;selectImage(null);img.remove();}
+    else if(selectedImg&&event.key==='Escape'){event.stopPropagation();selectImage(null);}
+  });
+  // Pointer drag on a photo: from its right edge it resizes, from anywhere else it moves the photo to
+  // where it is dropped in the text. Works the same for mouse and touch (tap a photo first on touch).
+  const nearEdge=(img,x)=>{const r=img.getBoundingClientRect();return x>r.right-22&&x<=r.right+4;};
+  const caretAt=(x,y)=>{
+    let range=document.caretRangeFromPoint?.(x,y);
+    if(!range&&document.caretPositionFromPoint){const p=document.caretPositionFromPoint(x,y);if(p){range=document.createRange();range.setStart(p.offsetNode,p.offset);range.collapse(true);}}
+    return range&&editor.contains(range.startContainer)?range:null;
+  };
+  editor.addEventListener('dragstart',event=>{if(event.target.tagName==='IMG')event.preventDefault();});
+  editor.addEventListener('pointermove',event=>{
+    if(event.target.tagName==='IMG'&&!event.buttons)event.target.style.cursor=event.target===selectedImg&&nearEdge(event.target,event.clientX)?'ew-resize':'move';
+  });
+  editor.addEventListener('pointerdown',event=>{
+    const img=event.target;
+    if(img.tagName!=='IMG'||event.button!==0)return;
+    if(img!==selectedImg){selectImage(img);if(event.pointerType==='touch')return;}  // touch: first tap only selects
+    event.preventDefault();
+    const resize=nearEdge(img,event.clientX),startX=event.clientX,startY=event.clientY;
+    const style=getComputedStyle(editor),full=editor.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+    const left=img.getBoundingClientRect().left;
+    let moved=false;
+    img.setPointerCapture?.(event.pointerId);
+    const move=e=>{
+      if(resize){applyImage(Math.max(10,Math.min(100,Math.round((e.clientX-left)/full*100))));return;}
+      if(!moved&&Math.hypot(e.clientX-startX,e.clientY-startY)<8)return;
+      moved=true;img.classList.add('memo-img-moving');
+      const range=caretAt(e.clientX,e.clientY);   // show where the photo will land
+      if(range){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);}
+    };
+    const done=(e,drop)=>{
+      img.removeEventListener('pointermove',move);img.removeEventListener('pointerup',up);img.removeEventListener('pointercancel',cancel);
+      img.classList.remove('memo-img-moving');
+      if(!drop||resize||!moved)return;
+      const range=caretAt(e.clientX,e.clientY);
+      if(range&&!img.contains(range.startContainer)){img.remove();insertNode(img,range);selectImage(img);}
+    };
+    const up=e=>done(e,true),cancel=e=>done(e,false);
+    img.addEventListener('pointermove',move);img.addEventListener('pointerup',up);img.addEventListener('pointercancel',cancel);
+  });
   function openEditor(item){
-    editing=item;returnFocus=document.activeElement;savedRange=null;
+    editing=item;returnFocus=document.activeElement;savedRange=null;selectImage(null);
     byId('memoTitle').value=item.title;editor.innerHTML='';editor.appendChild(safeContent(item.content));
     status('',true);modal.classList.remove('hidden');document.body.classList.add('memo-editing');editor.focus();
   }
   function closeEditor(force=false){
     if(uploading||busy)return;
     if(!force&&editing&&(byId('memoTitle').value!==editing.title||contentHTML()!==normalized(editing.content))&&!window.confirm('저장하지 않은 내용을 닫을까요?'))return;
-    modal.classList.add('hidden');document.body.classList.remove('memo-editing');editing=null;returnFocus?.focus();
+    selectImage(null);modal.classList.add('hidden');document.body.classList.remove('memo-editing');editing=null;returnFocus?.focus();
   }
   function normalized(html){const div=document.createElement('div');div.appendChild(safeContent(html));return div.innerHTML;}
   byId('memoClose').addEventListener('click',()=>closeEditor());

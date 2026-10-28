@@ -114,9 +114,9 @@
       </section>
 
       <section id="memosPage" class="page-section hidden">
-        <div class="page-heading"><div><span class="section-label">MEMO</span><h1 class="page-title">메모</h1><p class="page-description">+ 메모를 눌러 새 메모를 만들어요. 카드 왼쪽 손잡이(⠿)를 끌어 다른 메모의 좌우 가장자리에 놓으면 순서가 바뀌고, 가운데에 놓으면 폴더로 묶여요.</p></div></div>
+        <div class="page-heading"><div><span class="section-label">MEMO</span><h1 class="page-title">메모</h1><p class="page-description">빈 곳을 누르거나 + 메모를 눌러 새 메모를 만들어요. 카드 왼쪽 손잡이(⠿)를 끌어 다른 메모의 좌우 가장자리에 놓으면 순서가 바뀌고, 가운데에 놓으면 폴더로 묶여요.</p></div></div>
         <div class="memo-toolbar"><button id="memoBack" class="secondary-button hidden" type="button">← 전체 메모</button><h2 id="memoFolderTitle"></h2><button id="newMemoButton" class="primary-button" type="button">+ 메모</button><span id="memoStatus" role="status" aria-live="polite"></span></div>
-        <div id="memoBoard" class="memo-board" aria-label="메모 보드"><span class="memo-empty-hint">+ 메모를 눌러 첫 메모를 남겨보세요</span></div>
+        <div id="memoBoard" class="memo-board" aria-label="메모 보드"><span class="memo-empty-hint">빈 곳을 누르거나 + 메모를 눌러 첫 메모를 남겨보세요</span></div>
       </section>
     </main>
     <button id="scheduleTopButton" type="button" class="schedule-top hidden" aria-label="일정 최상단으로 이동">↑<span>맨 위로</span></button>
@@ -229,7 +229,12 @@
     <div class="memo-modal">
       <div class="modal-header"><h2 id="memoDialogTitle">메모 작성</h2><button id="memoClose" class="close-button" type="button" aria-label="메모 닫기">×</button></div>
       <input id="memoTitle" type="text" maxlength="120" placeholder="제목 (선택)" aria-label="메모 제목">
-      <div class="memo-editor-tools"><button id="memoPhotoButton" type="button" class="secondary-button">사진 넣기</button><input id="memoPhotoInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden><span>커서 위치에 사진을 붙여넣거나 끌어놓으세요</span></div>
+      <div class="memo-editor-tools"><button id="memoPhotoButton" type="button" class="secondary-button">사진 넣기</button><input id="memoPhotoInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden><span>커서 위치에 사진을 붙여넣거나 끌어놓으세요. 사진을 누르면 크기와 위치를 바꿀 수 있어요</span></div>
+      <div id="memoImageTools" class="memo-image-tools hidden" role="group" aria-label="사진 크기와 위치">
+        <label for="memoImageSize">사진 크기</label><input id="memoImageSize" type="range" min="10" max="100" step="5" value="100"><span id="memoImageSizeLabel">100%</span>
+        <span class="memo-image-align"><button type="button" data-align="left" aria-pressed="true">왼쪽</button><button type="button" data-align="center" aria-pressed="false">가운데</button><button type="button" data-align="right" aria-pressed="false">오른쪽</button></span>
+        <button id="memoImageRemove" type="button" class="memo-image-remove">사진 삭제</button>
+      </div>
       <div id="memoEditor" class="memo-editor" contenteditable="true" role="textbox" aria-label="메모 내용" aria-multiline="true" data-placeholder="생각을 자유롭게 적어보세요…"></div>
       <p id="memoEditorStatus" role="status" aria-live="polite"></p>
       <div class="memo-editor-actions"><button id="memoDelete" class="danger-button" type="button">삭제</button><button id="memoSave" class="primary-button" type="button">저장</button></div>
