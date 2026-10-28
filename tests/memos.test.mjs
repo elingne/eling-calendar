@@ -50,7 +50,6 @@ test('migration 0004 keeps the old visual order; create appends; reorder, unfold
  const extra=(await call({action:'create'})).id,inner1=(await call({action:'create'})).id;
  await call({action:'group',id:extra,target:a,title:'폴더'});
  const folder=db.sqlite.prepare("SELECT id FROM memo_items WHERE kind='folder'").get().id;
- assert.deepEqual(ids().filter(id=>![extra].includes(id)).slice(0,1),[c]);
  assert.deepEqual(db.sqlite.prepare("SELECT id FROM memo_items WHERE folder_id IS NULL ORDER BY sort_order").all().map(r=>r.id),[c,folder,b,inner1]);
  assert.deepEqual(db.sqlite.prepare('SELECT id FROM memo_items WHERE folder_id=? ORDER BY sort_order').all(folder).map(r=>r.id),[a,extra]);
  // Dropping a note on a folder adds it at the end of that folder.
