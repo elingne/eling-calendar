@@ -41,7 +41,7 @@
   function setImageLayout(img,width,align){
     const w=Math.round(Number(width));
     if(Number.isFinite(w)&&w>=10&&w<100){img.dataset.width=String(w);img.style.width=w+'%';}
-    else{delete img.dataset.width;img.style.removeProperty('width');}
+    else{delete img.dataset.width;if(img.style.width)img.style.removeProperty('width');if(!img.getAttribute('style'))img.removeAttribute('style');}
     if(['left','center','right'].includes(align))img.dataset.align=align;else delete img.dataset.align;
   }
   function contentHTML(){const div=document.createElement('div');div.appendChild(safeContent(editor.innerHTML));return div.innerHTML;}

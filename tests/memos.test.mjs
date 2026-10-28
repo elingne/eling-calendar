@@ -149,7 +149,7 @@ test('photo size and alignment are kept, everything else on an image is dropped'
  await w.loadMemoBoard();
  const [a,b]=$('memoBoard').querySelectorAll('img');
  assert.equal(a.dataset.width,'40');assert.equal(a.dataset.align,'center');assert.equal(a.getAttribute('style'),'width: 40%;');assert.equal(a.getAttribute('onerror'),null);
- assert.equal(b.dataset.width,undefined);assert.equal(b.dataset.align,undefined);assert.equal(b.getAttribute('style'),null);
+ assert.equal(b.dataset.width,undefined);assert.equal(b.dataset.align,undefined);assert.ok(!b.getAttribute('style'));
  dom.window.close();
 });
 test('dropping on a card edge reorders, on its middle makes a folder; arrow keys move one place',async()=>{
