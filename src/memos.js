@@ -74,6 +74,23 @@ export async function memos(request, env, path) {
   if(q.action==='save') {
     if(typeof q.title!=='string'||q.title.length>120||typeof q.content!=='string'||q.content.length>200000)throw fail('메모 제목 또는 본문이 너무 길어요.');
     await db.prepare('UPDATE memo_items SET title=?,content=?,updated_at=? WHERE id=?').bind(q.title,q.content,now,item.id).run();
+  } else if(q.action==='group') {
+    // Dropping a note on another note makes a named folder holding both; dropping it on a folder adds it.
+    const target=await get(q.target);
+    if(item.kind!=='note'||!target||target.id===item.id||item.folder_id!==target.folder_id)throw fail('Invalid grouping');
+    if(target.kind==='folder') {
+      await db.prepare('UPDATE memo_items SET folder_id=?,sort_order=?,updated_at=? WHERE id=?').bind(target.id,await nextOrder(target.id),now,item.id).run();
+    } else {
+      if(typeof q.title!=='string'||!q.title.trim()||q.title.length>120)throw fail('폴더 이름을 입력해주세요.');
+      const id=crypto.randomUUID();
+      // The new folder takes the place of the note it was dropped on; inside, the dropped-on note comes first.
+      const place=target.folder_id ? await nextOrder(null) : target.sort_order;
+      await db.batch([
+        db.prepare("INSERT INTO memo_items(id,kind,title,sort_order,updated_at) VALUES(?,'folder',?,?,?)").bind(id,q.title.trim(),place,now),
+        db.prepare('UPDATE memo_items SET folder_id=?,sort_order=1,updated_at=? WHERE id=?').bind(id,now,target.id),
+        db.prepare('UPDATE memo_items SET folder_id=?,sort_order=2,updated_at=? WHERE id=?').bind(id,now,item.id)
+      ]);
+    }
   } else if(q.action==='unfold') {
     // Take a memo out of its folder; it goes to the end of the board.
     if(!item.folder_id)throw fail('Invalid folder');

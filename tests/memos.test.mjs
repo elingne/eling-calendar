@@ -44,22 +44,28 @@ test('migration 0004 keeps the old visual order; create appends; reorder, unfold
  await assert.rejects(call({action:'reorder',folder_id:'nope',ids:[]}),/폴더/);
  assert.deepEqual(ids(),[c,a,b]);
  await assert.rejects(call({action:'move',id:a,x:1,y:2}),/Unknown action/);
- await assert.rejects(call({action:'group',id:a,target:b,title:'x'}),/Unknown action/);
+ await assert.rejects(call({action:'group',id:a,target:a,title:'실패'}),/grouping/);
 
- // Folders that already exist keep working: reorder inside, take a memo out, dissolve.
- const folder=(await call({action:'create'})).id;
- db.sqlite.prepare("UPDATE memo_items SET kind='folder',title='폴더' WHERE id=?").run(folder);
- const inner1=(await call({action:'create',folder_id:folder})).id,inner2=(await call({action:'create',folder_id:folder})).id;
- await call({action:'reorder',folder_id:folder,ids:[inner2,inner1]});
- assert.deepEqual(db.sqlite.prepare('SELECT id FROM memo_items WHERE folder_id=? ORDER BY sort_order').all(folder).map(r=>r.id),[inner2,inner1]);
+ // Dropping a note on another note makes a folder in the dropped-on note's place.
+ const extra=(await call({action:'create'})).id,inner1=(await call({action:'create'})).id;
+ await call({action:'group',id:extra,target:a,title:'폴더'});
+ const folder=db.sqlite.prepare("SELECT id FROM memo_items WHERE kind='folder'").get().id;
+ assert.deepEqual(ids().filter(id=>![extra].includes(id)).slice(0,1),[c]);
+ assert.deepEqual(db.sqlite.prepare("SELECT id FROM memo_items WHERE folder_id IS NULL ORDER BY sort_order").all().map(r=>r.id),[c,folder,b,inner1]);
+ assert.deepEqual(db.sqlite.prepare('SELECT id FROM memo_items WHERE folder_id=? ORDER BY sort_order').all(folder).map(r=>r.id),[a,extra]);
+ // Dropping a note on a folder adds it at the end of that folder.
+ await call({action:'group',id:inner1,target:folder,title:'폴더'});
+ const inner2=a;
+ assert.deepEqual(db.sqlite.prepare('SELECT id FROM memo_items WHERE folder_id=? ORDER BY sort_order').all(folder).map(r=>r.id),[a,extra,inner1]);
+ await call({action:'reorder',folder_id:folder,ids:[inner1,a,extra]});
  await assert.rejects(call({action:'reorder',folder_id:folder,ids:[inner1]}),/바뀌었어요/);
- await call({action:'unfold',id:inner2});
- assert.equal(db.sqlite.prepare('SELECT folder_id FROM memo_items WHERE id=?').get(inner2).folder_id,null);
- assert.equal(db.sqlite.prepare('SELECT id FROM memo_items WHERE folder_id IS NULL ORDER BY sort_order DESC LIMIT 1').get().id,inner2);
+ await call({action:'unfold',id:extra});
+ assert.equal(db.sqlite.prepare('SELECT folder_id FROM memo_items WHERE id=?').get(extra).folder_id,null);
+ assert.equal(db.sqlite.prepare('SELECT id FROM memo_items WHERE folder_id IS NULL ORDER BY sort_order DESC LIMIT 1').get().id,extra);
  await call({action:'save',id:folder,title:'바꾼 이름',content:''});
  await call({action:'delete',id:folder});
  const items=(await call()).data;assert.equal(items.length,5);assert.ok(items.every(i=>i.folder_id===null));
- assert.equal(items[items.length-1].id,inner1,'dissolved folder memos go to the end');
+ assert.deepEqual(items.slice(-2).map(i=>i.id),[inner1,inner2],'dissolved folder memos go to the end in order');
  assert.equal(new Set(items.map(i=>i.sort_order)).size,items.length,'no ties in order');
  assert.match(items.find(i=>i.id===a).content,/앞<img.*뒤/);
  assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM records').get().n,1);
@@ -124,7 +130,7 @@ test('completed list input adds a completed item immediately and blocks double s
  form.dispatchEvent(new w.Event('submit',{cancelable:true}));form.dispatchEvent(new w.Event('submit',{cancelable:true}));await new Promise(r=>setTimeout(r,20));
  assert.equal(calls.length,1);assert.equal(calls[0].values.is_completed,true);assert.ok(Date.parse(calls[0].values.completed_at));assert.equal(input.value,'');dom.window.close();
 });
-test('memos are a plain ordered list: no free positioning, no board-click creation, no folder-by-drop',async()=>{
+test('memos are a plain ordered list: no free positioning, no board-click creation',async()=>{
  const {dom,w,rows,calls,flush,$}=await frontend();
  rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null,x:900,y:900},{id:'b',kind:'note',title:'B',content:'',folder_id:null,x:5,y:5});
  await w.loadMemoBoard();
@@ -133,7 +139,7 @@ test('memos are a plain ordered list: no free positioning, no board-click creati
  assert.equal(rows.length,2);assert.equal(calls.length,0);
  dom.window.close();
 });
-test('dragging a memo onto another reorders it; arrow keys move it one place',async()=>{
+test('dropping on a card edge reorders, on its middle makes a folder; arrow keys move one place',async()=>{
  const {dom,w,rows,calls,flush,$}=await frontend();
  rows.push(...['a','b','c'].map(id=>({id,kind:'note',title:id.toUpperCase(),content:'',folder_id:null})));
  await w.loadMemoBoard();
@@ -141,12 +147,12 @@ test('dragging a memo onto another reorders it; arrow keys move it one place',as
  cardsOf().forEach((card,i)=>card.getBoundingClientRect=()=>({left:i*260,top:0,right:i*260+240,bottom:254,width:240,height:254}));
  const handle=cardsOf()[0].querySelector('.memo-drag-handle');handle.setPointerCapture=()=>{};
  handle.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:40,clientY:40,button:0}));
- handle.dispatchEvent(new w.MouseEvent('pointermove',{clientX:540,clientY:40,button:0}));   // over the third card
- assert.ok(cardsOf()[2].classList.contains('memo-drop-target'));
- handle.dispatchEvent(new w.MouseEvent('pointerup',{clientX:540,clientY:40,button:0}));await flush();
+ handle.dispatchEvent(new w.MouseEvent('pointermove',{clientX:750,clientY:40,button:0}));   // right edge of the third card
+ assert.ok(cardsOf()[2].classList.contains('memo-drop-after'));
+ handle.dispatchEvent(new w.MouseEvent('pointerup',{clientX:750,clientY:40,button:0}));await flush();
  assert.deepEqual(calls.filter(q=>q.action==='reorder').map(q=>q.ids),[['b','c','a']]);
  assert.deepEqual(cardsOf().map(c=>c.dataset.memoId),['b','c','a']);
- assert.ok(calls.every(q=>q.action==='reorder'),'no move/group request is ever sent');
+ assert.ok(calls.every(q=>q.action==='reorder'),'an edge drop never groups');
  // Dropping on empty space changes nothing.
  calls.length=0;
  const h2=cardsOf()[0].querySelector('.memo-drag-handle');h2.setPointerCapture=()=>{};
@@ -157,6 +163,14 @@ test('dragging a memo onto another reorders it; arrow keys move it one place',as
  // Keyboard: ArrowRight on the first card moves it one place later.
  cardsOf()[0].querySelector('.memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));await flush();
  assert.deepEqual(calls.filter(q=>q.action==='reorder').map(q=>q.ids),[['c','b','a']]);
+ // Middle of another card: asks for a folder name and groups.
+ calls.length=0;cardsOf().forEach((card,i)=>card.getBoundingClientRect=()=>({left:i*260,top:0,right:i*260+240,bottom:254,width:240,height:254}));
+ const h3=cardsOf()[0].querySelector('.memo-drag-handle');h3.setPointerCapture=()=>{};
+ h3.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:40,clientY:40,button:0}));
+ h3.dispatchEvent(new w.MouseEvent('pointermove',{clientX:380,clientY:40,button:0}));
+ assert.ok(cardsOf()[1].classList.contains('memo-drop-target'));
+ h3.dispatchEvent(new w.MouseEvent('pointerup',{clientX:380,clientY:40,button:0}));await flush();
+ assert.deepEqual(calls.map(q=>[q.action,q.id,q.target,q.title]),[['group','c','b','폴더']]);
  dom.window.close();
 });
 test('all frontend scripts initialize for both public visitors and owners returning to memo tab',async()=>{

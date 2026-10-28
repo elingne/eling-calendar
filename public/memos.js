@@ -55,7 +55,7 @@
     for(const item of visible){
       const card=document.createElement('article');card.className='memo-card '+(item.kind==='folder'?'memo-folder':'');card.dataset.memoId=item.id;
       const header=document.createElement('div');header.className='memo-card-header';
-      const handle=button('⠿',()=>{},'memo-drag-handle');handle.setAttribute('aria-label','메모 순서 바꾸기');handle.title='끌어서 순서를 바꾸세요 (키보드: 방향키)';
+      const handle=button('⠿',()=>{},'memo-drag-handle');handle.setAttribute('aria-label','메모 순서 바꾸기 또는 폴더로 묶기');handle.title='끌어서 순서를 바꾸거나 다른 메모 위에 놓아 폴더로 묶으세요 (키보드: 방향키)';
       const title=button((item.kind==='folder'?'📁 ':'')+(item.title||'제목 없는 메모'),()=>item.kind==='folder'?openFolder(item):openEditor(item),'memo-card-title');
       header.append(handle,title);card.appendChild(header);
       const preview=document.createElement('div');preview.className='memo-preview';
@@ -109,24 +109,42 @@
     handle.addEventListener('pointerdown',event=>{
       if(event.button!==0||busy)return;
       const startX=event.clientX,startY=event.clientY;
-      let moved=false,target=null;
+      let moved=false,hit=null;   // hit = {el, zone:'before'|'after'|'group'}
       handle.setPointerCapture(event.pointerId);
       const cards=()=>[...board.querySelectorAll('.memo-card')].filter(el=>el!==card);
+      const clear=()=>board.querySelectorAll('.memo-drop-target,.memo-drop-before,.memo-drop-after').forEach(el=>el.classList.remove('memo-drop-target','memo-drop-before','memo-drop-after'));
       const move=e=>{
         if(Math.hypot(e.clientX-startX,e.clientY-startY)<7&&!moved)return;
         moved=true;card.classList.add('memo-dragging');
         // The card follows the pointer visually only; the layout itself never changes.
         card.style.transform=`translate(${e.clientX-startX}px,${e.clientY-startY}px)`;
-        board.querySelectorAll('.memo-drop-target').forEach(el=>el.classList.remove('memo-drop-target'));
-        target=cards().find(el=>{const b=el.getBoundingClientRect();return e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom;})||null;
-        target?.classList.add('memo-drop-target');
+        clear();hit=null;
+        const el=cards().find(c=>{const b=c.getBoundingClientRect();return e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom;});
+        if(!el)return;
+        const b=el.getBoundingClientRect(),ratio=(e.clientX-b.left)/b.width;
+        // Left/right edge of a card = place before/after it; the middle = make a folder (notes only).
+        const zone=ratio<.28?'before':ratio>.72?'after':item.kind==='note'?'group':(ratio<.5?'before':'after');
+        hit={el,zone};el.classList.add(zone==='group'?'memo-drop-target':'memo-drop-'+zone);
       };
-      const stop=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',finish);handle.removeEventListener('pointercancel',cancel);card.classList.remove('memo-dragging');card.style.transform='';board.querySelectorAll('.memo-drop-target').forEach(el=>el.classList.remove('memo-drop-target'));};
-      const finish=()=>{
-        stop();if(!moved)return;suppressClick=Date.now()+450;
-        if(!target)return;
-        const ids=orderedIds(item.id,items.filter(i=>(i.folder_id||null)===folderId).findIndex(i=>i.id===target.dataset.memoId));
-        if(ids)saveOrder(ids);
+      const stop=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',finish);handle.removeEventListener('pointercancel',cancel);card.classList.remove('memo-dragging');card.style.transform='';clear();};
+      const finish=async()=>{
+        const drop=hit;stop();if(!moved)return;suppressClick=Date.now()+450;
+        if(!drop)return;
+        const other=items.find(i=>i.id===drop.el.dataset.memoId);if(!other)return;
+        if(drop.zone==='group'){
+          busy=true;
+          try{
+            const title=other.kind==='folder'?other.title:window.prompt('새 폴더 이름','새 폴더');
+            if(title!==null&&title.trim())await api({action:'group',id:item.id,target:other.id,title:title.trim()});
+            await window.loadMemoBoard();
+          }catch(error){status(error.message);render();}finally{busy=false;}
+          return;
+        }
+        // Reorder: put the dragged memo right before/after the one it was dropped next to.
+        const ids=items.filter(i=>(i.folder_id||null)===folderId).map(i=>i.id).filter(id=>id!==item.id);
+        ids.splice(ids.indexOf(other.id)+(drop.zone==='after'?1:0),0,item.id);
+        const before=items.filter(i=>(i.folder_id||null)===folderId).map(i=>i.id);
+        if(ids.join()!==before.join())saveOrder(ids);
       };
       const cancel=()=>{stop();suppressClick=Date.now()+450;};
       handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',cancel);
