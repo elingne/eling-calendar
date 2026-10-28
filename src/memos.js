@@ -1,6 +1,20 @@
 const json = (data, status=200) => Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 const fail = message => Object.assign(new Error(message),{status:400});
 const validId = id => typeof id==='string' && /^[a-zA-Z0-9-]{1,80}$/.test(id);
+// A photo is uploaded as soon as it is inserted in the editor but only becomes part of a memo when the
+// memo is saved. Photos that no memo refers to are removed once they are older than this grace period,
+// so a photo in an editor that is still open (not yet saved) is never deleted.
+const IMAGE_GRACE_MS = 24*60*60*1000;
+async function removeUnusedImages(db) {
+  try {
+    const cutoff=new Date(Date.now()-IMAGE_GRACE_MS).toISOString();
+    // Rows without a timestamp are never removed (unknown age => keep).
+    await db.prepare('DELETE FROM memo_images WHERE created_at<? AND NOT EXISTS (SELECT 1 FROM memo_items m WHERE instr(m.content,memo_images.id)>0)').bind(cutoff).run();
+  } catch {
+    // Cleanup is best effort and must never make saving or deleting a memo fail.
+    console.error('Memo image cleanup failed');
+  }
+}
 export async function memos(request, env, path) {
   const db=env.DB;
   if(path.startsWith('/api/private/memo-images/')) {
@@ -26,7 +40,7 @@ export async function memos(request, env, path) {
       (mime==='image/gif' && /^GIF8[79]a$/.test(new TextDecoder().decode(b.slice(0,6))));
     if(!matches)throw fail('지원하는 사진 파일이 아니에요.');
     const id=crypto.randomUUID();
-    await db.prepare('INSERT INTO memo_images(id,mime,bytes) VALUES(?,?,?)').bind(id,mime,bytes).run();
+    await db.prepare('INSERT INTO memo_images(id,mime,bytes,created_at) VALUES(?,?,?,?)').bind(id,mime,bytes,new Date().toISOString()).run();
     return json({url:'/api/private/memo-images/'+id});
   }
   if(request.method==='GET')return json({data:(await db.prepare('SELECT * FROM memo_items ORDER BY updated_at,id').all()).results});
@@ -73,5 +87,7 @@ export async function memos(request, env, path) {
       db.prepare('DELETE FROM memo_items WHERE id=?').bind(item.id)
     ]);
   } else throw fail('Unknown action');
+  // Photos can only become unused when a memo's content changes or a memo is deleted.
+  if(q.action==='save'||q.action==='delete') await removeUnusedImages(db);
   return json({ok:true});
 }

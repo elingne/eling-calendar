@@ -18,7 +18,7 @@
 - `public/`: 브라우저 화면. 외부 SDK와 Supabase 연결 없음.
 - `src/worker.js`: Cloudflare Worker API. Access JWT 서명·발급자·대상·만료와 관리자 이메일을 검증.
 - `src/memos.js`: 관리자 메모장·사진 API. Worker가 관리자 인증을 통과시킨 요청만 전달받음.
-- `migrations/`: Cloudflare D1 데이터 구조. JSON 레코드를 사용해 기존 데이터의 추가 열도 보존. `0002_memos.sql`은 메모 테이블만 추가.
+- `migrations/`: Cloudflare D1 데이터 구조. JSON 레코드를 사용해 기존 데이터의 추가 열도 보존. `0002_memos.sql`은 메모 테이블만 추가, `0003_memo_image_cleanup.sql`은 사진 업로드 시각 열만 추가(기존 데이터는 그대로).
 - `scripts/`: CSV/JSON 이전 및 이전 결과 비교 도구. 운영 서버에서는 실행되지 않음.
 - `tests/`: 일정 저장·수정·삭제, 공개/관리자 분리, 데이터 이전 검사.
 
