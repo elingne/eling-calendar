@@ -2,26 +2,27 @@
 
 > **2026-10-28 업데이트:** 메모·사진·폴더, 일정 최상단 버튼, 완료한 일 입력창을 추가했습니다. 사용법과 로그인 유지 설정 상태는 [패치 안내](PATCH_NOTES.md)를 확인하세요. 아래 이전 안내 중 초기 배포 관련 내용은 최초 설치 시의 설명입니다.
 
-기존 캘린더의 연분홍·연파랑 디자인과 일정/기간 일정, 드래그 이동·복사·정렬, 할 일, 완료 기록, 일정 사이 메모, 기분·생리 기록을 유지했습니다. 목표·월별 목표 통계·다꾸·사진·스티커 기능은 제거했습니다.
+기존 캘린더의 연분홍·연파랑 디자인과 일정/기간 일정, 드래그 이동·복사·정렬, 할 일, 완료 기록, 일정 사이 메모, 기분·생리 기록을 유지했습니다. 목표·월별 목표 통계·다꾸·스티커 기능은 제거했고, 사진은 관리자 전용 메모장에서만 사용합니다.
 
 ## 공개 범위
 
 | 방문자 | 가능한 일 |
 | --- | --- |
 | 비로그인 | 메인 캘린더, 일정 제목·날짜·표시색 조회 |
-| `ielingkk@gmail.com` 관리자 | 전체 일정·개인 메모·할 일·완료 기록·기분·생리 기록 조회 및 편집 |
+| `ielingkk@gmail.com` 관리자 | 전체 일정·개인 메모·할 일·완료 기록·기분·생리 기록·메모장(폴더·사진) 조회 및 편집 |
 
-일정의 `description` 메모와 개인 기록은 공개 API에 포함되지 않습니다. 캘린더에 표시되는 **일정 제목은 공개**됩니다. 기존 Supabase 회원 계정은 이전하지 않습니다. 본인 이메일로 Cloudflare Access 인증번호를 받아 로그인합니다.
+일정의 `description` 메모와 개인 기록은 공개 API에 포함되지 않습니다. 메모장의 메모와 사진도 관리자 인증을 통과한 API로만 접근할 수 있습니다. 캘린더에 표시되는 **일정 제목은 공개**됩니다. 기존 Supabase 회원 계정은 이전하지 않습니다. 본인 이메일로 Cloudflare Access 인증번호를 받아 로그인합니다.
 
 ## 구성
 
 - `public/`: 브라우저 화면. 외부 SDK와 Supabase 연결 없음.
 - `src/worker.js`: Cloudflare Worker API. Access JWT 서명·발급자·대상·만료와 관리자 이메일을 검증.
-- `migrations/`: Cloudflare D1 데이터 구조. JSON 레코드를 사용해 기존 데이터의 추가 열도 보존.
+- `src/memos.js`: 관리자 메모장·사진 API. Worker가 관리자 인증을 통과시킨 요청만 전달받음.
+- `migrations/`: Cloudflare D1 데이터 구조. JSON 레코드를 사용해 기존 데이터의 추가 열도 보존. `0002_memos.sql`은 메모 테이블만 추가.
 - `scripts/`: CSV/JSON 이전 및 이전 결과 비교 도구. 운영 서버에서는 실행되지 않음.
 - `tests/`: 일정 저장·수정·삭제, 공개/관리자 분리, 데이터 이전 검사.
 
-**현재 ZIP은 배포 준비본입니다. Cloudflare 생성/연결과 기존 DB 데이터 이전은 아직 수행되지 않았습니다.**
+**이 사이트는 이미 Cloudflare에 배포되어 운영 중입니다(배포·검증 상태는 [PATCH_NOTES.md](PATCH_NOTES.md) 참고). 아래 1~5번은 최초 설치와 데이터 이전 때의 절차 기록이며, 이미 설정된 저장소에서는 다시 실행하지 않습니다.**
 
 ## 1. 기존 데이터 내보내기
 
@@ -45,7 +46,7 @@ npx wrangler login
 npx wrangler d1 create eling-calendar
 ```
 
-마지막 명령으로 받은 `database_id`를 `wrangler.jsonc`의 `REPLACE_WITH_YOUR_D1_DATABASE_ID` 자리에 넣습니다. `database_name`과 `name`은 `eling-calendar`로 유지합니다.
+마지막 명령으로 받은 `database_id`를 `wrangler.jsonc`의 `database_id`에 넣습니다(현재 저장소에는 운영 DB의 값이 이미 들어 있습니다). `database_name`과 `name`은 `eling-calendar`로 유지합니다.
 
 ```powershell
 npx wrangler d1 migrations apply eling-calendar --remote
@@ -62,7 +63,7 @@ npx wrangler deploy
    - `calendar.본인도메인/admin`
    - `calendar.본인도메인/api/private`
    경로 아래 하위 주소도 보호되는지 정책 화면에서 확인합니다. 환경에 따라 하위 경로 와일드카드도 추가하되, 같은 앱의 AUD를 사용합니다.
-4. Allow 정책은 **Emails → `ielingkk@gmail.com` 한 주소**로 지정합니다. Everyone 또는 이메일 도메인 전체 허용은 사용하지 않습니다. 로그인 방식은 One-time PIN, 세션은 예를 들어 12시간으로 지정합니다.
+4. Allow 정책은 **Emails → `ielingkk@gmail.com` 한 주소**로 지정합니다. Everyone 또는 이메일 도메인 전체 허용은 사용하지 않습니다. 로그인 방식은 One-time PIN으로 지정합니다. 세션 시간은 [PATCH_NOTES.md의 로그인 유지 안내](PATCH_NOTES.md#로그인-한-달-유지-별도-설정-필요)를 따릅니다.
 5. 앱의 Application Audience (AUD)와 팀 도메인 (`팀이름.cloudflareaccess.com`)을 복사해 `wrangler.jsonc`의 `ACCESS_AUD`, `ACCESS_TEAM_DOMAIN`에 넣습니다. `OWNER_EMAIL`은 이미 지정되어 있습니다. AUD와 팀 도메인은 비밀 키가 아닙니다.
 6. `npm run deploy`로 다시 배포합니다. 방금 연결한 **Custom Domain**에서 관리자 로그인을 누르고 이메일 인증번호로 로그인하세요.
 

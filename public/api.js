@@ -1,4 +1,10 @@
 // Small first-party client for the calendar API. No external service SDK.
+// fetch rejects when offline or when the Access session expired (redirect:'error'); the raw browser
+// message ("Failed to fetch") means nothing to the user, so replace it with a readable one.
+async function calendarFetch(url, options) {
+  try { return await fetch(url, options); }
+  catch { throw Error('연결에 실패했어요. 로그인이 만료됐다면 새로고침해서 다시 로그인해주세요.'); }
+}
 class CalendarQuery {
   constructor(table) { this.q = {table, action:'select', filters:[], orders:[]}; }
   select() { return this; }
@@ -18,18 +24,21 @@ class CalendarQuery {
   async execute() {
     try {
       if (!isOwner && this.q.action === 'select' && this.q.table === 'events') {
-        const response = await fetch('/api/public/events', {cache:'no-store'});
+        const response = await calendarFetch('/api/public/events', {cache:'no-store'});
         if (!response.ok) throw Error('일정을 불러오지 못했어요.');
         let rows=(await response.json()).data;
         const ops={eq:(a,b)=>a===b,gte:(a,b)=>a>=b,lte:(a,b)=>a<=b,lt:(a,b)=>a<b};
         rows=rows.filter(row=>this.q.filters.every(([k,op,v])=>ops[op](row[k],v)));
+        window.dispatchEvent(new CustomEvent('calendar-api-ok'));
         return {data:rows,error:null};
       }
-      const response = await fetch('/api/private/query', {
+      const response = await calendarFetch('/api/private/query', {
         method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(this.q), redirect:'error'
       });
       if (!response.ok) throw Error(response.status===401||response.status===403 ? '관리자 로그인이 필요해요. 다시 로그인해주세요.' : '저장 또는 불러오기에 실패했어요.');
-      return await response.json();
+      const result = await response.json();
+      window.dispatchEvent(new CustomEvent('calendar-api-ok'));
+      return result;
     } catch(error) {
       window.dispatchEvent(new CustomEvent('calendar-api-error', {detail:error.message}));
       return {data:null,error:{message:error.message}};

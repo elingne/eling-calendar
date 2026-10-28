@@ -4,8 +4,10 @@
   const board=byId('memoBoard'), modal=byId('memoModal'), editor=byId('memoEditor');
   let items=[], folderId=null, editing=null, savedRange=null, busy=false, uploading=0, suppressClick=0, returnFocus=null;
   const status=(text,edit=false)=>{byId(edit?'memoEditorStatus':'memoStatus').textContent=text;};
+  // fetch rejects when offline or when the Access session expired (redirect:'error').
+  const send=(url,options)=>fetch(url,options).catch(()=>{throw Error('연결에 실패했어요. 로그인이 만료됐다면 새로고침해서 다시 로그인해주세요.');});
   async function api(body) {
-    const response=await fetch('/api/private/memos',body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error'}:{cache:'no-store',redirect:'error'});
+    const response=await send('/api/private/memos',body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error'}:{cache:'no-store',redirect:'error'});
     let result;try{result=await response.json();}catch{throw Error('로그인을 확인한 뒤 다시 시도해주세요.');}
     if(!response.ok)throw Error(result.error?.message||result.error||'저장에 실패했어요. 다시 시도해주세요.');
     return result;
@@ -189,7 +191,7 @@
     try{
       for(const file of files){
         status('사진을 저장하고 있어요…',true);const blob=await prepareImage(file);
-        const response=await fetch('/api/private/memo-images',{method:'POST',headers:{'Content-Type':blob.type},body:blob,redirect:'error'});
+        const response=await send('/api/private/memo-images',{method:'POST',headers:{'Content-Type':blob.type},body:blob,redirect:'error'});
         if(!response.ok)throw Error('사진을 저장하지 못했어요. 로그인을 확인하고 다시 시도해주세요.');
         const {url}=await response.json();const img=document.createElement('img');img.src=url;img.alt='메모 사진';
         editor.contentEditable='true';insertNode(img,range);range=savedRange;editor.contentEditable='false';

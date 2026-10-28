@@ -9,12 +9,16 @@ export async function memos(request, env, path) {
     if(!validId(id)) throw fail('Invalid image');
     const image=await db.prepare('SELECT mime,bytes FROM memo_images WHERE id=?').bind(id).first();
     if(!image) return json({error:'Not found'},404);
-    return new Response(image.bytes,{headers:{'Content-Type':image.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
+    // D1 returns BLOB columns as a plain array of numbers; other drivers return ArrayBuffer/Uint8Array.
+    // Passing an array straight to Response would send its text form ("137,80,78,..."), not the image.
+    return new Response(new Uint8Array(image.bytes),{headers:{'Content-Type':image.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
   }
   if(path==='/api/private/memo-images') {
     if(request.method!=='POST')return json({error:'Method not allowed'},405);
+    const tooLarge=()=>json({error:'사진 한 장은 1MB까지 저장할 수 있어요.'},413);
+    if(Number(request.headers.get('Content-Length'))>1048576) return tooLarge();
     const bytes=await request.arrayBuffer();
-    if(bytes.byteLength>1048576) return json({error:'사진 한 장은 1MB까지 저장할 수 있어요.'},413);
+    if(bytes.byteLength>1048576) return tooLarge();
     const b=new Uint8Array(bytes), mime=request.headers.get('Content-Type');
     const matches=(mime==='image/png' && [137,80,78,71,13,10,26,10].every((v,i)=>b[i]===v)) ||
       (mime==='image/jpeg' && b[0]===255 && b[1]===216 && b[2]===255) ||

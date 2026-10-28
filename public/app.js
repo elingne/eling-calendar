@@ -2,7 +2,6 @@
 const KOREAN_HOLIDAYS = {"2018-01-01":["1월 1일"],"2018-02-15":["설날 전날"],"2018-02-16":["설날"],"2018-02-17":["설날 다음 날"],"2018-03-01":["3ㆍ1절"],"2018-05-05":["어린이날"],"2018-05-07":["대체공휴일(어린이날)"],"2018-05-22":["부처님 오신 날"],"2018-06-06":["현충일"],"2018-06-13":["전국동시지방선거"],"2018-08-15":["광복절"],"2018-09-23":["추석 전날"],"2018-09-24":["추석"],"2018-09-25":["추석 다음 날"],"2018-09-26":["대체공휴일(추석)"],"2018-10-03":["개천절"],"2018-10-09":["한글날"],"2018-12-25":["기독탄신일"],"2019-01-01":["1월 1일"],"2019-02-04":["설날 전날"],"2019-02-05":["설날"],"2019-02-06":["설날 다음 날"],"2019-03-01":["3ㆍ1절"],"2019-05-05":["어린이날"],"2019-05-06":["대체공휴일(어린이날)"],"2019-05-12":["부처님 오신 날"],"2019-06-06":["현충일"],"2019-08-15":["광복절"],"2019-09-12":["추석 전날"],"2019-09-13":["추석"],"2019-09-14":["추석 다음 날"],"2019-10-03":["개천절"],"2019-10-09":["한글날"],"2019-12-25":["기독탄신일"],"2020-01-01":["1월 1일"],"2020-01-24":["설날 전날"],"2020-01-25":["설날"],"2020-01-26":["설날 다음 날"],"2020-01-27":["대체공휴일(설날)"],"2020-03-01":["3ㆍ1절"],"2020-04-15":["제21대 국회의원선거"],"2020-04-30":["부처님 오신 날"],"2020-05-05":["어린이날"],"2020-06-06":["현충일"],"2020-08-15":["광복절"],"2020-08-17":["임시공휴일"],"2020-09-30":["추석 전날"],"2020-10-01":["추석"],"2020-10-02":["추석 다음 날"],"2020-10-03":["개천절"],"2020-10-09":["한글날"],"2020-12-25":["기독탄신일"],"2021-01-01":["1월 1일"],"2021-02-11":["설날 전날"],"2021-02-12":["설날"],"2021-02-13":["설날 다음 날"],"2021-03-01":["3ㆍ1절"],"2021-05-05":["어린이날"],"2021-05-19":["부처님 오신 날"],"2021-06-06":["현충일"],"2021-08-15":["광복절"],"2021-08-16":["대체공휴일(광복절)"],"2021-09-20":["추석 전날"],"2021-09-21":["추석"],"2021-09-22":["추석 다음 날"],"2021-10-03":["개천절"],"2021-10-04":["대체공휴일(개천절)"],"2021-10-09":["한글날"],"2021-10-11":["대체공휴일(한글날)"],"2021-12-25":["기독탄신일"],"2022-01-01":["1월 1일"],"2022-01-31":["설날 전날"],"2022-02-01":["설날"],"2022-02-02":["설날 다음 날"],"2022-03-01":["3ㆍ1절"],"2022-03-09":["대통령선거"],"2022-05-05":["어린이날"],"2022-05-08":["부처님 오신 날"],"2022-06-01":["전국동시지방선거"],"2022-06-06":["현충일"],"2022-08-15":["광복절"],"2022-09-09":["추석 전날"],"2022-09-10":["추석"],"2022-09-11":["추석 다음 날"],"2022-09-12":["대체공휴일(추석)"],"2022-10-03":["개천절"],"2022-10-09":["한글날"],"2022-10-10":["대체공휴일(한글날)"],"2022-12-25":["기독탄신일"],"2023-01-01":["1월 1일"],"2023-01-21":["설날 전날"],"2023-01-22":["설날"],"2023-01-23":["설날 다음 날"],"2023-01-24":["대체공휴일(설날)"],"2023-03-01":["3ㆍ1절"],"2023-05-05":["어린이날"],"2023-05-27":["부처님 오신 날"],"2023-05-29":["대체공휴일(부처님 오신 날)"],"2023-06-06":["현충일"],"2023-08-15":["광복절"],"2023-09-28":["추석 전날"],"2023-09-29":["추석"],"2023-09-30":["추석 다음 날"],"2023-10-02":["임시공휴일"],"2023-10-03":["개천절"],"2023-10-09":["한글날"],"2023-12-25":["기독탄신일"],"2024-01-01":["1월 1일"],"2024-02-09":["설날 전날"],"2024-02-10":["설날"],"2024-02-11":["설날 다음 날"],"2024-02-12":["대체공휴일(설날)"],"2024-03-01":["3ㆍ1절"],"2024-04-10":["제22대국회의원선거"],"2024-05-05":["어린이날"],"2024-05-06":["대체공휴일(어린이날)"],"2024-05-15":["부처님 오신 날"],"2024-06-06":["현충일"],"2024-08-15":["광복절"],"2024-09-16":["추석 전날"],"2024-09-17":["추석"],"2024-09-18":["추석 다음 날"],"2024-10-01":["임시공휴일"],"2024-10-03":["개천절"],"2024-10-09":["한글날"],"2024-12-25":["기독탄신일"],"2025-01-01":["1월 1일"],"2025-01-27":["임시공휴일"],"2025-01-28":["설날 전날"],"2025-01-29":["설날"],"2025-01-30":["설날 다음 날"],"2025-03-01":["3ㆍ1절"],"2025-03-03":["대체공휴일(3ㆍ1절)"],"2025-05-05":["어린이날","부처님 오신 날"],"2025-05-06":["대체공휴일(부처님 오신 날)"],"2025-06-03":["임시공휴일(대통령선거)"],"2025-06-06":["현충일"],"2025-08-15":["광복절"],"2025-10-03":["개천절"],"2025-10-05":["추석 전날"],"2025-10-06":["추석"],"2025-10-07":["추석 다음 날"],"2025-10-08":["대체공휴일(추석)"],"2025-10-09":["한글날"],"2025-12-25":["기독탄신일"],"2026-01-01":["1월 1일"],"2026-02-16":["설날 전날"],"2026-02-17":["설날"],"2026-02-18":["설날 다음 날"],"2026-03-01":["3ㆍ1절"],"2026-03-02":["대체공휴일(3ㆍ1절)"],"2026-05-01":["노동절"],"2026-05-05":["어린이날"],"2026-05-24":["부처님 오신 날"],"2026-05-25":["대체공휴일(부처님 오신 날)"],"2026-06-03":["전국동시지방선거"],"2026-06-06":["현충일"],"2026-07-17":["제헌절"],"2026-08-15":["광복절"],"2026-08-17":["대체공휴일(광복절)"],"2026-09-24":["추석 전날"],"2026-09-25":["추석"],"2026-09-26":["추석 다음 날"],"2026-10-03":["개천절"],"2026-10-05":["대체공휴일(개천절)"],"2026-10-09":["한글날"],"2026-12-25":["기독탄신일"],"2027-01-01":["1월 1일"],"2027-02-06":["설날 전날"],"2027-02-07":["설날"],"2027-02-08":["설날 다음 날"],"2027-02-09":["대체공휴일(설날)"],"2027-03-01":["3ㆍ1절"],"2027-05-01":["노동절"],"2027-05-03":["대체공휴일(노동절)"],"2027-05-05":["어린이날"],"2027-05-13":["부처님 오신 날"],"2027-06-06":["현충일"],"2027-07-17":["제헌절"],"2027-07-19":["대체공휴일(제헌절)"],"2027-08-15":["광복절"],"2027-08-16":["대체공휴일(광복절)"],"2027-09-14":["추석 전날"],"2027-09-15":["추석"],"2027-09-16":["추석 다음 날"],"2027-10-03":["개천절"],"2027-10-04":["대체공휴일(개천절)"],"2027-10-09":["한글날"],"2027-10-11":["대체공휴일(한글날)"],"2027-12-25":["기독탄신일"],"2027-12-27":["대체공휴일(기독탄신일)"]};
 let currentDate = new Date();
 let selectedRecordDate = null;
-let currentPeriodRecordId = null;
 let clickTimer = null;
 let dragStartDate = null;
 let dragCurrentDate = null;
@@ -44,7 +43,6 @@ const selectedDateTitle = $("selectedDateTitle");
 const quickTodoInput = $("quickTodoInput");
 const quickTodoAddButton = $("quickTodoAddButton");
 const quickTodoList = $("quickTodoList");
-const quickTodoHistory = $("quickTodoHistory");
 const quickTodoCompletedList = $("quickTodoCompletedList");
 
 const dayTodoForm = $("dayTodoForm");
@@ -1546,7 +1544,6 @@ async function loadQuickDateMeta(date) {
   setMoodPickerValue(moodResult.data?.mood_type || "");
 
   const periodRecord = (periodResult.data || [])[0] || null;
-  currentPeriodRecordId = periodRecord?.id || null;
   periodCheck.checked = Boolean(periodRecord);
 
   moodPickerButton.disabled = !isOwner;
@@ -1975,87 +1972,6 @@ function enableScheduleEventTouchMove(row, eventData) {
 
   row.addEventListener("touchend", finish, { passive: false });
   row.addEventListener("touchcancel", finish, { passive: false });
-}
-
-function enableCalendarEventTouchMove(chip, eventData) {
-  if (!isOwner) return;
-
-  let timer = null;
-  let active = false;
-  let startX = 0;
-  let startY = 0;
-  let lastX = 0;
-  let lastY = 0;
-  let ghostApi = null;
-  let highlighted = null;
-
-  const clearTimer = () => {
-    if (timer) window.clearTimeout(timer);
-    timer = null;
-  };
-
-  chip.addEventListener("touchstart", event => {
-    if (!event.touches?.length) return;
-
-    const touch = event.touches[0];
-    startX = lastX = touch.clientX;
-    startY = lastY = touch.clientY;
-
-    clearTimer();
-    timer = window.setTimeout(() => {
-      active = true;
-      suppressCalendarClickUntil = Date.now() + 1000;
-      chip.classList.add("touch-dragging");
-      ghostApi = createDragGhost(chip, lastX, lastY);
-      navigator.vibrate?.(25);
-    }, 430);
-  }, { passive: true });
-
-  chip.addEventListener("touchmove", event => {
-    if (!event.touches?.length) return;
-
-    const touch = event.touches[0];
-    lastX = touch.clientX;
-    lastY = touch.clientY;
-
-    if (!active) {
-      if (Math.hypot(lastX - startX, lastY - startY) > 18) clearTimer();
-      return;
-    }
-
-    if (event.cancelable) event.preventDefault();
-    ghostApi?.move(lastX, lastY);
-
-    const cell = document.elementFromPoint(lastX, lastY)?.closest(".calendar-day");
-    if (cell !== highlighted) {
-      highlighted?.classList.remove("touch-drop-target");
-      highlighted = cell || null;
-      highlighted?.classList.add("touch-drop-target");
-    }
-  }, { passive: false });
-
-  const finish = async event => {
-    clearTimer();
-    if (!active) return;
-
-    if (event.cancelable) event.preventDefault();
-
-    const targetDate = highlighted?.dataset.date || null;
-
-    active = false;
-    chip.classList.remove("touch-dragging");
-    ghostApi?.ghost.remove();
-    ghostApi = null;
-    highlighted?.classList.remove("touch-drop-target");
-    highlighted = null;
-
-    if (targetDate && targetDate !== eventData.start_date) {
-      await moveEventToDate(eventData.id, targetDate);
-    }
-  };
-
-  chip.addEventListener("touchend", finish, { passive: false });
-  chip.addEventListener("touchcancel", finish, { passive: false });
 }
 
 
@@ -2842,8 +2758,11 @@ searchInput.addEventListener("input", () => {
   searchDebounce = setTimeout(runSearch, 180);
 });
 
+let searchSeq = 0;
+
 async function runSearch() {
   const q = searchInput.value.trim().toLowerCase();
+  const seq = ++searchSeq;
 
   if (!q) {
     searchResults.innerHTML = '<p class="empty-text">검색어를 입력해주세요.</p>';
@@ -2859,6 +2778,14 @@ async function runSearch() {
     dbClient.from("moods").select("*")
   ]);
 
+  // 더 늦게 시작한 검색이 있으면 이 응답은 버린다(응답 도착 순서가 바뀔 수 있음).
+  if (seq !== searchSeq) return;
+
+  if ([t, qt, e, m].some(result => result.error)) {
+    searchResults.innerHTML = '<p class="error-text">검색하지 못했어요. 로그인 상태와 연결을 확인해주세요.</p>';
+    return;
+  }
+
   const results = [];
 
   (t.data || []).forEach(x => {
@@ -2866,7 +2793,8 @@ async function runSearch() {
   });
 
   (qt.data || []).forEach(x => {
-    if (x.title.toLowerCase().includes(q)) results.push({ type:"QUICK TODO", date:x.completed_at ? x.completed_at.slice(0,10) : "", title:x.title, body:x.is_completed ? "완료" : "진행 중" });
+    // 다른 화면과 같은 기준(브라우저 현지 날짜)으로 표시한다. slice(0,10)은 UTC 날짜라 한국 새벽 완료분이 전날로 보였다.
+    if (x.title.toLowerCase().includes(q)) results.push({ type:"QUICK TODO", date:x.completed_at ? formatDateKey(new Date(x.completed_at)) : "", title:x.title, body:x.is_completed ? "완료" : "진행 중" });
   });
 
   (e.data || []).forEach(x => {
@@ -2954,10 +2882,13 @@ document.addEventListener("visibilitychange", () => {
 });
 
 /* START */
+// 리스너를 먼저 등록한다: checkSession()이 시작하자마자 나는 오류도 놓치지 않도록.
+window.addEventListener('calendar-api-error', e => { document.getElementById('connectionMessage').textContent = e.detail; });
+// 요청이 다시 성공하면 이전 오류 안내를 지운다. 지우지 않으면 새로고침 전까지 빨간 안내가 계속 남는다.
+window.addEventListener('calendar-api-ok', () => { document.getElementById('connectionMessage').textContent = ''; });
+
 clearQuickTodoAutofill();
 checkSession();
-
-window.addEventListener('calendar-api-error', e => { document.getElementById('connectionMessage').textContent = e.detail; });
 
 $("scheduleTopButton").addEventListener('click',()=>window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}));
 $("completedTodoForm").addEventListener('submit',async event=>{
