@@ -15,6 +15,7 @@
       <nav class="nav">
         <button class="nav-button active" data-page="calendar">캘린더</button>
         <button class="nav-button" data-page="schedule">일정</button>
+        <button class="nav-button hidden" data-page="memos">메모</button>
       </nav>
 
       <div class="header-actions">
@@ -62,6 +63,10 @@
               <div class="quick-history-header">
                 <strong>오늘 완료한 일</strong>
               </div>
+              <form id="completedTodoForm" class="quick-input-row owner-control">
+                <input id="completedTodoInput" type="text" maxlength="120" autocomplete="off" placeholder="이미 완료한 일을 적어보세요" aria-label="완료한 일">
+                <button type="submit" aria-label="완료한 일 추가">+</button>
+              </form>
               <div id="quickTodoCompletedList" class="quick-completed-list"></div>
             </aside>
           </div>
@@ -108,7 +113,13 @@
         </section>
       </section>
 
+      <section id="memosPage" class="page-section hidden">
+        <div class="page-heading"><div><span class="section-label">MEMO</span><h1 class="page-title">메모</h1><p class="page-description">빈 곳을 누르면 새 메모가 생겨요. 메모 위로 끌어놓으면 폴더로 묶여요.</p></div></div>
+        <div class="memo-toolbar"><button id="memoBack" class="secondary-button hidden" type="button">← 전체 메모</button><h2 id="memoFolderTitle"></h2><button id="newMemoButton" class="primary-button" type="button">+ 메모</button><span id="memoStatus" role="status" aria-live="polite"></span></div>
+        <div id="memoBoard" class="memo-board" aria-label="메모 보드"><span class="memo-empty-hint">여기를 눌러 첫 메모를 남겨보세요</span></div>
+      </section>
     </main>
+    <button id="scheduleTopButton" type="button" class="schedule-top hidden" aria-label="일정 최상단으로 이동">↑<span>맨 위로</span></button>
   </div>
 
   <!-- DAY PANEL -->
@@ -214,6 +225,16 @@
     </div>
   </div>
 
+  <div id="memoModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="memoDialogTitle">
+    <div class="memo-modal">
+      <div class="modal-header"><h2 id="memoDialogTitle">메모 작성</h2><button id="memoClose" class="close-button" type="button" aria-label="메모 닫기">×</button></div>
+      <input id="memoTitle" type="text" maxlength="120" placeholder="제목 (선택)" aria-label="메모 제목">
+      <div class="memo-editor-tools"><button id="memoPhotoButton" type="button" class="secondary-button">사진 넣기</button><input id="memoPhotoInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden><span>커서 위치에 사진을 붙여넣거나 끌어놓으세요</span></div>
+      <div id="memoEditor" class="memo-editor" contenteditable="true" role="textbox" aria-label="메모 내용" aria-multiline="true" data-placeholder="생각을 자유롭게 적어보세요…"></div>
+      <p id="memoEditorStatus" role="status" aria-live="polite"></p>
+      <div class="memo-editor-actions"><button id="memoDelete" class="danger-button" type="button">삭제</button><button id="memoSave" class="primary-button" type="button">저장</button></div>
+    </div>
+  </div>
   <!-- SEARCH -->
   <div id="searchModal" class="modal-backdrop hidden">
     <div class="search-modal">
@@ -230,5 +251,6 @@
 
   <script src="api.js"></script>
   <script src="app.js"></script>
+  <script src="memos.js"></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 import {createRemoteJWKSet, jwtVerify} from 'jose';
+import {memos} from './memos.js';
 const jwksCache=new Map();
 const fields={
   events:['title','description','start_date','end_date','color_variant','is_completed','sort_order'],
@@ -109,6 +110,12 @@ export default {
       if(url.pathname==='/admin'||url.pathname.startsWith('/admin/')) {
         if(!await owner(request,env))return json({error:'Configure Cloudflare Access and sign in.'},401);
         return new Response(null,{status:302,headers:{Location:'/', 'Cache-Control':'no-store'}});
+      }
+      if(url.pathname==='/api/private/memos'||url.pathname==='/api/private/memo-images'||url.pathname.startsWith('/api/private/memo-images/')) {
+        if(!await owner(request,env))return json({error:'Unauthorized'},401);
+        if(!['GET','POST'].includes(request.method))return json({error:'Method not allowed'},405);
+        if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return json({error:'Invalid origin'},403);
+        return await memos(request,env,url.pathname);
       }
       if(url.pathname==='/api/private/query') {
         if(!await owner(request,env))return json({error:'Unauthorized'},401);

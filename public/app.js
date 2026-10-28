@@ -93,7 +93,7 @@ async function checkSession() {
     if (!response.ok) throw Error('연결 실패');
     isOwner = Boolean((await response.json()).owner);
     document.body.classList.toggle('read-only', !isOwner);
-    document.querySelectorAll('[data-page="schedule"], #searchButton, .quick-todo-card').forEach(el => el.classList.toggle('hidden', !isOwner));
+    document.querySelectorAll('[data-page="schedule"], [data-page="memos"], #searchButton, .quick-todo-card').forEach(el => el.classList.toggle('hidden', !isOwner));
     logoutButton.textContent = isOwner ? '로그아웃' : '관리자 로그인';
     await showPage(isOwner ? savedPage() : 'calendar');
   } catch (error) { console.error('Calendar initialization failed', error); document.getElementById('connectionMessage').textContent = '서버에 연결하지 못했어요. 잠시 후 새로고침해주세요.'; }
@@ -114,7 +114,7 @@ navButtons.forEach((button) => {
 
 async function showPage(page) {
   const allowedPages = isOwner
-    ? ["calendar", "schedule"]
+    ? ["calendar", "schedule", "memos"]
     : ["calendar"];
 
   if (!allowedPages.includes(page)) page = "calendar";
@@ -127,6 +127,8 @@ async function showPage(page) {
 
   calendarPage.classList.toggle("hidden", page !== "calendar");
   schedulePage.classList.toggle("hidden", page !== "schedule");
+  $("memosPage").classList.toggle("hidden", page !== "memos");
+  $("scheduleTopButton").classList.toggle("hidden", page !== "schedule");
 
 
   navButtons.forEach((button) =>
@@ -139,6 +141,8 @@ async function showPage(page) {
     renderCalendar();
     if (isOwner) loadQuickTodos();
   }
+
+  if (page === "memos" && window.loadMemoBoard) await window.loadMemoBoard();
 
   if (page === "schedule") {
     loadSchedulePage({ scrollToToday: true });
@@ -2954,3 +2958,16 @@ clearQuickTodoAutofill();
 checkSession();
 
 window.addEventListener('calendar-api-error', e => { document.getElementById('connectionMessage').textContent = e.detail; });
+
+$("scheduleTopButton").addEventListener('click',()=>window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}));
+$("completedTodoForm").addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(!isOwner)return;
+  const input=$("completedTodoInput"), button=event.currentTarget.querySelector('button'), title=input.value.trim();
+  if(!title||button.disabled)return;
+  button.disabled=true;
+  try {
+    const {error}=await dbClient.from('quick_todos').insert({title,is_completed:true,is_important:false,completed_at:new Date().toISOString(),sort_order:0});
+    if(!error){input.value='';await loadQuickTodos();if(selectedRecordDate)await loadDayTodos(selectedRecordDate);}
+  }finally{button.disabled=false;}
+});
