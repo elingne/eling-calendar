@@ -106,7 +106,7 @@ async function frontend(){
 test('new memo button creation, safe previews, text paste at cursor, image drop at cursor, save and reload',async()=>{
  const {dom,w,rows,calls,flush,$}=await frontend();
  $('newMemoButton').click();await flush();
- assert.equal(rows.length,1);assert.equal($('memoModal').classList.contains('hidden'),false);
+ assert.equal(rows.length,0,'a new memo is only a draft until saved');assert.equal($('memoModal').classList.contains('hidden'),false);
  $('memoTitle').value='내 메모';const editor=$('memoEditor');editor.textContent='앞뒤';
  const range=w.document.createRange();range.setStart(editor.firstChild,1);range.collapse(true);w.getSelection().removeAllRanges();w.getSelection().addRange(range);editor.dispatchEvent(new w.Event('keyup'));
  const paste=new w.Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(paste,'clipboardData',{value:{files:[],getData:()=>'<script>문자 그대로</script>'}});editor.dispatchEvent(paste);
@@ -139,7 +139,14 @@ test('memos are a plain ordered list; clicking empty space (not a card or text) 
  assert.equal(rows.length,2,'title text and cards never create a memo');
  w.document.getElementById('memoClose').click();await flush();
  $('memoBoard').dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:100,clientY:70}));await flush();
- assert.equal(rows.length,3);assert.equal($('memoModal').classList.contains('hidden'),false);
+ assert.equal($('memoModal').classList.contains('hidden'),false);assert.equal(rows.length,2,'opening the editor stores nothing');
+ // Clicking outside the editor closes the empty draft without creating a memo.
+ $('memoModal').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await flush();
+ assert.equal($('memoModal').classList.contains('hidden'),true);assert.equal(rows.length,2);
+ // Saving a draft creates it.
+ $('memoBoard').dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:100,clientY:70}));await flush();
+ $('memoTitle').value='새 메모';$('memoSave').click();await flush();
+ assert.equal(rows.length,3);assert.equal(rows[2].title,'새 메모');
  dom.window.close();
 });
 test('photo size and alignment are kept, everything else on an image is dropped',async()=>{

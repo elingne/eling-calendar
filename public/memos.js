@@ -88,10 +88,11 @@
   function plainText(html){const div=document.createElement('div');div.appendChild(safeContent(html));return div.textContent;}
   function openFolder(item){folderId=item.id;render();}
   byId('memoBack').addEventListener('click',()=>{folderId=null;render();});
-  async function create(){
-    if(!isOwner||busy)return;busy=true;
-    try{const {id}=await api({action:'create',folder_id:folderId});await window.loadMemoBoard();const item=items.find(i=>i.id===id);if(item)openEditor(item);}
-    catch(error){status(error.message);}finally{busy=false;}
+  // A new memo is only a draft in the editor; it is stored when 저장 is pressed, so closing it
+  // (clicking outside, ×, Esc) without saving leaves nothing behind.
+  function create(){
+    if(!isOwner||busy||editing)return;
+    openEditor({id:null,kind:'note',title:'',content:'',folder_id:folderId});
   }
   byId('newMemoButton').addEventListener('click',()=>create());
   // Clicking any empty part of the memo tab (not a card, button, field or text) adds a memo.
@@ -201,6 +202,8 @@
     if(!range&&document.caretPositionFromPoint){const p=document.caretPositionFromPoint(x,y);if(p){range=document.createRange();range.setStart(p.offsetNode,p.offset);range.collapse(true);}}
     return range&&editor.contains(range.startContainer)?range:null;
   };
+  // Left/right third of the editor = photo on that side with text beside it; middle = centred on its own line.
+  const sideAt=x=>{const r=editor.getBoundingClientRect(),t=(x-r.left)/r.width;return t<1/3?'left':t>2/3?'right':'center';};
   editor.addEventListener('dragstart',event=>{if(event.target.tagName==='IMG')event.preventDefault();});
   editor.addEventListener('pointermove',event=>{
     if(event.target.tagName==='IMG'&&!event.buttons)event.target.style.cursor=event.target===selectedImg&&nearEdge(event.target,event.clientX)?'ew-resize':'move';
@@ -218,16 +221,17 @@
     const move=e=>{
       if(resize){applyImage(Math.max(10,Math.min(100,Math.round((e.clientX-left)/full*100))));return;}
       if(!moved&&Math.hypot(e.clientX-startX,e.clientY-startY)<8)return;
-      moved=true;img.classList.add('memo-img-moving');
+      moved=true;img.classList.add('memo-img-moving');editor.dataset.dropSide=sideAt(e.clientX);
       const range=caretAt(e.clientX,e.clientY);   // show where the photo will land
       if(range){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);}
     };
     const done=(e,drop)=>{
       img.removeEventListener('pointermove',move);img.removeEventListener('pointerup',up);img.removeEventListener('pointercancel',cancel);
-      img.classList.remove('memo-img-moving');
+      img.classList.remove('memo-img-moving');delete editor.dataset.dropSide;
       if(!drop||resize||!moved)return;
       const range=caretAt(e.clientX,e.clientY);
-      if(range&&!img.contains(range.startContainer)){img.remove();insertNode(img,range);selectImage(img);}
+      if(range&&!img.contains(range.startContainer)){img.remove();insertNode(img,range);}
+      applyImage(undefined,sideAt(e.clientX));selectImage(img);
     };
     const up=e=>done(e,true),cancel=e=>done(e,false);
     img.addEventListener('pointermove',move);img.addEventListener('pointerup',up);img.addEventListener('pointercancel',cancel);
@@ -246,11 +250,15 @@
   byId('memoClose').addEventListener('click',()=>closeEditor());
   byId('memoSave').addEventListener('click',async()=>{
     if(!editing||uploading||busy)return;busy=true;byId('memoSave').disabled=true;
-    try{await api({action:'save',id:editing.id,title:byId('memoTitle').value,content:contentHTML()});busy=false;closeEditor(true);await window.loadMemoBoard();status('메모를 저장했어요.');}
+    try{
+      if(!editing.id)editing.id=(await api({action:'create',folder_id:editing.folder_id}))?.id;
+      await api({action:'save',id:editing.id,title:byId('memoTitle').value,content:contentHTML()});busy=false;closeEditor(true);await window.loadMemoBoard();status('메모를 저장했어요.');}
     catch(error){status(error.message,true);}finally{busy=false;byId('memoSave').disabled=false;}
   });
   byId('memoDelete').addEventListener('click',async()=>{
-    if(!editing||busy||uploading||!window.confirm('이 메모를 삭제할까요?'))return;
+    if(!editing||busy||uploading)return;
+    if(!editing.id){closeEditor(true);return;}   // unsaved draft: nothing stored yet
+    if(!window.confirm('이 메모를 삭제할까요?'))return;
     busy=true;try{await api({action:'delete',id:editing.id});busy=false;closeEditor(true);await window.loadMemoBoard();}catch(error){status(error.message,true);}finally{busy=false;}
   });
   modal.addEventListener('click',event=>{if(event.target===modal)closeEditor();});
