@@ -2333,18 +2333,17 @@ textarea {
 .memo-toolbar h2 {font-size:18px;margin:0}
 .memo-toolbar h2:empty {display:none}
 #memoStatus {font-size:13px;color:#986077}
-.memo-board {display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));gap:18px;align-content:start;min-height:max(300px,calc(100dvh - 330px));cursor:copy}
+.memo-board {display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:18px;align-content:start;min-height:max(300px,calc(100dvh - 330px));cursor:copy}
 .memo-board .memo-card {cursor:default}
 #memosPage {cursor:copy}
 #memosPage .page-heading,#memosPage .memo-toolbar > * {cursor:auto}
 .memo-empty-hint {grid-column:1/-1;padding:16px 10px;color:#a28593;font-size:14px;pointer-events:none}
-.memo-card {position:relative;box-sizing:border-box;height:254px;border:1px solid #ebe1e6;border-radius:5px 5px 16px 5px;background:#fff;box-shadow:2px 5px 12px #b38b9a19;cursor:default;overflow:hidden;display:flex;flex-direction:column}
+.memo-card {position:relative;box-sizing:border-box;height:360px;border:1px solid #ebe1e6;border-radius:5px 5px 16px 5px;background:#fff;box-shadow:2px 5px 12px #b38b9a19;cursor:default;overflow:hidden;display:flex;flex-direction:column}
 .memo-card-header {display:flex;align-items:center;gap:5px;padding:10px 10px 7px;border-bottom:1px solid #bb94a222;min-height:40px}
 .memo-drag-handle {border:0;background:none;color:#a58a97;font-size:22px;padding:0 5px;cursor:grab;touch-action:none;flex-shrink:0}
 .memo-card-title {border:0;background:none;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:left;font-weight:650;color:#765967;font-size:14px;cursor:pointer}
 .memo-preview {padding:12px 16px;font-size:13px;line-height:1.65;white-space:pre-wrap;overflow:hidden;flex:1;color:#735d69;cursor:pointer;overflow-wrap:anywhere}
 .memo-preview p {margin:3px 0 9px}
-.memo-preview img {max-width:100%;max-height:135px;object-fit:contain;border-radius:6px;display:block;margin:7px 0}
 .memo-folder {background:#fff5c9!important;border-color:#f0d985!important}
 .memo-card-actions {display:flex;gap:8px;padding:5px 12px;min-height:28px}
 .memo-small-button {border:0;background:transparent;color:#977487;font-size:11px;cursor:pointer;text-decoration:underline}
@@ -2354,33 +2353,13 @@ textarea {
 .memo-drop-after {box-shadow:9px 0 0 -2px #de91af,2px 5px 12px #b38b9a19}
 .memo-modal {width:min(760px,calc(100vw - 24px));max-height:90dvh;background:#fff;border-radius:22px;padding:24px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;box-shadow:0 15px 70px #54354d26}
 .memo-modal input[type=text] {width:100%;box-sizing:border-box;padding:12px;border:1px solid #ebdce3;border-radius:10px;font:inherit}
-.memo-editor-tools {display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:12px;color:#a18494}
 .memo-editor {min-height:240px;overflow:auto;border:1px solid #ebdce3;border-radius:12px;padding:18px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;outline:none;color:#634e5e;font-size:15px}
 .memo-editor:focus {border-color:#db9ab4;box-shadow:0 0 0 3px #fcecf3}
 .memo-editor:empty::before {content:attr(data-placeholder);color:#b69fac;pointer-events:none}
-.memo-editor img {max-width:100%;height:auto;display:block;border-radius:8px;margin:12px 0;cursor:move;-webkit-user-drag:none;user-select:none}
-.memo-editor img.memo-img-selected {touch-action:none}
-.memo-editor img.memo-img-moving {opacity:.45;pointer-events:none}
-.memo-editor img.memo-img-selected {outline:3px solid #de91af;outline-offset:2px;box-shadow:6px 0 0 -1px #de91af}
-.memo-editor img,.memo-preview img {float:left;margin:4px 14px 8px 0}
-.memo-editor img[data-align=right],.memo-preview img[data-align=right] {float:right;margin:4px 0 8px 14px}
-.memo-editor img[data-align=center],.memo-preview img[data-align=center] {float:none;display:block;margin:12px auto}
-.memo-editor[data-drop-side=left] {background:linear-gradient(90deg,#fcebf2 0 33.3%,#fff 33.3%)}
-.memo-editor[data-drop-side=center] {background:linear-gradient(90deg,#fff 33.3%,#fcebf2 33.3% 66.6%,#fff 66.6%)}
-.memo-editor[data-drop-side=right] {background:linear-gradient(90deg,#fff 66.6%,#fcebf2 66.6%)}
-.memo-image-hint {flex-basis:100%;color:#a88b98}
-.memo-image-tools {display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;padding:8px 12px;border:1px solid #f0d8e2;border-radius:10px;background:#fff7fa;font-size:12px;color:#8e6d7d}
-.memo-image-tools input[type=range] {width:140px;accent-color:#d77fa1}
-#memoImageSizeLabel {min-width:34px}
-.memo-image-align {display:inline-flex;border:1px solid #ebd2dc;border-radius:8px;overflow:hidden}
-.memo-image-align button {border:0;background:#fff;padding:5px 10px;font:inherit;color:#8e6d7d;cursor:pointer}
-.memo-image-align button+button {border-left:1px solid #ebd2dc}
-.memo-image-align button[aria-pressed=true] {background:#f6d6e3;color:#7a4a60;font-weight:650}
-.memo-image-remove {margin-left:auto;border:0;background:none;color:#b0617d;font-size:12px;text-decoration:underline;cursor:pointer}
 .memo-editor-actions {display:flex;justify-content:space-between;gap:12px}
 #memoEditorStatus {margin:0;min-height:18px;font-size:12px;color:#ac687f}
 body.memo-editing {overflow:hidden}
-@media(max-width:600px){.memo-modal {padding:17px;max-height:92dvh}.memo-board {border-radius:14px}.memo-editor {min-height:200px}.schedule-top {right:14px;bottom:18px;width:54px;height:54px}.nav {gap:4px}.memo-card {height:244px}}
+@media(max-width:600px){.memo-modal {padding:17px;max-height:92dvh}.memo-board {border-radius:14px}.memo-editor {min-height:200px}.schedule-top {right:14px;bottom:18px;width:54px;height:54px}.nav {gap:4px}.memo-card {height:330px}}
 @media(prefers-reduced-motion:reduce){.memo-card{transition:none}}
 /* Keep the editor reachable on short screens. */
 .memo-modal {overflow-y:auto}
@@ -2393,8 +2372,6 @@ body.memo-editing {overflow:hidden}
   /* iOS zooms the page when a focused field is under 16px */
   input:not([type=checkbox]):not([type=radio]):not([type=range]),#searchInput,select,textarea,.memo-editor{font-size:16px!important}
   .memo-page-description,#memosPage .page-description{font-size:13px}
-  .memo-image-tools input[type=range]{flex:1 1 120px;width:auto}
-  .memo-image-remove{margin-left:0}
   /* full-width day panel must include its padding, or it sticks out past the right edge */
   .day-panel{box-sizing:border-box!important;width:100vw!important;max-width:100vw!important}
 }
@@ -2406,6 +2383,48 @@ body.memo-editing {overflow:hidden}
   .close-button{min-width:40px;min-height:40px}
   input[type=checkbox]{min-width:20px;min-height:20px}
   .memo-small-button{padding:9px 4px}
-  .memo-image-align button{padding:9px 13px}
   .memo-card-title{min-height:36px}
 }
+
+/* ---- Memo cards edited in place ---- */
+.memo-card-title-input {flex:1;min-width:0;border:0;background:transparent;font:inherit;font-weight:650;font-size:14px;color:#765967;padding:6px 4px;border-radius:6px}
+.memo-card-title-input:focus {outline:none;background:#fdf3f7}
+.memo-card-title-input::placeholder {color:#bba5b0;font-weight:500}
+.memo-open-button {flex-shrink:0;border:1px solid #ecdde4;background:#fff;color:#9a7586;font-size:11px;padding:4px 8px;border-radius:7px;cursor:pointer}
+.memo-open-button:hover {background:#fdf1f6;color:#7a4a60}
+.memo-body {flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 16px;font-size:14px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;color:#5f4a57;outline:none;cursor:text}
+.memo-body:focus {background:#fffafc}
+.memo-body:empty::before {content:attr(data-placeholder);color:#bba5b0;pointer-events:none}
+.memo-preview {overflow-y:auto;overscroll-behavior:contain}
+.memo-card:focus-within {border-color:#e3b8ca;box-shadow:0 0 0 3px #fbe9f0,2px 5px 12px #b38b9a19}
+.memo-photo-count {text-decoration:none!important;border:1px solid #ecdde4!important;border-radius:7px;padding:2px 7px!important}
+
+/* ---- Full view ---- */
+.memo-modal {width:min(900px,calc(100vw - 24px));max-height:92dvh}
+.memo-view-header {display:flex;align-items:center;gap:10px}
+.memo-view-header input {flex:1;font-size:18px!important;font-weight:650;border:1px solid transparent!important;padding:10px 12px!important;border-radius:10px}
+.memo-view-header input:focus {border-color:#ebdce3!important;outline:none}
+.memo-modal .memo-editor {min-height:min(46dvh,420px);font-size:16px}
+.memo-gallery-section {border-top:1px solid #f1e6eb;padding-top:12px}
+.memo-gallery-head {display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.memo-gallery-head h3 {margin:0;font-size:14px;color:#765967;flex:1}
+#memoImageCount {color:#a88b98;font-weight:500;margin-left:4px}
+.memo-gallery {display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.memo-gallery-item {position:relative;margin:0;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#f7eff3;border:1px solid #efe3e9}
+.memo-gallery-open {display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.memo-gallery-open img {width:100%;height:100%;object-fit:cover;display:block}
+.memo-gallery-remove {position:absolute;top:5px;right:5px;width:28px;height:28px;border-radius:50%;border:0;background:#ffffffe6;color:#8f5d72;font-size:16px;line-height:1;cursor:pointer;box-shadow:0 1px 4px #0002}
+.memo-gallery-empty {margin:0;font-size:12px;color:#a88b98}
+.memo-editor-actions {align-items:center}
+.memo-editor-actions #memoEditorStatus {flex:1;text-align:center}
+.memo-autosave-note {font-size:12px;color:#b19aa6}
+.memo-lightbox {position:fixed;inset:0;z-index:1200;background:#1d151acc;display:flex;align-items:center;justify-content:center;padding:24px}
+.memo-lightbox img {max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 10px 40px #0006}
+.memo-lightbox .close-button {position:absolute;top:14px;right:14px;background:#fff}
+@media (max-width:700px){
+  .memo-card {height:330px}
+  .memo-body {font-size:16px}
+  .memo-gallery {grid-template-columns:repeat(3,1fr)}
+  .memo-autosave-note {display:none}
+}
+@media (pointer:coarse){ .memo-open-button {padding:8px 10px} .memo-gallery-remove {width:34px;height:34px} }

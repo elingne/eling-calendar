@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {memos} from '../src/memos.js';
 
 const migration=name=>fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8');
-const allMigrations=['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql'];
+const allMigrations=['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql'];
 function database(names=allMigrations,{failImageDelete=false}={}) {
   const sqlite=new DatabaseSync(':memory:');
   for(const name of names)sqlite.exec(migration(name));
@@ -85,6 +85,7 @@ test('migration 0003 keeps existing photos and gives them a timestamp (so they a
   db.sqlite.prepare("INSERT INTO records VALUES('events',1,'{\"id\":1,\"title\":\"기존 일정\"}')").run();
   db.sqlite.exec(migration('0003_memo_image_cleanup.sql'));
   db.sqlite.exec(migration('0004_memo_order.sql'));
+  db.sqlite.exec(migration('0005_memo_attachments.sql'));
   const row=db.sqlite.prepare('SELECT id,length(bytes) n,created_at FROM memo_images').get();
   assert.equal(row.id,'legacy-1');assert.equal(row.n,png.length);
   assert.ok(Date.parse(row.created_at)>Date.now()-60e3,'legacy photo should get a fresh timestamp');
@@ -93,5 +94,24 @@ test('migration 0003 keeps existing photos and gives them a timestamp (so they a
   const env={DB:db};const a=(await call(env,{action:'create'})).id;
   await call(env,{action:'save',id:a,title:'t',content:'c'});
   assert.deepEqual(imageIds(db),['legacy-1']);
+  db.sqlite.close();
+});
+
+test('photos attached to a memo (not in its text) are kept; removing them from the list frees them',async()=>{
+  const db=database(),env={DB:db};
+  const kept=await upload(env),dropped=await upload(env);
+  const a=(await call(env,{action:'create'})).id;
+  await call(env,{action:'save',id:a,title:'첨부',content:'글만',images:[kept,dropped]});
+  assert.deepEqual(JSON.parse(db.sqlite.prepare('SELECT images FROM memo_items WHERE id=?').get(a).images),[kept,dropped]);
+  age(db,kept,48);age(db,dropped,48);
+  await call(env,{action:'save',id:a,title:'첨부',content:'글만',images:[kept,dropped]});
+  assert.deepEqual(imageIds(db).sort(),[kept,dropped].sort());
+  await call(env,{action:'save',id:a,title:'첨부',content:'글만',images:[kept]});
+  assert.deepEqual(imageIds(db),[kept]);
+  // Saving without an images field (e.g. a folder rename) leaves the list as it is.
+  await call(env,{action:'save',id:a,title:'새 제목',content:'글만'});
+  assert.deepEqual(JSON.parse(db.sqlite.prepare('SELECT images FROM memo_items WHERE id=?').get(a).images),[kept]);
+  for(const bad of [['../x'],[kept,kept],'x',Array(61).fill(0).map((_,i)=>'id'+i)])
+    await assert.rejects(call(env,{action:'save',id:a,title:'t',content:'c',images:bad}));
   db.sqlite.close();
 });

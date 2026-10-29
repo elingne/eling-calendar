@@ -9,7 +9,8 @@ async function removeUnusedImages(db) {
   try {
     const cutoff=new Date(Date.now()-IMAGE_GRACE_MS).toISOString();
     // Rows without a timestamp are never removed (unknown age => keep).
-    await db.prepare('DELETE FROM memo_images WHERE created_at<? AND NOT EXISTS (SELECT 1 FROM memo_items m WHERE instr(m.content,memo_images.id)>0)').bind(cutoff).run();
+    // A photo is in use when a memo lists it as an attachment or (older memos) still has it in its text.
+    await db.prepare('DELETE FROM memo_images WHERE created_at<? AND NOT EXISTS (SELECT 1 FROM memo_items m WHERE instr(m.content,memo_images.id)>0 OR instr(m.images,memo_images.id)>0)').bind(cutoff).run();
   } catch {
     // Cleanup is best effort and must never make saving or deleting a memo fail.
     console.error('Memo image cleanup failed');
@@ -73,7 +74,13 @@ export async function memos(request, env, path) {
   if(!item)throw fail('메모를 찾을 수 없어요.');
   if(q.action==='save') {
     if(typeof q.title!=='string'||q.title.length>120||typeof q.content!=='string'||q.content.length>200000)throw fail('메모 제목 또는 본문이 너무 길어요.');
-    await db.prepare('UPDATE memo_items SET title=?,content=?,updated_at=? WHERE id=?').bind(q.title,q.content,now,item.id).run();
+    if(q.images===undefined) {
+      await db.prepare('UPDATE memo_items SET title=?,content=?,updated_at=? WHERE id=?').bind(q.title,q.content,now,item.id).run();
+    } else {
+      // Attached photos: up to 60 distinct photo ids.
+      if(!Array.isArray(q.images)||q.images.length>60||!q.images.every(validId)||new Set(q.images).size!==q.images.length)throw fail('첨부한 사진 목록이 올바르지 않아요.');
+      await db.prepare('UPDATE memo_items SET title=?,content=?,images=?,updated_at=? WHERE id=?').bind(q.title,q.content,JSON.stringify(q.images),now,item.id).run();
+    }
   } else if(q.action==='group') {
     // Dropping a note on another note makes a named folder holding both; dropping it on a folder adds it.
     const target=await get(q.target);

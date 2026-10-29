@@ -9,7 +9,7 @@ import worker from '../src/worker.js';
 
 function database(){
  const sqlite=new DatabaseSync(':memory:');
- for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
+ for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
  const statement=(sql,values=[])=>({bind(...v){return statement(sql,v);},async all(){return {results:sqlite.prepare(sql).all(...values)};},async first(){return sqlite.prepare(sql).get(...values)||null;},async run(){return sqlite.prepare(sql).run(...values.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v));}});
  return {sqlite,prepare:sql=>statement(sql),async batch(statements){sqlite.exec('BEGIN');try{const r=[];for(const s of statements)r.push(await s.run());sqlite.exec('COMMIT');return r;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 }
@@ -86,38 +86,70 @@ test('memo photos round-trip and reject unsafe formats; all memo routes require 
 async function frontend(){
  const html=fs.readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
  const dom=new JSDOM(html,{url:'https://calendar.example',runScripts:'outside-only',pretendToBeVisual:true});
- const w=dom.window,rows=[],calls=[];let id=0;
+ const w=dom.window,rows=[],calls=[];let id=0,photo=0;
  w.isOwner=true;w.confirm=()=>true;w.prompt=()=> '폴더';
  const response=data=>({ok:true,json:async()=>data});
  w.fetch=async(url,options)=>{
-  if(url==='/api/private/memo-images')return response({url:'/api/private/memo-images/photo-1'});
+  if(url==='/api/private/memo-images')return response({url:'/api/private/memo-images/photo-'+(++photo)});
   if(!options?.body)return response({data:rows.map(r=>({...r}))});
   const q=JSON.parse(options.body);calls.push(q);
-  if(q.action==='create'){const key='memo-'+(++id);rows.push({id:key,kind:'note',title:'',content:'',folder_id:q.folder_id||null});return response({id:key});}
-  const item=rows.find(r=>r.id===q.id);if(q.action==='save')Object.assign(item,{title:q.title,content:q.content});
+  if(q.action==='create'){const key='memo-'+(++id);rows.push({id:key,kind:'note',title:'',content:'',images:'[]',folder_id:q.folder_id||null});return response({id:key});}
+  const item=rows.find(r=>r.id===q.id);
+  if(q.action==='save')Object.assign(item,{title:q.title,content:q.content},q.images?{images:JSON.stringify(q.images)}:{});
   if(q.action==='reorder'){const pos=new Map(q.ids.map((x,i)=>[x,i]));rows.sort((p,r)=>(pos.get(p.id)??1e9)-(pos.get(r.id)??1e9));}
   return response({ok:true});
  };
  Object.defineProperty(w.document.getElementById('memoBoard'),'clientWidth',{value:1000});
  w.eval(fs.readFileSync(new URL('../public/memos.js',import.meta.url),'utf8'));
- const flush=async()=>{await new Promise(r=>setTimeout(r,15));};
- return {dom,w,rows,calls,flush,$:id=>w.document.getElementById(id)};
+ const flush=async()=>{for(let i=0;i<4;i++)await new Promise(r=>setTimeout(r,10));};
+ const leave=el=>el.dispatchEvent(new w.FocusEvent('focusout',{bubbles:true,relatedTarget:null}));
+ return {dom,w,rows,calls,flush,leave,$:id=>w.document.getElementById(id)};
 }
-test('new memo button creation, safe previews, text paste at cursor, image drop at cursor, save and reload',async()=>{
- const {dom,w,rows,calls,flush,$}=await frontend();
+test('memos are edited on their cards and saved automatically; a new memo is stored only once something is written',async()=>{
+ const {dom,w,rows,calls,flush,leave,$}=await frontend();
+ assert.equal($('memoModal').classList.contains('hidden'),true);
  $('newMemoButton').click();await flush();
- assert.equal(rows.length,0,'a new memo is only a draft until saved');assert.equal($('memoModal').classList.contains('hidden'),false);
- $('memoTitle').value='내 메모';const editor=$('memoEditor');editor.textContent='앞뒤';
- const range=w.document.createRange();range.setStart(editor.firstChild,1);range.collapse(true);w.getSelection().removeAllRanges();w.getSelection().addRange(range);editor.dispatchEvent(new w.Event('keyup'));
- const paste=new w.Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(paste,'clipboardData',{value:{files:[],getData:()=>'<script>문자 그대로</script>'}});editor.dispatchEvent(paste);
- assert.equal(editor.textContent,'앞<script>문자 그대로</script>뒤');assert.equal(editor.querySelector('script'),null);
- const r=w.document.createRange();r.setStart(editor.firstChild,1);r.collapse(true);w.document.caretRangeFromPoint=()=>r;
- const drop=new w.MouseEvent('drop',{bubbles:true,cancelable:true,clientX:10,clientY:10});Object.defineProperty(drop,'dataTransfer',{value:{files:[new w.File(['image'],'a.png',{type:'image/png'})]}});editor.dispatchEvent(drop);await flush();
- assert.ok(editor.querySelector('img'));assert.equal(editor.firstChild.textContent,'앞');
- $('memoSave').click();await flush();assert.equal($('memoModal').classList.contains('hidden'),true);
- assert.match(rows[0].content,/memo-images\/photo-1/);assert.ok(calls.some(q=>q.action==='save'));
- rows[0].content='<script>alert(1)</script><img src="https://evil.example/a" onerror="alert(1)"><b onclick="evil()">안전한 내용</b>';
- await w.loadMemoBoard();assert.equal($('memoBoard').querySelector('script'),null);assert.equal($('memoBoard').querySelector('img'),null);assert.equal($('memoBoard').querySelector('b').getAttribute('onclick'),null);
+ let draft=$('memoBoard').querySelector('.memo-card[data-draft]');
+ assert.ok(draft,'a new empty card appears');assert.equal(rows.length,0,'nothing is stored yet');
+ leave(draft.querySelector('.memo-body'));await flush();
+ assert.equal($('memoBoard').querySelector('.memo-card[data-draft]'),null,'an untouched new memo disappears');assert.equal(rows.length,0);
+ $('newMemoButton').click();await flush();
+ draft=$('memoBoard').querySelector('.memo-card[data-draft]');
+ const body=draft.querySelector('.memo-body');
+ body.innerHTML='첫 줄<div>둘째 줄</div>';body.dispatchEvent(new w.Event('input',{bubbles:true}));
+ leave(body);await flush();
+ assert.equal(rows.length,1);assert.equal(rows[0].content,'첫 줄<div>둘째 줄</div>');
+ assert.deepEqual(calls.map(q=>q.action),['create','save']);assert.deepEqual(calls[1].images,[]);
+ const title=$('memoBoard').querySelector('.memo-card-title-input');
+ title.value='제목';title.dispatchEvent(new w.Event('input',{bubbles:true}));leave(title);await flush();
+ assert.equal(rows[0].title,'제목');assert.equal(rows.length,1,'later edits never create another memo');
+ // Stored markup is shown safely and without photos.
+ rows[0].content='<script>alert(1)</script><img src="/api/private/memo-images/x"><img src="https://evil.example/a" onerror="alert(1)"><b onclick="evil()">안전한 내용</b>';
+ await w.loadMemoBoard();
+ assert.equal($('memoBoard').querySelector('script'),null);assert.equal($('memoBoard').querySelector('img'),null);
+ assert.equal($('memoBoard').querySelector('b').getAttribute('onclick'),null);assert.equal($('memoBoard').querySelector('b').textContent,'안전한 내용');
+ assert.equal($('memoBoard').querySelector('.memo-photo-count').textContent,'사진 1장','a photo still inside old text counts as attached');
+ dom.window.close();
+});
+test('full view shows the memo large with its attached photos (including ones from old memo text); removing one saves the list',async()=>{
+ const {dom,w,rows,calls,flush,$}=await frontend();
+ rows.push({id:'m',kind:'note',title:'사진 메모',content:'앞<img src="/api/private/memo-images/old-1">뒤',images:'["new-1"]',folder_id:null});
+ await w.loadMemoBoard();
+ $('memoBoard').querySelector('.memo-open-button').click();await flush();
+ assert.equal($('memoModal').classList.contains('hidden'),false);
+ assert.equal($('memoTitle').value,'사진 메모');assert.equal($('memoEditor').textContent,'앞뒤');assert.equal($('memoEditor').querySelector('img'),null);
+ assert.deepEqual([...$('memoGallery').querySelectorAll('img')].map(i=>i.getAttribute('src')),['/api/private/memo-images/new-1','/api/private/memo-images/old-1']);
+ $('memoGallery').querySelector('.memo-gallery-open').click();
+ assert.equal($('memoLightbox').classList.contains('hidden'),false);
+ $('memoLightboxClose').click();assert.equal($('memoLightbox').classList.contains('hidden'),true);
+ $('memoGallery').querySelector('.memo-gallery-remove').click();await flush();
+ const save=calls.filter(q=>q.action==='save').at(-1);
+ assert.deepEqual(save.images,['old-1']);assert.equal(save.content,'앞뒤','photos leave the text and live in the attachment list');
+ $('memoEditor').innerHTML='새 내용';$('memoEditor').dispatchEvent(new w.Event('input',{bubbles:true}));
+ $('memoClose').click();await flush();
+ assert.equal($('memoModal').classList.contains('hidden'),true);
+ assert.equal(rows[0].content,'새 내용');
+ assert.equal($('memoBoard').querySelector('.memo-body').textContent,'새 내용','the card shows what was written in full view');
  dom.window.close();
 });
 test('completed list input adds a completed item immediately and blocks double submission',async()=>{
@@ -129,33 +161,19 @@ test('completed list input adds a completed item immediately and blocks double s
  form.dispatchEvent(new w.Event('submit',{cancelable:true}));form.dispatchEvent(new w.Event('submit',{cancelable:true}));await new Promise(r=>setTimeout(r,20));
  assert.equal(calls.length,1);assert.equal(calls[0].values.is_completed,true);assert.ok(Date.parse(calls[0].values.completed_at));assert.equal(input.value,'');dom.window.close();
 });
-test('memos are a plain ordered list; clicking empty space (not a card or text) adds a memo',async()=>{
- const {dom,w,rows,calls,flush,$}=await frontend();
+test('memos are a plain ordered list; clicking empty space (not a card or text) starts a new memo',async()=>{
+ const {dom,w,rows,flush,leave,$}=await frontend();
  rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null,x:900,y:900},{id:'b',kind:'note',title:'B',content:'',folder_id:null,x:5,y:5});
  await w.loadMemoBoard();
  for(const card of $('memoBoard').querySelectorAll('.memo-card'))assert.equal(card.style.left+card.style.top,'','cards are laid out by CSS, not by stored position');
  $('memosPage').querySelector('h1').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await flush();
- $('memoBoard').querySelector('.memo-card .memo-preview').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await flush();
- assert.equal(rows.length,2,'title text and cards never create a memo');
- w.document.getElementById('memoClose').click();await flush();
+ $('memoBoard').querySelector('.memo-card .memo-body').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await flush();
+ assert.equal($('memoBoard').querySelector('.memo-card[data-draft]'),null,'title text and cards never start a memo');
  $('memoBoard').dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:100,clientY:70}));await flush();
- assert.equal($('memoModal').classList.contains('hidden'),false);assert.equal(rows.length,2,'opening the editor stores nothing');
- // Clicking outside the editor closes the empty draft without creating a memo.
- $('memoModal').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await flush();
- assert.equal($('memoModal').classList.contains('hidden'),true);assert.equal(rows.length,2);
- // Saving a draft creates it.
- $('memoBoard').dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:100,clientY:70}));await flush();
- $('memoTitle').value='새 메모';$('memoSave').click();await flush();
- assert.equal(rows.length,3);assert.equal(rows[2].title,'새 메모');
- dom.window.close();
-});
-test('photo size and alignment are kept, everything else on an image is dropped',async()=>{
- const {dom,w,rows,$}=await frontend();
- rows.push({id:'p',kind:'note',title:'P',content:'<img src="/api/private/memo-images/a" data-width="40" data-align="center" style="position:fixed" onerror="x()"><img src="/api/private/memo-images/b" data-width="900" data-align="evil">',folder_id:null});
- await w.loadMemoBoard();
- const [a,b]=$('memoBoard').querySelectorAll('img');
- assert.equal(a.dataset.width,'40');assert.equal(a.dataset.align,'center');assert.equal(a.getAttribute('style'),'width: 40%;');assert.equal(a.getAttribute('onerror'),null);
- assert.equal(b.dataset.width,undefined);assert.equal(b.dataset.align,undefined);assert.ok(!b.getAttribute('style'));
+ const draft=$('memoBoard').querySelector('.memo-card[data-draft]');
+ assert.ok(draft);assert.equal(rows.length,2,'starting a memo stores nothing');
+ leave(draft.querySelector('.memo-body'));await flush();
+ assert.equal($('memoBoard').querySelectorAll('.memo-card').length,2);assert.equal(rows.length,2);
  dom.window.close();
 });
 test('dropping on a card edge reorders, on its middle makes a folder; arrow keys move one place',async()=>{
