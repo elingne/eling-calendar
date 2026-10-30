@@ -2459,3 +2459,15 @@ body.memo-editing {overflow:hidden}
 .memo-card .memo-open-button {border:0;padding:0;font-size:15px}
 .memo-undo-button {border:0;background:none;color:#b0517a;font-weight:650;text-decoration:underline;cursor:pointer;font-size:13px;padding:0 2px}
 @media (pointer:coarse){ .memo-icon-button {width:36px;height:36px} }
+
+/* ---- Memo grid: free cells ---- */
+.memo-board.memo-grid {grid-auto-rows:360px}
+.memo-grid-spacer {visibility:hidden;pointer-events:none;height:360px}
+.memo-cell-ghost {border:2px dashed #de91af;border-radius:5px 5px 16px 5px;background:#fdeef4aa;pointer-events:none}
+@media (max-width:700px){ .memo-board.memo-grid {grid-auto-rows:330px} .memo-grid-spacer {height:330px} }
+
+/* ---- Top bar stays visible while scrolling ---- */
+.header {position:sticky;top:0;z-index:90}
+/* overflow-x:hidden on html/body turns body into its own scroll box, which stops the sticky top bar
+   on phones; clip hides sideways overflow without that side effect. */
+@media (max-width:700px){ html,body {overflow-x:clip!important} }

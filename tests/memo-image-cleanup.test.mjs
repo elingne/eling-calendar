@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {memos} from '../src/memos.js';
 
 const migration=name=>fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8');
-const allMigrations=['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql','0006_memo_color_line.sql'];
+const allMigrations=['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql','0006_memo_color_line.sql','0007_memo_grid.sql'];
 function database(names=allMigrations,{failImageDelete=false}={}) {
   const sqlite=new DatabaseSync(':memory:');
   for(const name of names)sqlite.exec(migration(name));
@@ -87,6 +87,7 @@ test('migration 0003 keeps existing photos and gives them a timestamp (so they a
   db.sqlite.exec(migration('0004_memo_order.sql'));
   db.sqlite.exec(migration('0005_memo_attachments.sql'));
   db.sqlite.exec(migration('0006_memo_color_line.sql'));
+  db.sqlite.exec(migration('0007_memo_grid.sql'));
   const row=db.sqlite.prepare('SELECT id,length(bytes) n,created_at FROM memo_images').get();
   assert.equal(row.id,'legacy-1');assert.equal(row.n,png.length);
   assert.ok(Date.parse(row.created_at)>Date.now()-60e3,'legacy photo should get a fresh timestamp');
@@ -133,5 +134,24 @@ test('memo colour and "start a new row" are saved and validated; reorder can set
   await call(env,{action:'reorder',folder_id:null,ids:[a,b]});          // without breaks the flags stay
   assert.deepEqual(db.sqlite.prepare('SELECT id,line_break FROM memo_items ORDER BY sort_order').all().map(r=>[r.id,r.line_break]),[[a,0],[b,1]]);
   await assert.rejects(call(env,{action:'reorder',folder_id:null,ids:[a,b],breaks:['other']}));
+  db.sqlite.close();
+});
+
+test('grid layout: cells are stored per memo, empty cells allowed, validated; folders keep the dropped-on cell',async()=>{
+  const db=database(),env={DB:db};
+  const a=(await call(env,{action:'create'})).id,b=(await call(env,{action:'create',cell:[1,2]})).id,c=(await call(env,{action:'create'})).id;
+  assert.deepEqual({...db.sqlite.prepare('SELECT grid_row r,grid_col c FROM memo_items WHERE id=?').get(b)},{r:1,c:2});
+  await call(env,{action:'layout',folder_id:null,cells:[[a,0,0],[b,2,3],[c,1,0]]});   // row 0 has just one memo
+  const cells=()=>db.sqlite.prepare('SELECT id,grid_row r,grid_col c FROM memo_items WHERE folder_id IS NULL ORDER BY sort_order').all().map(x=>[x.id,x.r,x.c]);
+  assert.deepEqual(cells(),[[a,0,0],[c,1,0],[b,2,3]],'sort order follows reading order');
+  for(const bad of [[[a,0,0],[b,0,0],[c,1,0]],[[a,0,0],[b,1,1]],[[a,-1,0],[b,1,1],[c,2,2]],[[a,0,99],[b,1,1],[c,2,2]],[[a,0.5,0],[b,1,1],[c,2,2]]])
+    await assert.rejects(call(env,{action:'layout',folder_id:null,cells:bad}));
+  await assert.rejects(call(env,{action:'create',cell:[0,'x']}));
+  await call(env,{action:'group',id:a,target:b,title:'폴더'});
+  const folder=db.sqlite.prepare("SELECT id,grid_row r,grid_col c FROM memo_items WHERE kind='folder'").get();
+  assert.deepEqual([folder.r,folder.c],[2,3]);
+  assert.ok(db.sqlite.prepare('SELECT grid_row FROM memo_items WHERE folder_id=?').all(folder.id).every(x=>x.grid_row===null));
+  await call(env,{action:'unfold',id:a});
+  assert.equal(db.sqlite.prepare('SELECT grid_row FROM memo_items WHERE id=?').get(a).grid_row,null);
   db.sqlite.close();
 });

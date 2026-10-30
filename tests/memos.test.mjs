@@ -9,7 +9,7 @@ import worker from '../src/worker.js';
 
 function database(){
  const sqlite=new DatabaseSync(':memory:');
- for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql','0006_memo_color_line.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
+ for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql','0006_memo_color_line.sql','0007_memo_grid.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
  const statement=(sql,values=[])=>({bind(...v){return statement(sql,v);},async all(){return {results:sqlite.prepare(sql).all(...values)};},async first(){return sqlite.prepare(sql).get(...values)||null;},async run(){return sqlite.prepare(sql).run(...values.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v));}});
  return {sqlite,prepare:sql=>statement(sql),async batch(statements){sqlite.exec('BEGIN');try{const r=[];for(const s of statements)r.push(await s.run());sqlite.exec('COMMIT');return r;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 }
@@ -97,6 +97,7 @@ async function frontend(){
   const item=rows.find(r=>r.id===q.id);
   if(q.action==='save')Object.assign(item,{title:q.title,content:q.content},q.images?{images:JSON.stringify(q.images)}:{});
   if(q.action==='reorder'){const pos=new Map(q.ids.map((x,i)=>[x,i]));rows.sort((p,r)=>(pos.get(p.id)??1e9)-(pos.get(r.id)??1e9));if(q.breaks)for(const r of rows)if(q.ids.includes(r.id))r.line_break=q.breaks.includes(r.id)?1:0;}
+  if(q.action==='layout'){for(const [cid,r,c] of q.cells)Object.assign(rows.find(x=>x.id===cid),{grid_row:r,grid_col:c});const k=x=>x.grid_row===undefined||x.grid_row===null?1e9:x.grid_row*100+x.grid_col;rows.sort((x,y)=>k(x)-k(y));}
   return response({ok:true});
  };
  Object.defineProperty(w.document.getElementById('memoBoard'),'clientWidth',{value:1000});
@@ -177,7 +178,7 @@ test('× deletes a memo at once with a short undo; a just-written memo can be dr
  $('newMemoButton').click();await flush();
  const body=$('memoBoard').querySelector('.memo-card[data-draft] .memo-body');
  body.textContent='새 글';body.dispatchEvent(new w.Event('input',{bubbles:true}));leave(body);await flush();
- const card=$('memoBoard').querySelector('.memo-card:last-child');
+ const card=[...$('memoBoard').querySelectorAll('.memo-card')].at(-1);
  assert.ok(card.dataset.memoId);assert.equal(card.querySelector('.memo-drag-handle').disabled,false);
  dom.window.close();
 });
@@ -196,41 +197,48 @@ test('memos are a plain ordered list; clicking empty space (not a card or text) 
  assert.equal($('memoBoard').querySelectorAll('.memo-card').length,2);assert.equal(rows.length,2);
  dom.window.close();
 });
-test('dropping on a card edge reorders, on its middle makes a folder, below all cards starts a new row; arrow keys move one place',async()=>{
+test('memos sit in grid cells: drop on an empty cell (rows need not be full), edge drop pushes, arrows move a cell, middle makes a folder',async()=>{
  const {dom,w,rows,calls,flush,$}=await frontend();
  rows.push(...['a','b','c'].map(id=>({id,kind:'note',title:id.toUpperCase(),content:'',folder_id:null})));
  await w.loadMemoBoard();
- const cardsOf=()=>[...$('memoBoard').querySelectorAll('.memo-card')];
- cardsOf().forEach((card,i)=>card.getBoundingClientRect=()=>({left:i*260,top:0,right:i*260+240,bottom:254,width:240,height:254}));
- const handle=cardsOf()[0].querySelector('.memo-drag-handle');handle.setPointerCapture=()=>{};
- handle.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:40,clientY:40,button:0}));
- handle.dispatchEvent(new w.MouseEvent('pointermove',{clientX:750,clientY:40,button:0}));   // right edge of the third card
- assert.ok(cardsOf()[2].classList.contains('memo-drop-after'));
- handle.dispatchEvent(new w.MouseEvent('pointerup',{clientX:750,clientY:40,button:0}));await flush();
- assert.deepEqual(calls.filter(q=>q.action==='reorder').map(q=>q.ids),[['b','c','a']]);
- assert.deepEqual(cardsOf().map(c=>c.dataset.memoId),['b','c','a']);
- assert.ok(calls.every(q=>q.action==='reorder'),'an edge drop never groups');
- // Dropping on empty space below every card moves the memo to the end, on a new row.
- calls.length=0;cardsOf().forEach((card,i)=>card.getBoundingClientRect=()=>({left:i*260,top:0,right:i*260+240,bottom:254,width:240,height:254}));
- const h2=cardsOf()[0].querySelector('.memo-drag-handle');h2.setPointerCapture=()=>{};
- h2.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:40,clientY:40,button:0}));
- h2.dispatchEvent(new w.MouseEvent('pointermove',{clientX:40,clientY:900,button:0}));
- assert.ok($('memoBoard').classList.contains('memo-drop-newline'));
- h2.dispatchEvent(new w.MouseEvent('pointerup',{clientX:40,clientY:900,button:0}));await flush();
- assert.deepEqual(calls.map(q=>[q.action,q.ids,q.breaks]),[['reorder',['c','a','b'],['b']]]);
- assert.ok(cardsOf()[2].classList.contains('memo-line-start'));
- // Keyboard: ArrowRight on the first card moves it one place later; row starts are kept.
+ // Board 1000px wide -> 3 columns of (1000-2*18)/3 px, rows 360+18 px apart.
+ const board=$('memoBoard'),colW=(1000-36)/3;
+ board.getBoundingClientRect=()=>({left:0,top:0,right:1000,bottom:3000,width:1000,height:3000});
+ const geometry=()=>{for(const card of board.querySelectorAll('.memo-card')){const r=+card.style.gridRow-1,c=+card.style.gridColumn-1;card.getBoundingClientRect=()=>({left:c*(colW+18),top:r*378,right:c*(colW+18)+colW,bottom:r*378+360,width:colW,height:360});}};
+ const cellOf=id=>{const card=board.querySelector(`[data-memo-id="${id}"]`);return [+card.style.gridRow-1,+card.style.gridColumn-1];};
+ const drag=(id,x,y)=>{geometry();const h=board.querySelector(`[data-memo-id="${id}"] .memo-drag-handle`);h.setPointerCapture=()=>{};
+  h.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:20,clientY:20,button:0}));h.dispatchEvent(new w.MouseEvent('pointermove',{clientX:x,clientY:y,button:0}));
+  const marks={ghost:board.querySelector('.memo-cell-ghost')&&[board.querySelector('.memo-cell-ghost').style.gridRow,board.querySelector('.memo-cell-ghost').style.gridColumn].join(),target:board.querySelector('.memo-drop-target')?.dataset.memoId};
+  h.dispatchEvent(new w.MouseEvent('pointerup',{clientX:x,clientY:y,button:0}));return marks;};
+ assert.deepEqual(['a','b','c'].map(cellOf),[[0,0],[0,1],[0,2]],'memos without cells keep their order');
+ // a -> the middle cell of the second row, leaving the first column of both rows empty.
+ assert.equal(drag('a',colW+18+50,378+50).ghost,'2,2');await flush();
+ assert.deepEqual(calls.at(-1),{action:'layout',folder_id:null,cells:[['a',1,1],['b',0,1],['c',0,2]]});
+ assert.deepEqual(['a','b','c'].map(cellOf),[[1,1],[0,1],[0,2]]);
+ // c onto the left edge of b: c takes b's cell, b moves one cell on.
+ drag('c',colW+18+10,100);await flush();
+ assert.deepEqual(['a','b','c'].map(cellOf),[[1,1],[0,2],[0,1]]);
+ // Arrow keys move one cell; an occupied cell swaps.
+ board.querySelector('[data-memo-id="c"] .memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true,cancelable:true}));await flush();
+ assert.deepEqual(cellOf('c'),[0,0]);
+ board.querySelector('[data-memo-id="a"] .memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true,cancelable:true}));await flush();
+ assert.deepEqual(cellOf('a'),[0,1]);
+ // Middle of another memo: asks for a folder name and groups.
  calls.length=0;
- cardsOf()[0].querySelector('.memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));await flush();
- assert.deepEqual(calls.map(q=>[q.ids,q.breaks]),[[['a','c','b'],['b']]]);
- // Middle of another card: asks for a folder name and groups.
- calls.length=0;cardsOf().forEach((card,i)=>card.getBoundingClientRect=()=>({left:i*260,top:0,right:i*260+240,bottom:254,width:240,height:254}));
- const h3=cardsOf()[0].querySelector('.memo-drag-handle');h3.setPointerCapture=()=>{};
- h3.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:40,clientY:40,button:0}));
- h3.dispatchEvent(new w.MouseEvent('pointermove',{clientX:380,clientY:40,button:0}));
- assert.ok(cardsOf()[1].classList.contains('memo-drop-target'));
- h3.dispatchEvent(new w.MouseEvent('pointerup',{clientX:380,clientY:40,button:0}));await flush();
- assert.deepEqual(calls.map(q=>[q.action,q.id,q.target,q.title]),[['group','a','c','폴더']]);
+ const [r,c]=cellOf('b');assert.equal(drag('a',c*(colW+18)+colW/2,r*378+180).target,'b');await flush();
+ assert.deepEqual(calls.map(q=>[q.action,q.id,q.target,q.title]),[['group','a','b','폴더']]);
+ dom.window.close();
+});
+test('on a narrow screen the memos are a list in reading order; moving one keeps the wide layout shape',async()=>{
+ const {dom,w,rows,calls,flush,$}=await frontend();
+ Object.defineProperty($('memoBoard'),'clientWidth',{value:340,configurable:true});
+ rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null,grid_row:2,grid_col:3},{id:'b',kind:'note',title:'B',content:'',folder_id:null,grid_row:0,grid_col:1});
+ rows.sort((x,y)=>x.grid_row-y.grid_row);
+ await w.loadMemoBoard();
+ assert.equal($('memoBoard').classList.contains('memo-grid'),false);
+ assert.deepEqual([...$('memoBoard').querySelectorAll('.memo-card')].map(c=>c.dataset.memoId),['b','a']);
+ $('memoBoard').querySelector('[data-memo-id="b"] .memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));await flush();
+ assert.deepEqual(calls.at(-1),{action:'layout',folder_id:null,cells:[['a',0,1],['b',2,3]]},'the same two cells, handed out in the new order');
  dom.window.close();
 });
 test('all frontend scripts initialize for both public visitors and owners returning to memo tab',async()=>{
