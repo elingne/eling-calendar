@@ -120,7 +120,7 @@ test('memos are edited on their cards and saved automatically; a new memo is sto
  body.innerHTML='첫 줄<div>둘째 줄</div>';body.dispatchEvent(new w.Event('input',{bubbles:true}));
  leave(body);await flush();
  assert.equal(rows.length,1);assert.equal(rows[0].content,'첫 줄<div>둘째 줄</div>');
- assert.deepEqual(calls.map(q=>q.action),['create','save']);assert.deepEqual(calls[1].images,[]);
+ assert.deepEqual(calls.map(q=>q.action),['create','layout','save']);assert.deepEqual(calls[2].images,[]);
  const title=$('memoBoard').querySelector('.memo-card-title-input');
  title.value='제목';title.dispatchEvent(new w.Event('input',{bubbles:true}));leave(title);await flush();
  assert.equal(rows[0].title,'제목');assert.equal(rows.length,1,'later edits never create another memo');
@@ -197,48 +197,55 @@ test('memos are a plain ordered list; clicking empty space (not a card or text) 
  assert.equal($('memoBoard').querySelectorAll('.memo-card').length,2);assert.equal(rows.length,2);
  dom.window.close();
 });
-test('memos sit in grid cells: drop on an empty cell (rows need not be full), edge drop pushes, arrows move a cell, middle makes a folder',async()=>{
+test('memos are arranged in independent rows packed from the left: move within/between rows, new rows, folders',async()=>{
  const {dom,w,rows,calls,flush,$}=await frontend();
- rows.push(...['a','b','c'].map(id=>({id,kind:'note',title:id.toUpperCase(),content:'',folder_id:null})));
+ rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null},{id:'b',kind:'note',title:'B',content:'',folder_id:null},{id:'c',kind:'note',title:'C',content:'',folder_id:null,line_break:1});
  await w.loadMemoBoard();
- // Board 1000px wide -> 3 columns of (1000-2*18)/3 px, rows 360+18 px apart.
- const board=$('memoBoard'),colW=(1000-36)/3;
- board.getBoundingClientRect=()=>({left:0,top:0,right:1000,bottom:3000,width:1000,height:3000});
- const geometry=()=>{for(const card of board.querySelectorAll('.memo-card')){const r=+card.style.gridRow-1,c=+card.style.gridColumn-1;card.getBoundingClientRect=()=>({left:c*(colW+18),top:r*378,right:c*(colW+18)+colW,bottom:r*378+360,width:colW,height:360});}};
- const cellOf=id=>{const card=board.querySelector(`[data-memo-id="${id}"]`);return [+card.style.gridRow-1,+card.style.gridColumn-1];};
- const drag=(id,x,y)=>{geometry();const h=board.querySelector(`[data-memo-id="${id}"] .memo-drag-handle`);h.setPointerCapture=()=>{};
-  h.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:20,clientY:20,button:0}));h.dispatchEvent(new w.MouseEvent('pointermove',{clientX:x,clientY:y,button:0}));
-  const marks={ghost:board.querySelector('.memo-cell-ghost')&&[board.querySelector('.memo-cell-ghost').style.gridRow,board.querySelector('.memo-cell-ghost').style.gridColumn].join(),target:board.querySelector('.memo-drop-target')?.dataset.memoId};
-  h.dispatchEvent(new w.MouseEvent('pointerup',{clientX:x,clientY:y,button:0}));return marks;};
- assert.deepEqual(['a','b','c'].map(cellOf),[[0,0],[0,1],[0,2]],'memos without cells keep their order');
- // a -> the middle cell of the second row, leaving the first column of both rows empty.
- assert.equal(drag('a',colW+18+50,378+50).ghost,'2,2');await flush();
- assert.deepEqual(calls.at(-1),{action:'layout',folder_id:null,cells:[['a',1,1],['b',0,1],['c',0,2]]});
- assert.deepEqual(['a','b','c'].map(cellOf),[[1,1],[0,1],[0,2]]);
- // c onto the left edge of b: c takes b's cell, b moves one cell on.
- drag('c',colW+18+10,100);await flush();
- assert.deepEqual(['a','b','c'].map(cellOf),[[1,1],[0,2],[0,1]]);
- // Arrow keys move one cell; an occupied cell swaps.
- board.querySelector('[data-memo-id="c"] .memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true,cancelable:true}));await flush();
- assert.deepEqual(cellOf('c'),[0,0]);
- board.querySelector('[data-memo-id="a"] .memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true,cancelable:true}));await flush();
- assert.deepEqual(cellOf('a'),[0,1]);
- // Middle of another memo: asks for a folder name and groups.
+ const board=$('memoBoard');
+ const shown=()=>[...board.querySelectorAll('.memo-row')].map(r=>[...r.querySelectorAll('.memo-card')].map(c=>c.dataset.memoId).join('')).join('/');
+ const key=(id,k)=>board.querySelector(`[data-memo-id="${id}"] .memo-drag-handle`).dispatchEvent(new w.KeyboardEvent('keydown',{key:k,bubbles:true,cancelable:true}));
+ assert.equal(shown(),'ab/c','old "new row" marks become rows');
+ key('a','ArrowDown');await flush();
+ assert.deepEqual(calls.at(-1),{action:'layout',folder_id:null,cells:[['b',0,0],['c',1,0],['a',1,1]]});
+ assert.equal(shown(),'b/ca','a row need not be full; the next row can hold several memos');
+ key('a','ArrowLeft');await flush();assert.equal(shown(),'b/ac');
+ key('b','ArrowUp');await flush();assert.equal(shown(),'b/ac','nothing above the first row');
+ // Dragging: rects for the rows, the new-row area and the cards.
+ const rect=(el,b)=>{el.getBoundingClientRect=()=>({...b,right:b.left+b.width,bottom:b.top+b.height});};
+ const layoutRects=()=>{
+   [...board.querySelectorAll('.memo-row')].forEach((row,r)=>{rect(row,{left:0,top:r*400,width:1000,height:360});
+     [...row.querySelectorAll('.memo-card')].forEach((card,i)=>rect(card,{left:i*330,top:r*400,width:300,height:360}));});
+   rect(board.querySelector('.memo-row-new'),{left:0,top:board.querySelectorAll('.memo-row').length*400,width:1000,height:110});
+ };
+ const drag=(id,x,y)=>{layoutRects();const h=board.querySelector(`[data-memo-id="${id}"] .memo-drag-handle`);h.setPointerCapture=()=>{};
+   h.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:5,clientY:5,button:0}));h.dispatchEvent(new w.MouseEvent('pointermove',{clientX:x,clientY:y,button:0}));
+   h.dispatchEvent(new w.MouseEvent('pointerup',{clientX:x,clientY:y,button:0}));};
+ drag('b',500,850);await flush();               // the new-row area below row 2
+ assert.equal(shown(),'ac/b','the emptied first row disappears; b starts a new row');
+ drag('a',900,450);await flush();               // empty part of row 2 -> end of that row
+ assert.equal(shown(),'c/ba');
+ drag('c',345,450);await flush();               // left edge of a -> just before a
+ assert.equal(shown(),'bca');
  calls.length=0;
- const [r,c]=cellOf('b');assert.equal(drag('a',c*(colW+18)+colW/2,r*378+180).target,'b');await flush();
- assert.deepEqual(calls.map(q=>[q.action,q.id,q.target,q.title]),[['group','a','b','폴더']]);
+ drag('b',480,180);await flush();               // middle of c -> folder
+ assert.deepEqual(calls.map(q=>[q.action,q.id,q.target,q.title]),[['group','b','c','폴더']]);
  dom.window.close();
 });
-test('on a narrow screen the memos are a list in reading order; moving one keeps the wide layout shape',async()=>{
- const {dom,w,rows,calls,flush,$}=await frontend();
- Object.defineProperty($('memoBoard'),'clientWidth',{value:340,configurable:true});
- rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null,grid_row:2,grid_col:3},{id:'b',kind:'note',title:'B',content:'',folder_id:null,grid_row:0,grid_col:1});
- rows.sort((x,y)=>x.grid_row-y.grid_row);
+test('a click on the empty part of a row adds a memo at the end of that row; below the rows starts a new row',async()=>{
+ const {dom,w,rows,calls,flush,leave,$}=await frontend();
+ rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null,grid_row:0,grid_col:0},{id:'b',kind:'note',title:'B',content:'',folder_id:null,grid_row:1,grid_col:0});
  await w.loadMemoBoard();
- assert.equal($('memoBoard').classList.contains('memo-grid'),false);
- assert.deepEqual([...$('memoBoard').querySelectorAll('.memo-card')].map(c=>c.dataset.memoId),['b','a']);
- $('memoBoard').querySelector('[data-memo-id="b"] .memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));await flush();
- assert.deepEqual(calls.at(-1),{action:'layout',folder_id:null,cells:[['a',0,1],['b',2,3]]},'the same two cells, handed out in the new order');
+ const board=$('memoBoard');
+ board.querySelector('.memo-row[data-row="0"]').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await flush();
+ let body=board.querySelector('.memo-card[data-draft] .memo-body');
+ assert.equal(body.closest('.memo-row').dataset.row,'0');
+ body.textContent='새 글';body.dispatchEvent(new w.Event('input',{bubbles:true}));leave(body);await flush();
+ const id=rows.find(r=>r.content==='새 글').id;
+ assert.deepEqual(calls.find(q=>q.action==='layout').cells,[['a',0,0],[id,0,1],['b',1,0]]);
+ await new Promise(r=>setTimeout(r,400));   // the first click after typing only ends editing
+ board.querySelector('.memo-row-new').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await flush();
+ body=board.querySelector('.memo-card[data-draft] .memo-body');
+ assert.equal(body.closest('.memo-row').dataset.row,'2','a new row');
  dom.window.close();
 });
 test('all frontend scripts initialize for both public visitors and owners returning to memo tab',async()=>{

@@ -144,7 +144,7 @@ test('grid layout: cells are stored per memo, empty cells allowed, validated; fo
   await call(env,{action:'layout',folder_id:null,cells:[[a,0,0],[b,2,3],[c,1,0]]});   // row 0 has just one memo
   const cells=()=>db.sqlite.prepare('SELECT id,grid_row r,grid_col c FROM memo_items WHERE folder_id IS NULL ORDER BY sort_order').all().map(x=>[x.id,x.r,x.c]);
   assert.deepEqual(cells(),[[a,0,0],[c,1,0],[b,2,3]],'sort order follows reading order');
-  for(const bad of [[[a,0,0],[b,0,0],[c,1,0]],[[a,0,0],[b,1,1]],[[a,-1,0],[b,1,1],[c,2,2]],[[a,0,99],[b,1,1],[c,2,2]],[[a,0.5,0],[b,1,1],[c,2,2]]])
+  for(const bad of [[[a,0,0],[b,0,0],[c,1,0]],[[a,0,0],[b,1,1]],[[a,-1,0],[b,1,1],[c,2,2]],[[a,0,5000],[b,1,1],[c,2,2]],[[a,0.5,0],[b,1,1],[c,2,2]]])
     await assert.rejects(call(env,{action:'layout',folder_id:null,cells:bad}));
   await assert.rejects(call(env,{action:'create',cell:[0,'x']}));
   await call(env,{action:'group',id:a,target:b,title:'폴더'});

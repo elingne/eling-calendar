@@ -2,7 +2,7 @@ const json = (data, status=200) => Response.json(data,{status,headers:{'Cache-Co
 const fail = message => Object.assign(new Error(message),{status:400});
 const validId = id => typeof id==='string' && /^[a-zA-Z0-9-]{1,80}$/.test(id);
 const COLORS = ['','red','orange','yellow','green','blue'];
-const MAX_COLS = 24, MAX_ROWS = 10000;
+const MAX_COLS = 2000, MAX_ROWS = 2000;   // row number, and position within the row
 const validCell = (r,c) => Number.isInteger(r)&&Number.isInteger(c)&&r>=0&&r<MAX_ROWS&&c>=0&&c<MAX_COLS;
 // A photo is uploaded as soon as it is inserted in the editor but only becomes part of a memo when the
 // memo is saved. Photos that no memo refers to are removed once they are older than this grace period,

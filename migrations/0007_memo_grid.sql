@@ -1,5 +1,5 @@
--- Memos are placed in cells of a grid (row, column). Any cell may stay empty, so a row does not have
--- to be full before the next one is used. Existing memos have no cell yet; the board shows them in
--- their current order (and rows) and stores cells the first time the layout is changed.
+-- Memos are arranged in independent rows: grid_row is the row number, grid_col the position inside
+-- that row (memos in a row are packed from the left). A row need not be full before the next one is
+-- used. Existing memos have no row yet; the board keeps their current rows until the layout changes.
 ALTER TABLE memo_items ADD COLUMN grid_row INTEGER;
 ALTER TABLE memo_items ADD COLUMN grid_col INTEGER;

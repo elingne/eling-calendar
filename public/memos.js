@@ -68,17 +68,13 @@
       try{
         if(!item.id){
           if(isEmpty(item)){status('');return;}            // an empty new memo is never stored
-          const cell=layout.explicit?layout.pos.get(item):null;
-          item.id=(await api({action:'create',folder_id:item.folder_id,cell:cell||null}))?.id;
-          if(cell){
-            [item.grid_row,item.grid_col]=cell;
-            // Older memos without cells get theirs now, so they stay exactly where they are shown.
-            const pos=layout.pos,missing=[...pos.keys()].some(i=>i.id&&!hasCell(i));
-            if(missing&&(item.folder_id||null)===folderId){
-              await Promise.all([...pendingDeletes].map(commitDelete));
-              await api({action:'layout',folder_id:folderId,cells:[...pos].filter(([i])=>i.id&&items.includes(i)).map(([i,[r,c]])=>[i.id,r,c])});
-              for(const [i,[r,c]] of pos)if(i.id){i.grid_row=r;i.grid_col=c;}
-            }
+          item.id=(await api({action:'create',folder_id:item.folder_id}))?.id;
+          // Store every row so the new memo stays in the row it was written in.
+          if((item.folder_id||null)===folderId&&rowsNow.some(r=>r.includes(item))){
+            await Promise.all([...pendingDeletes].map(commitDelete));
+            const rows=rowsNow.map(r=>r.filter(i=>i.id&&items.includes(i))).filter(r=>r.length);
+            await api({action:'layout',folder_id:folderId,cells:rows.flatMap((r,ri)=>r.map((i,ci)=>[i.id,ri,ci]))});
+            rows.forEach((r,ri)=>r.forEach((i,ci)=>{i.grid_row=ri;i.grid_col=ci;}));
           }
           const card=board.querySelector('.memo-card[data-draft]');
           if(card){
@@ -163,91 +159,57 @@
     });
   }
 
-  // ---- Board: a grid of cells. Any cell may hold a memo or stay empty. ----
-  const GAP=18, MIN_COL=300, KEY=(r,c)=>r+':'+c;
-  let layout={explicit:false,cols:1,pos:new Map(),rows:0};
+  // ---- Board: independent rows. Each row holds its memos packed from the left, as many as wanted;
+  // a row does not have to be full before the next one is used. ----
+  let rowsNow=[];   // rows of items, as shown
   const visibleItems=()=>items.filter(i=>(i.folder_id||null)===folderId);
   const hasCell=i=>Number.isInteger(i.grid_row)&&Number.isInteger(i.grid_col);
-  function columnCount(){
-    const w=board.clientWidth||board.getBoundingClientRect().width||0;
-    return Math.max(1,Math.floor((w+GAP)/(MIN_COL+GAP)));
-  }
-  // Where every visible memo sits. Memos without a stored cell (older memos, memos taken out of a
-  // folder) follow in order: from the top when no memo has a cell yet (keeping old "new row" marks),
-  // otherwise after the last memo. On a screen too narrow for the stored columns the board falls back
-  // to a simple list in reading order.
-  function computeLayout(){
-    const list=visibleItems(),cols=columnCount();
-    const saved=list.filter(i=>i.id),stored=saved.filter(hasCell);
-    const explicit=cols>1&&!list.some(i=>hasCell(i)&&i.grid_col>=cols);
-    const pos=new Map(),taken=new Set();
-    const put=(item,r,c)=>{pos.set(item,[r,c]);taken.add(KEY(r,c));};
-    for(const i of stored)if(!taken.has(KEY(i.grid_row,i.grid_col)))put(i,i.grid_row,i.grid_col);
-    let r=0,c=0;
-    const afterLast=()=>{if(!pos.size)return;const last=[...pos.values()].sort((x,y)=>x[0]-y[0]||x[1]-y[1]).pop();r=last[0];c=last[1]+1;};
-    const next=()=>{for(;;){if(c>=cols){r++;c=0;}if(!taken.has(KEY(r,c)))return;c++;}};
-    if(stored.length)afterLast();
-    for(const i of saved){
-      if(pos.has(i))continue;
-      if(!stored.length&&i.line_break&&c>0){r++;c=0;}
-      next();put(i,r,c);c++;
+  function computeRows(){
+    const list=visibleItems(),saved=list.filter(i=>i.id),out=[];
+    if(saved.some(hasCell)){
+      // Stored rows; memos without one (e.g. just taken out of a folder) join the last row.
+      const stored=saved.filter(hasCell).sort((a,b)=>a.grid_row-b.grid_row||a.grid_col-b.grid_col);
+      let last=null;for(const i of stored){if(i.grid_row!==last){out.push([]);last=i.grid_row;}out[out.length-1].push(i);}
+      const rest=saved.filter(i=>!hasCell(i));if(rest.length){if(!out.length)out.push([]);out[out.length-1].push(...rest);}
+    }else{
+      // Nothing stored yet: keep the order and the old "new row" marks.
+      for(const i of saved){if(!out.length||(i.line_break&&out[out.length-1].length))out.push([]);out[out.length-1].push(i);}
     }
-    for(const i of list){
-      if(i.id)continue;                                             // a new memo not stored yet
-      if(hasCell(i)&&i.grid_col<cols&&!taken.has(KEY(i.grid_row,i.grid_col))){put(i,i.grid_row,i.grid_col);continue;}
-      afterLast();next();put(i,r,c);
+    for(const d of list.filter(i=>!i.id)){   // a new memo goes at the end of its row (or a new row)
+      const r=Number.isInteger(d.grid_row)?d.grid_row:Math.max(0,out.length-1);
+      while(out.length<=r)out.push([]);out[r].push(d);
     }
-    const rows=Math.max(0,...[...pos.values()].map(p=>p[0]+1));
-    return layout={explicit,cols,pos,rows};
+    return rowsNow=out.filter(r=>r.length);
   }
   function render() {
     if(folderId&&!items.some(i=>i.id===folderId&&i.kind==='folder'))folderId=null;
     board.innerHTML='';
     byId('memoBack').classList.toggle('hidden',!folderId);
     byId('memoFolderTitle').textContent=folderId?items.find(i=>i.id===folderId)?.title:'';
-    const L=computeLayout(),list=visibleItems();
-    board.classList.toggle('memo-grid',L.explicit);
-    board.style.gridTemplateColumns=L.explicit?`repeat(${L.cols},minmax(0,1fr))`:'';
-    if(!list.length){const hint=document.createElement('span');hint.className='memo-empty-hint';hint.textContent='빈 곳을 누르거나 + 메모를 눌러 메모를 추가하세요';board.appendChild(hint);}
-    const ordered=L.explicit?list:[...list].sort((x,y)=>{const p=L.pos.get(x),q=L.pos.get(y);return p[0]-q[0]||p[1]-q[1];});
-    for(const item of ordered){
-      const card=item.kind==='folder'?folderCard(item):noteCard(item);
-      if(L.explicit){const [r,c]=L.pos.get(item);card.style.gridRow=r+1;card.style.gridColumn=c+1;}
-      board.appendChild(card);
-    }
-    // One empty row below the last memo, so there is always room to drop or click a new memo into.
-    if(L.explicit){const spacer=document.createElement('div');spacer.className='memo-grid-spacer';spacer.style.gridRow=L.rows+1;spacer.style.gridColumn=1;board.appendChild(spacer);}
+    const rows=computeRows();
+    if(!rows.length){const hint=document.createElement('span');hint.className='memo-empty-hint';hint.textContent='빈 곳을 누르거나 + 메모를 눌러 메모를 추가하세요';board.appendChild(hint);}
+    rows.forEach((row,r)=>{
+      const el=document.createElement('div');el.className='memo-row';el.dataset.row=r;
+      for(const item of row)el.appendChild(item.kind==='folder'?folderCard(item):noteCard(item));
+      board.appendChild(el);
+    });
+    // Below the last row: drop or click here to start a new row.
+    const tail=document.createElement('div');tail.className='memo-row-new';tail.dataset.row=rows.length;
+    tail.textContent=rows.length?'여기에 놓거나 누르면 새 줄':'';board.appendChild(tail);
   }
-  // Grid cell under a screen point (explicit grid only).
-  function cellAt(x,y){
-    if(!layout.explicit)return null;
-    const b=board.getBoundingClientRect(),cols=layout.cols;
-    if(x<b.left||x>b.right||y<b.top)return null;
-    const colW=(b.width-GAP*(cols-1))/cols;
-    const rowH=(board.querySelector('.memo-card,.memo-grid-spacer')?.offsetHeight||360)+GAP;
-    const c=Math.min(cols-1,Math.max(0,Math.floor((x-b.left)/(colW+GAP))));
-    const r=Math.min(layout.rows,Math.max(0,Math.floor((y-b.top)/rowH)));
-    return [r,c];
-  }
-  const occupant=(r,c)=>[...layout.pos].find(([,p])=>p[0]===r&&p[1]===c)?.[0]||null;
-  // Store the cells of every visible memo (and the new order that follows from them).
-  async function saveLayout(pos){
+  // Store the rows (empty rows disappear).
+  async function saveRows(rows){
     busy=true;
     try{
       await flushAll();
-      const cells=[...pos].filter(([i])=>i.id&&items.includes(i)).map(([i,[r,c]])=>[i.id,r,c]);
-      await api({action:'layout',folder_id:folderId,cells});
-      for(const [i,[r,c]] of pos){i.grid_row=r;i.grid_col=c;}
+      const clean=rows.map(r=>r.filter(i=>i.id&&items.includes(i))).filter(r=>r.length);
+      await api({action:'layout',folder_id:folderId,cells:clean.flatMap((r,ri)=>r.map((i,ci)=>[i.id,ri,ci]))});
+      clean.forEach((r,ri)=>r.forEach((i,ci)=>{i.grid_row=ri;i.grid_col=ci;}));
       await window.loadMemoBoard();
     }catch(error){status(error.message);render();}finally{busy=false;}
   }
-  // Put `item` at (r,c); a memo already there moves one cell on (wrapping to the next row), and so on.
-  function placeWithPush(item,r,c){
-    const at=new Map([...layout.pos].filter(([i])=>i!==item).map(([i,p])=>[KEY(p[0],p[1]),i]));
-    let moving=item;
-    while(moving){const k=KEY(r,c),prev=at.get(k);at.set(k,moving);moving=prev;if(moving){c++;if(c>=layout.cols){r++;c=0;}}}
-    return new Map([...at].map(([k,i])=>[i,k.split(':').map(Number)]));
-  }
+  const rowsWithout=item=>rowsNow.map(r=>r.filter(i=>i!==item));
+  const rowOf=item=>rowsNow.findIndex(r=>r.includes(item));
   function noteCard(item){
     const card=document.createElement('article');card.className='memo-card';
     if(item.id)card.dataset.memoId=item.id;else card.dataset.draft='';
@@ -271,7 +233,8 @@
     // The first click outside a card only ends editing, it does not add another memo.
     card.addEventListener('focusout',event=>{
       if(card.contains(event.relatedTarget)||viewing===item)return;
-      suppressClick=Date.now()+350;
+      // Only leaving the text (not the handle or a button) swallows the next click.
+      if(event.target.matches?.('input,[contenteditable="true"]'))suppressClick=Date.now()+350;
       if(!item.id&&isEmpty(item)){removeDraft(item);return;}
       if(timers.has(item))saveNow(item);
     });
@@ -306,11 +269,11 @@
   function openFolder(item){folderId=item.id;render();}
   byId('memoBack').addEventListener('click',()=>{folderId=null;render();});
   // New memo: an empty card at the end, ready for typing. It is stored once something is written.
-  function create(cell=null){
+  function create(row=null){
     if(!isOwner||busy)return;
     let draft=items.find(i=>!i.id&&(i.folder_id||null)===folderId);
     if(!draft){draft={id:null,kind:'note',title:'',content:'',images:'[]',imageList:[],color:'',line_break:false,grid_row:null,grid_col:null,folder_id:folderId};items.push(draft);}
-    [draft.grid_row,draft.grid_col]=cell||[null,null];
+    draft.grid_row=row;draft.grid_col=row===null?null:9999;
     render();
     const card=board.querySelector('.memo-card[data-draft]');
     card?.scrollIntoView?.({block:'nearest'});card?.querySelector('.memo-body')?.focus();
@@ -321,52 +284,39 @@
     if(Date.now()<suppressClick||busy)return;
     if(event.target.closest('.memo-card,button,a,input,textarea,select,label,[contenteditable="true"],h1,h2,p,.section-label,#memoStatus'))return;
     if(String(window.getSelection?.()||''))return;
-    // On the grid, a click on an empty cell puts the new memo in that cell.
-    const cell=cellAt(event.clientX,event.clientY);
-    if(cell&&occupant(...cell))return;
-    create(cell);
+    // Empty space in a row: the new memo goes at the end of that row. Below the last row: a new row.
+    const row=event.target.closest('.memo-row,.memo-row-new');
+    if(row)create(Number(row.dataset.row));
+    else if(board.contains(event.target)||event.target===board)create(rowsNow.length);
+    else create();
   });
 
   // ---- Moving memos and making folders (drag the ⠿ handle) ----
-  const savedIds=()=>visibleItems().filter(i=>i.id).map(i=>i.id);
-  async function saveOrder(ids){
-    busy=true;
-    try{await flushAll();await api({action:'reorder',folder_id:folderId,ids});await window.loadMemoBoard();}
-    catch(error){status(error.message);render();}finally{busy=false;}
-  }
-  // Narrow screens show a list: a new order is applied by handing the existing cells out in that order
-  // (so the wide layout keeps its shape), or as a plain order while no memo has a cell yet.
-  function applyOrder(ids){
-    const list=ids.map(id=>items.find(i=>i.id===id)).filter(Boolean);
-    if(!list.some(hasCell)){saveOrder(ids);return;}
-    const cells=[...layout.pos].filter(([i])=>i.id).map(([,p])=>p).sort((x,y)=>x[0]-y[0]||x[1]-y[1]);
-    saveLayout(new Map(list.map((i,n)=>[i,cells[n]])));
-  }
   function enableReorder(handle,card,item){
+    // Keyboard: ←/→ move within the row, ↑/↓ move to the end of the row above/below.
     handle.addEventListener('keydown',event=>{
-      const d={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]}[event.key];if(!d||busy)return;
+      const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||busy)return;
       event.preventDefault();event.stopPropagation();
-      const refocus=()=>board.querySelector(`[data-memo-id="${item.id}"] .memo-drag-handle`)?.focus();
-      if(layout.explicit){
-        // Grid: move one cell in that direction, swapping with a memo that is there.
-        const [r,c]=layout.pos.get(item),nr=r+d[0],nc=c+d[1];
-        if(nr<0||nc<0||nc>=layout.cols)return;
-        const pos=new Map(layout.pos),other=occupant(nr,nc);
-        pos.set(item,[nr,nc]);if(other)pos.set(other,[r,c]);
-        saveLayout(pos).then(refocus);return;
+      const r=rowOf(item),rows=rowsNow.map(x=>[...x]),i=rows[r].indexOf(item);
+      if(key==='ArrowLeft'||key==='ArrowRight'){
+        const j=i+(key==='ArrowLeft'?-1:1);if(j<0||j>=rows[r].length)return;
+        [rows[r][i],rows[r][j]]=[rows[r][j],rows[r][i]];
+      }else{
+        const t=r+(key==='ArrowUp'?-1:1);
+        if(t<0||(t>=rows.length&&rows[r].length===1))return;
+        rows[r].splice(i,1);if(t>=rows.length)rows.push([]);rows[t].push(item);
       }
-      const ids=savedIds(),from=ids.indexOf(item.id),to=from+(d[0]||d[1]);
-      if(to<0||to>=ids.length)return;
-      ids.splice(from,1);ids.splice(to,0,item.id);applyOrder(ids);setTimeout(refocus,50);
+      saveRows(rows).then(()=>board.querySelector(`[data-memo-id="${item.id}"] .memo-drag-handle`)?.focus());
     });
     handle.addEventListener('pointerdown',event=>{
       if(event.button!==0||busy)return;
       const startX=event.clientX,startY=event.clientY,startScroll=window.scrollY;
-      let moved=false,hit=null;   // {el, zone:'before'|'after'|'group'|'swap'} or {zone:'cell', cell} or {zone:'end'}
+      let moved=false,hit=null;   // {el,zone:'before'|'after'|'group'} | {zone:'rowend',row} | {zone:'newrow',at}
       handle.setPointerCapture?.(event.pointerId);
-      const ghost=document.createElement('div');ghost.className='memo-cell-ghost';
       const cards=()=>[...board.querySelectorAll('.memo-card[data-memo-id]')].filter(el=>el!==card);
-      const clear=()=>{board.querySelectorAll('.memo-drop-target,.memo-drop-before,.memo-drop-after').forEach(el=>el.classList.remove('memo-drop-target','memo-drop-before','memo-drop-after'));board.classList.remove('memo-drop-newline');ghost.remove();};
+      const marks='memo-drop-target memo-drop-before memo-drop-after memo-row-target memo-row-insert memo-row-new-target'.split(' ');
+      const clear=()=>board.querySelectorAll('.'+marks.join(',.')).forEach(el=>el.classList.remove(...marks));
+      const inside=(b,e)=>e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom;
       const move=e=>{
         if(Math.hypot(e.clientX-startX,e.clientY-startY)<7&&!moved)return;
         moved=true;card.classList.add('memo-dragging');
@@ -374,35 +324,29 @@
         if(e.clientY<70)window.scrollBy?.(0,-16);else if(e.clientY>window.innerHeight-70)window.scrollBy?.(0,16);
         card.style.transform=`translate(${e.clientX-startX}px,${e.clientY-startY+window.scrollY-startScroll}px)`;
         clear();hit=null;
-        const el=cards().find(c=>{const b=c.getBoundingClientRect();return e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom;});
+        const el=cards().find(c=>inside(c.getBoundingClientRect(),e));
         if(el){
           const b=el.getBoundingClientRect(),ratio=(e.clientX-b.left)/b.width;
-          // Left/right edge = place just before/after that memo; the middle = make a folder (a folder
-          // dragged onto the middle of a memo swaps places with it).
-          const zone=ratio<.28?'before':ratio>.72?'after':item.kind==='note'?'group':'swap';
-          hit={el,zone};el.classList.add(zone==='group'||zone==='swap'?'memo-drop-target':'memo-drop-'+zone);
+          // Left/right edge = just before/after that memo in its row; the middle = make a folder.
+          const zone=ratio<.28?'before':ratio>.72?'after':item.kind==='note'?'group':(ratio<.5?'before':'after');
+          hit={el,zone};el.classList.add(zone==='group'?'memo-drop-target':'memo-drop-'+zone);
           return;
         }
-        if(layout.explicit){
-          // Over an empty cell: the memo goes exactly there.
-          const cell=cellAt(e.clientX,e.clientY);
-          if(!cell||occupant(...cell)===item)return;
-          if(occupant(...cell))return;
-          hit={zone:'cell',cell};ghost.style.gridRow=cell[0]+1;ghost.style.gridColumn=cell[1]+1;board.appendChild(ghost);
-          return;
-        }
-        // List (narrow screen): below every memo = move to the end.
-        const last=cards().pop();
-        if(last&&e.clientY>last.getBoundingClientRect().bottom){hit={zone:'end'};board.classList.add('memo-drop-newline');}
+        const rowEls=[...board.querySelectorAll('.memo-row')];
+        const rowEl=rowEls.find(r=>inside(r.getBoundingClientRect(),e));
+        if(rowEl){hit={zone:'rowend',row:Number(rowEl.dataset.row)};rowEl.classList.add('memo-row-target');return;}   // empty part of a row
+        const tail=board.querySelector('.memo-row-new');
+        if(tail&&e.clientY>=tail.getBoundingClientRect().top-9){hit={zone:'newrow',at:rowEls.length};tail.classList.add('memo-row-new-target');return;}
+        // Between two rows: a new row there.
+        const k=rowEls.findIndex(r=>e.clientY<r.getBoundingClientRect().top);
+        if(k>0&&e.clientY>rowEls[k-1].getBoundingClientRect().bottom){hit={zone:'newrow',at:k};rowEls[k].classList.add('memo-row-insert');}
       };
       const stop=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',finish);handle.removeEventListener('pointercancel',cancel);card.classList.remove('memo-dragging');card.style.transform='';clear();};
       const finish=async()=>{
         const drop=hit;stop();if(!moved)return;suppressClick=Date.now()+450;
         if(!drop)return;
-        if(drop.zone==='cell'){const pos=new Map(layout.pos);pos.set(item,drop.cell);saveLayout(pos);return;}
-        if(drop.zone==='end'){applyOrder(savedIds().filter(id=>id!==item.id).concat(item.id));return;}
-        const other=items.find(i=>i.id===drop.el.dataset.memoId);if(!other)return;
         if(drop.zone==='group'){
+          const other=items.find(i=>i.id===drop.el.dataset.memoId);if(!other)return;
           busy=true;
           try{
             await flushAll();
@@ -412,28 +356,21 @@
           }catch(error){status(error.message);render();}finally{busy=false;}
           return;
         }
-        if(layout.explicit){
-          const [r,c]=layout.pos.get(other);
-          if(drop.zone==='swap'){const pos=new Map(layout.pos);pos.set(item,[r,c]);pos.set(other,layout.pos.get(item));saveLayout(pos);return;}
-          // Before: take that memo's cell and push it (and any memos right after it) one cell on.
-          // After: take the next cell, pushing whatever is there.
-          let nr=r,nc=c+(drop.zone==='after'?1:0);if(nc>=layout.cols){nr++;nc=0;}
-          saveLayout(placeWithPush(item,nr,nc));return;
+        const rows=rowsWithout(item);
+        if(drop.zone==='rowend')rows[drop.row].push(item);
+        else if(drop.zone==='newrow')rows.splice(drop.at,0,[item]);
+        else{
+          const other=items.find(i=>i.id===drop.el.dataset.memoId);if(!other)return;
+          const r=rows.findIndex(x=>x.includes(other));
+          rows[r].splice(rows[r].indexOf(other)+(drop.zone==='after'?1:0),0,item);
         }
-        const ids=savedIds().filter(id=>id!==item.id);
-        ids.splice(ids.indexOf(other.id)+(drop.zone==='after'?1:0),0,item.id);
-        if(ids.join()!==savedIds().join())applyOrder(ids);
+        const before=rowsNow.map(r=>r.map(i=>i.id).join()).join('|');
+        if(rows.filter(r=>r.length).map(r=>r.map(i=>i.id).join()).join('|')!==before)saveRows(rows);
       };
       const cancel=()=>{stop();suppressClick=Date.now()+450;};
       handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',cancel);
     });
   }
-  // Column count follows the screen width.
-  let resizeTimer,lastCols=0;
-  window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{
-    if(byId('memosPage').classList.contains('hidden')||document.activeElement?.closest?.('.memo-card input,.memo-card [contenteditable="true"]'))return;
-    if(columnCount()!==lastCols){lastCols=columnCount();render();}
-  },150);});
 
   // ---- Full view: large editor plus all attached photos ----
   viewTitle.addEventListener('input',()=>{if(!viewing)return;viewing.title=viewTitle.value;queueSave(viewing);});
