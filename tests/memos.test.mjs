@@ -9,7 +9,7 @@ import worker from '../src/worker.js';
 
 function database(){
  const sqlite=new DatabaseSync(':memory:');
- for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
+ for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql','0006_memo_color_line.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
  const statement=(sql,values=[])=>({bind(...v){return statement(sql,v);},async all(){return {results:sqlite.prepare(sql).all(...values)};},async first(){return sqlite.prepare(sql).get(...values)||null;},async run(){return sqlite.prepare(sql).run(...values.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v));}});
  return {sqlite,prepare:sql=>statement(sql),async batch(statements){sqlite.exec('BEGIN');try{const r=[];for(const s of statements)r.push(await s.run());sqlite.exec('COMMIT');return r;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 }
@@ -96,7 +96,7 @@ async function frontend(){
   if(q.action==='create'){const key='memo-'+(++id);rows.push({id:key,kind:'note',title:'',content:'',images:'[]',folder_id:q.folder_id||null});return response({id:key});}
   const item=rows.find(r=>r.id===q.id);
   if(q.action==='save')Object.assign(item,{title:q.title,content:q.content},q.images?{images:JSON.stringify(q.images)}:{});
-  if(q.action==='reorder'){const pos=new Map(q.ids.map((x,i)=>[x,i]));rows.sort((p,r)=>(pos.get(p.id)??1e9)-(pos.get(r.id)??1e9));}
+  if(q.action==='reorder'){const pos=new Map(q.ids.map((x,i)=>[x,i]));rows.sort((p,r)=>(pos.get(p.id)??1e9)-(pos.get(r.id)??1e9));if(q.breaks)for(const r of rows)if(q.ids.includes(r.id))r.line_break=q.breaks.includes(r.id)?1:0;}
   return response({ok:true});
  };
  Object.defineProperty(w.document.getElementById('memoBoard'),'clientWidth',{value:1000});
@@ -176,7 +176,7 @@ test('memos are a plain ordered list; clicking empty space (not a card or text) 
  assert.equal($('memoBoard').querySelectorAll('.memo-card').length,2);assert.equal(rows.length,2);
  dom.window.close();
 });
-test('dropping on a card edge reorders, on its middle makes a folder; arrow keys move one place',async()=>{
+test('dropping on a card edge reorders, on its middle makes a folder, below all cards starts a new row; arrow keys move one place',async()=>{
  const {dom,w,rows,calls,flush,$}=await frontend();
  rows.push(...['a','b','c'].map(id=>({id,kind:'note',title:id.toUpperCase(),content:'',folder_id:null})));
  await w.loadMemoBoard();
@@ -190,16 +190,19 @@ test('dropping on a card edge reorders, on its middle makes a folder; arrow keys
  assert.deepEqual(calls.filter(q=>q.action==='reorder').map(q=>q.ids),[['b','c','a']]);
  assert.deepEqual(cardsOf().map(c=>c.dataset.memoId),['b','c','a']);
  assert.ok(calls.every(q=>q.action==='reorder'),'an edge drop never groups');
- // Dropping on empty space changes nothing.
- calls.length=0;
+ // Dropping on empty space below every card moves the memo to the end, on a new row.
+ calls.length=0;cardsOf().forEach((card,i)=>card.getBoundingClientRect=()=>({left:i*260,top:0,right:i*260+240,bottom:254,width:240,height:254}));
  const h2=cardsOf()[0].querySelector('.memo-drag-handle');h2.setPointerCapture=()=>{};
  h2.dispatchEvent(new w.MouseEvent('pointerdown',{clientX:40,clientY:40,button:0}));
  h2.dispatchEvent(new w.MouseEvent('pointermove',{clientX:40,clientY:900,button:0}));
+ assert.ok($('memoBoard').classList.contains('memo-drop-newline'));
  h2.dispatchEvent(new w.MouseEvent('pointerup',{clientX:40,clientY:900,button:0}));await flush();
- assert.equal(calls.length,0);
- // Keyboard: ArrowRight on the first card moves it one place later.
+ assert.deepEqual(calls.map(q=>[q.action,q.ids,q.breaks]),[['reorder',['c','a','b'],['b']]]);
+ assert.ok(cardsOf()[2].classList.contains('memo-line-start'));
+ // Keyboard: ArrowRight on the first card moves it one place later; row starts are kept.
+ calls.length=0;
  cardsOf()[0].querySelector('.memo-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));await flush();
- assert.deepEqual(calls.filter(q=>q.action==='reorder').map(q=>q.ids),[['c','b','a']]);
+ assert.deepEqual(calls.map(q=>[q.ids,q.breaks]),[[['a','c','b'],['b']]]);
  // Middle of another card: asks for a folder name and groups.
  calls.length=0;cardsOf().forEach((card,i)=>card.getBoundingClientRect=()=>({left:i*260,top:0,right:i*260+240,bottom:254,width:240,height:254}));
  const h3=cardsOf()[0].querySelector('.memo-drag-handle');h3.setPointerCapture=()=>{};
@@ -207,7 +210,7 @@ test('dropping on a card edge reorders, on its middle makes a folder; arrow keys
  h3.dispatchEvent(new w.MouseEvent('pointermove',{clientX:380,clientY:40,button:0}));
  assert.ok(cardsOf()[1].classList.contains('memo-drop-target'));
  h3.dispatchEvent(new w.MouseEvent('pointerup',{clientX:380,clientY:40,button:0}));await flush();
- assert.deepEqual(calls.map(q=>[q.action,q.id,q.target,q.title]),[['group','c','b','폴더']]);
+ assert.deepEqual(calls.map(q=>[q.action,q.id,q.target,q.title]),[['group','a','c','폴더']]);
  dom.window.close();
 });
 test('all frontend scripts initialize for both public visitors and owners returning to memo tab',async()=>{

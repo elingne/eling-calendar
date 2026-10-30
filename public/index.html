@@ -118,7 +118,7 @@
       </section>
 
       <section id="memosPage" class="page-section hidden">
-        <div class="page-heading"><div><span class="section-label">MEMO</span><h1 class="page-title">메모</h1><p class="page-description">빈 곳을 누르거나 + 메모를 눌러 새 메모를 만들고, 카드에서 바로 쓰면 자동으로 저장돼요. '전체보기'로 크게 보고 사진을 첨부할 수 있어요. 손잡이(⠿)를 끌어 다른 메모의 좌우 가장자리에 놓으면 순서가 바뀌고, 가운데에 놓으면 폴더로 묶여요.</p></div></div>
+        <div class="page-heading"><div><span class="section-label">MEMO</span><h1 class="page-title">메모</h1><p class="page-description">빈 곳을 누르거나 + 메모를 눌러 새 메모를 만들고, 카드에서 바로 쓰면 자동으로 저장돼요. '전체보기'로 크게 보고 사진을 첨부할 수 있어요. 손잡이(⠿)를 끌어 다른 메모의 좌우 가장자리에 놓으면 순서가 바뀌고, 가운데에 놓으면 폴더로 묶여요. 아래쪽 빈 곳에 놓으면 새 줄에 붙어요.</p></div></div>
         <div class="memo-toolbar"><button id="memoBack" class="secondary-button hidden" type="button">← 전체 메모</button><h2 id="memoFolderTitle"></h2><button id="newMemoButton" class="primary-button" type="button">+ 메모</button><span id="memoStatus" role="status" aria-live="polite"></span></div>
         <div id="memoBoard" class="memo-board" aria-label="메모 보드"><span class="memo-empty-hint">빈 곳을 누르거나 + 메모를 눌러 첫 메모를 남겨보세요</span></div>
       </section>
@@ -232,6 +232,11 @@
   <div id="memoModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="메모 전체보기">
     <div class="memo-modal">
       <div class="memo-view-header"><input id="memoTitle" type="text" maxlength="120" placeholder="제목" aria-label="메모 제목"><button id="memoClose" class="close-button" type="button" aria-label="전체보기 닫기">×</button></div>
+      <div class="memo-view-options">
+        <span class="memo-color-label">메모지 색</span>
+        <span class="memo-colors" role="group" aria-label="메모지 색"><button type="button" data-memo-color=""></button><button type="button" data-memo-color="red"></button><button type="button" data-memo-color="orange"></button><button type="button" data-memo-color="yellow"></button><button type="button" data-memo-color="green"></button><button type="button" data-memo-color="blue"></button></span>
+        <label class="memo-line-option"><input id="memoLineBreak" type="checkbox"> 새 줄에서 시작</label>
+      </div>
       <div id="memoEditor" class="memo-editor" contenteditable="true" role="textbox" aria-label="메모 내용" aria-multiline="true" data-placeholder="내용을 입력하세요"></div>
       <section class="memo-gallery-section" aria-label="첨부한 사진">
         <div class="memo-gallery-head"><h3>첨부한 사진 <span id="memoImageCount"></span></h3><button id="memoPhotoButton" type="button" class="secondary-button">사진 추가</button><input id="memoPhotoInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden></div>

@@ -1,6 +1,7 @@
 const json = (data, status=200) => Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 const fail = message => Object.assign(new Error(message),{status:400});
 const validId = id => typeof id==='string' && /^[a-zA-Z0-9-]{1,80}$/.test(id);
+const COLORS = ['','red','orange','yellow','green','blue'];
 // A photo is uploaded as soon as it is inserted in the editor but only becomes part of a memo when the
 // memo is saved. Photos that no memo refers to are removed once they are older than this grace period,
 // so a photo in an editor that is still open (not yet saved) is never deleted.
@@ -67,7 +68,12 @@ export async function memos(request, env, path) {
     if(!Array.isArray(q.ids)||q.ids.length>2000||!q.ids.every(validId))throw fail('Invalid order');
     const current=(await db.prepare("SELECT id FROM memo_items WHERE COALESCE(folder_id,'')=?").bind(folder||'').all()).results.map(r=>r.id);
     if(new Set(q.ids).size!==q.ids.length||q.ids.length!==current.length||!current.every(id=>q.ids.includes(id)))throw fail('메모 목록이 바뀌었어요. 새로고침한 뒤 다시 시도해주세요.');
-    await db.batch(q.ids.map((id,index)=>db.prepare('UPDATE memo_items SET sort_order=? WHERE id=?').bind(index+1,id)));
+    // Optional: the memos in this list that start a new row on the board.
+    if(q.breaks!==undefined&&(!Array.isArray(q.breaks)||!q.breaks.every(id=>q.ids.includes(id))))throw fail('Invalid order');
+    const breaks=new Set(q.breaks||[]);
+    await db.batch(q.ids.map((id,index)=>q.breaks===undefined
+      ? db.prepare('UPDATE memo_items SET sort_order=? WHERE id=?').bind(index+1,id)
+      : db.prepare('UPDATE memo_items SET sort_order=?,line_break=? WHERE id=?').bind(index+1,breaks.has(id)?1:0,id)));
     return json({ok:true});
   }
   const item=await get(q.id);
@@ -80,6 +86,15 @@ export async function memos(request, env, path) {
       // Attached photos: up to 60 distinct photo ids.
       if(!Array.isArray(q.images)||q.images.length>60||!q.images.every(validId)||new Set(q.images).size!==q.images.length)throw fail('첨부한 사진 목록이 올바르지 않아요.');
       await db.prepare('UPDATE memo_items SET title=?,content=?,images=?,updated_at=? WHERE id=?').bind(q.title,q.content,JSON.stringify(q.images),now,item.id).run();
+    }
+    // Optional paper colour and "start a new row" flag.
+    if(q.color!==undefined) {
+      if(!COLORS.includes(q.color))throw fail('메모지 색이 올바르지 않아요.');
+      await db.prepare('UPDATE memo_items SET color=? WHERE id=?').bind(q.color,item.id).run();
+    }
+    if(q.line_break!==undefined) {
+      if(typeof q.line_break!=='boolean')throw fail('Invalid line');
+      await db.prepare('UPDATE memo_items SET line_break=? WHERE id=?').bind(q.line_break?1:0,item.id).run();
     }
   } else if(q.action==='group') {
     // Dropping a note on another note makes a named folder holding both; dropping it on a folder adds it.

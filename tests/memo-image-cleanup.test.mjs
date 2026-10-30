@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {memos} from '../src/memos.js';
 
 const migration=name=>fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8');
-const allMigrations=['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql'];
+const allMigrations=['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql','0006_memo_color_line.sql'];
 function database(names=allMigrations,{failImageDelete=false}={}) {
   const sqlite=new DatabaseSync(':memory:');
   for(const name of names)sqlite.exec(migration(name));
@@ -86,6 +86,7 @@ test('migration 0003 keeps existing photos and gives them a timestamp (so they a
   db.sqlite.exec(migration('0003_memo_image_cleanup.sql'));
   db.sqlite.exec(migration('0004_memo_order.sql'));
   db.sqlite.exec(migration('0005_memo_attachments.sql'));
+  db.sqlite.exec(migration('0006_memo_color_line.sql'));
   const row=db.sqlite.prepare('SELECT id,length(bytes) n,created_at FROM memo_images').get();
   assert.equal(row.id,'legacy-1');assert.equal(row.n,png.length);
   assert.ok(Date.parse(row.created_at)>Date.now()-60e3,'legacy photo should get a fresh timestamp');
@@ -113,5 +114,24 @@ test('photos attached to a memo (not in its text) are kept; removing them from t
   assert.deepEqual(JSON.parse(db.sqlite.prepare('SELECT images FROM memo_items WHERE id=?').get(a).images),[kept]);
   for(const bad of [['../x'],[kept,kept],'x',Array(61).fill(0).map((_,i)=>'id'+i)])
     await assert.rejects(call(env,{action:'save',id:a,title:'t',content:'c',images:bad}));
+  db.sqlite.close();
+});
+
+test('memo colour and "start a new row" are saved and validated; reorder can set row starts',async()=>{
+  const db=database(),env={DB:db};
+  const a=(await call(env,{action:'create'})).id,b=(await call(env,{action:'create'})).id;
+  await call(env,{action:'save',id:a,title:'a',content:'',images:[],color:'green',line_break:true});
+  let row=db.sqlite.prepare('SELECT color,line_break FROM memo_items WHERE id=?').get(a);
+  assert.equal(row.color,'green');assert.equal(row.line_break,1);
+  await call(env,{action:'save',id:a,title:'a2',content:''});           // fields left out stay as they are
+  row=db.sqlite.prepare('SELECT title,color,line_break FROM memo_items WHERE id=?').get(a);
+  assert.deepEqual({...row},{title:'a2',color:'green',line_break:1});
+  for(const bad of [{color:'black'},{color:5},{line_break:'yes'}])
+    await assert.rejects(call(env,{action:'save',id:a,title:'t',content:'',...bad}));
+  await call(env,{action:'reorder',folder_id:null,ids:[b,a],breaks:[b]});
+  assert.deepEqual(db.sqlite.prepare('SELECT id,line_break FROM memo_items ORDER BY sort_order').all().map(r=>[r.id,r.line_break]),[[b,1],[a,0]]);
+  await call(env,{action:'reorder',folder_id:null,ids:[a,b]});          // without breaks the flags stay
+  assert.deepEqual(db.sqlite.prepare('SELECT id,line_break FROM memo_items ORDER BY sort_order').all().map(r=>[r.id,r.line_break]),[[a,0],[b,1]]);
+  await assert.rejects(call(env,{action:'reorder',folder_id:null,ids:[a,b],breaks:['other']}));
   db.sqlite.close();
 });

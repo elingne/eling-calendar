@@ -8,7 +8,7 @@ import {memos} from '../src/memos.js';
 // This mock mimics D1 so the image route is checked against the real driver behavior.
 function d1Like() {
   const sqlite=new DatabaseSync(':memory:');
-  for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
+  for(const name of ['0001_calendar.sql','0002_memos.sql','0003_memo_image_cleanup.sql','0004_memo_order.sql','0005_memo_attachments.sql','0006_memo_color_line.sql'])sqlite.exec(fs.readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
   const toD1=row=>row&&Object.fromEntries(Object.entries(row).map(([key,value])=>[key,value instanceof Uint8Array?Array.from(value):value]));
   const statement=(sql,values=[])=>({
     bind(...v){return statement(sql,v);},
