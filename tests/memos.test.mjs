@@ -161,6 +161,26 @@ test('completed list input adds a completed item immediately and blocks double s
  form.dispatchEvent(new w.Event('submit',{cancelable:true}));form.dispatchEvent(new w.Event('submit',{cancelable:true}));await new Promise(r=>setTimeout(r,20));
  assert.equal(calls.length,1);assert.equal(calls[0].values.is_completed,true);assert.ok(Date.parse(calls[0].values.completed_at));assert.equal(input.value,'');dom.window.close();
 });
+test('× deletes a memo at once with a short undo; a just-written memo can be dragged without reloading',async()=>{
+ const {dom,w,rows,calls,flush,leave,$}=await frontend();
+ w.confirm=()=>{throw Error('no confirmation expected');};
+ rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null},{id:'b',kind:'note',title:'B',content:'',folder_id:null});
+ await w.loadMemoBoard();
+ $('memoBoard').querySelector('[data-memo-id="a"] .memo-delete-button').click();await flush();
+ assert.equal($('memoBoard').querySelector('[data-memo-id="a"]'),null,'gone from the board at once');
+ assert.equal(calls.filter(q=>q.action==='delete').length,0,'not deleted on the server yet');
+ $('memoStatus').querySelector('.memo-undo-button').click();await flush();
+ assert.ok($('memoBoard').querySelector('[data-memo-id="a"]'),'undo brings it back');
+ $('memoBoard').querySelector('[data-memo-id="a"] .memo-delete-button').click();await flush();
+ await w.loadMemoBoard();   // anything that reloads the board commits the pending delete first
+ assert.deepEqual(calls.filter(q=>q.action==='delete').map(q=>q.id),['a']);
+ $('newMemoButton').click();await flush();
+ const body=$('memoBoard').querySelector('.memo-card[data-draft] .memo-body');
+ body.textContent='새 글';body.dispatchEvent(new w.Event('input',{bubbles:true}));leave(body);await flush();
+ const card=$('memoBoard').querySelector('.memo-card:last-child');
+ assert.ok(card.dataset.memoId);assert.equal(card.querySelector('.memo-drag-handle').disabled,false);
+ dom.window.close();
+});
 test('memos are a plain ordered list; clicking empty space (not a card or text) starts a new memo',async()=>{
  const {dom,w,rows,flush,leave,$}=await frontend();
  rows.push({id:'a',kind:'note',title:'A',content:'',folder_id:null,x:900,y:900},{id:'b',kind:'note',title:'B',content:'',folder_id:null,x:5,y:5});

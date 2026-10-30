@@ -69,8 +69,11 @@
         if(!item.id){
           if(isEmpty(item)){status('');return;}            // an empty new memo is never stored
           item.id=(await api({action:'create',folder_id:item.folder_id}))?.id;
-          board.querySelector('.memo-card[data-draft]')?.setAttribute('data-memo-id',item.id);
-          board.querySelector(`.memo-card[data-memo-id="${item.id}"]`)?.removeAttribute('data-draft');
+          const card=board.querySelector('.memo-card[data-draft]');
+          if(card){
+            card.dataset.memoId=item.id;card.removeAttribute('data-draft');
+            const handle=card.querySelector('.memo-drag-handle');handle.disabled=false;enableReorder(handle,card,item);
+          }
         }
         item.content=cleanHTML(item.content);   // text only; photos live in the attachment list
         await api({action:'save',id:item.id,title:item.title,content:item.content,images:item.imageList,color:item.color||'',line_break:!!item.line_break});
@@ -81,7 +84,37 @@
     })();
     return item.saving;
   }
-  const flushAll=()=>Promise.all([...timers.keys()].map(saveNow).concat(items.filter(i=>i.saving).map(i=>i.saving)));
+  const flushAll=()=>Promise.all([...timers.keys()].map(saveNow).concat(items.filter(i=>i.saving).map(i=>i.saving),[...pendingDeletes].map(commitDelete)));
+  // Deleting is immediate on screen; the memo is removed from the database a few seconds later so the
+  // last deletion can be undone. Anything that changes the board on the server commits it first.
+  const pendingDeletes=new Set();
+  function deleteMemo(item){
+    clearTimeout(timers.get(item));timers.delete(item);
+    const index=items.indexOf(item);if(index<0)return;
+    items.splice(index,1);
+    if(viewing===item){viewing=null;modal.classList.add('hidden');document.body.classList.remove('memo-editing');hideLarge();}
+    render();
+    if(!item.id&&!item.saving){status('');return;}                  // a draft was never stored
+    const entry={item,index,timer:setTimeout(()=>commitDelete(entry),6000)};
+    pendingDeletes.add(entry);
+    const box=byId('memoStatus');box.textContent='메모를 삭제했어요. ';
+    const undo=document.createElement('button');undo.type='button';undo.className='memo-undo-button';undo.textContent='되돌리기';
+    undo.addEventListener('click',event=>{
+      event.stopPropagation();if(!pendingDeletes.has(entry))return;
+      clearTimeout(entry.timer);pendingDeletes.delete(entry);
+      items.splice(Math.min(entry.index,items.length),0,item);render();status('삭제를 되돌렸어요.');
+    });
+    box.appendChild(undo);
+  }
+  async function commitDelete(entry){
+    if(!pendingDeletes.has(entry))return;
+    pendingDeletes.delete(entry);clearTimeout(entry.timer);
+    try{
+      await entry.item.saving;                                       // a first save may still be creating it
+      if(entry.item.id)await api({action:'delete',id:entry.item.id});
+      if(byId('memoStatus').querySelector('.memo-undo-button')&&!pendingDeletes.size)status('');
+    }catch(error){status(error.message);}
+  }
   function setItems(rows){
     items=rows.map(row=>({...row,title:row.title||'',content:row.content||'',color:COLORS.includes(row.color)?row.color:'',line_break:!!row.line_break,imageList:row.kind==='note'?imagesOf(row):[]}));
   }
@@ -137,8 +170,9 @@
     const title=document.createElement('input');title.type='text';title.className='memo-card-title-input';title.maxLength=120;title.placeholder='제목';title.value=item.title;title.setAttribute('aria-label','메모 제목');
     title.addEventListener('input',()=>{item.title=title.value;queueSave(item);});
     title.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();body.focus();}});
-    const open=button('전체보기',()=>openView(item),'memo-open-button');open.title='크게 보기 · 첨부한 사진 보기';
-    header.append(handle,title,open);
+    const open=button('⤢',()=>openView(item),'memo-icon-button memo-open-button');open.title='전체보기 · 첨부한 사진 보기';open.setAttribute('aria-label','전체보기');
+    const remove=button('×',()=>deleteMemo(item),'memo-icon-button memo-delete-button');remove.title='메모 삭제';remove.setAttribute('aria-label','메모 삭제');
+    header.append(handle,title,open,remove);
     const body=document.createElement('div');body.className='memo-body';body.setAttribute('contenteditable','true');
     body.setAttribute('role','textbox');body.setAttribute('aria-multiline','true');body.setAttribute('aria-label','메모 내용');body.dataset.placeholder='내용을 입력하세요';
     body.appendChild(safeContent(item.content));
@@ -332,7 +366,6 @@
       open.appendChild(img);open.addEventListener('click',()=>showLarge(img.src));
       const remove=document.createElement('button');remove.type='button';remove.className='memo-gallery-remove';remove.textContent='×';remove.setAttribute('aria-label','이 사진 빼기');
       remove.addEventListener('click',()=>{
-        if(!window.confirm('이 사진을 메모에서 뺄까요?'))return;
         item.imageList=item.imageList.filter(x=>x!==id);renderGallery();saveNow(item);
         (gallery.querySelector('.memo-gallery-open')||byId('memoPhotoButton')).focus();
       });
@@ -375,17 +408,7 @@
     event.stopPropagation();event.preventDefault();
     if(!lightbox.classList.contains('hidden'))hideLarge();else closeView();
   },true);
-  byId('memoDelete').addEventListener('click',async()=>{
-    const item=viewing;if(!item||busy||uploading)return;
-    if(item.id&&!window.confirm('이 메모를 삭제할까요?'))return;
-    busy=true;
-    try{
-      clearTimeout(timers.get(item));timers.delete(item);
-      if(item.id)await api({action:'delete',id:item.id});
-      items=items.filter(i=>i!==item);viewing=null;
-      modal.classList.add('hidden');document.body.classList.remove('memo-editing');render();status('메모를 삭제했어요.');
-    }catch(error){status(error.message);}finally{busy=false;}
-  });
+  byId('memoDelete').addEventListener('click',()=>{if(viewing&&!busy&&!uploading)deleteMemo(viewing);});
 
   // ---- Attaching photos ----
   async function prepareImage(file){
@@ -426,7 +449,7 @@
   // Save anything pending when the tab is hidden or closed.
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushAll();});
   window.addEventListener('beforeunload',event=>{
-    if(uploading||timers.size||items.some(i=>i.saving)){flushAll();event.preventDefault();event.returnValue='';}
+    if(uploading||timers.size||pendingDeletes.size||items.some(i=>i.saving)){flushAll();event.preventDefault();event.returnValue='';}
   });
   if(isOwner&&!byId('memosPage').classList.contains('hidden'))window.loadMemoBoard();
 })();

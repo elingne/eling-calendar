@@ -2450,3 +2450,12 @@ body.memo-editing {overflow:hidden}
 .memo-colors button[aria-pressed=true] {box-shadow:0 0 0 2px #fff,0 0 0 4px #c9819f}
 .memo-line-option {display:inline-flex;align-items:center;gap:5px;margin-left:auto;cursor:pointer}
 @media (pointer:coarse){ .memo-colors button {width:32px;height:32px} }
+
+/* ---- Card icon buttons ---- */
+.memo-icon-button {flex-shrink:0;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:transparent;color:#a3899a;font-size:16px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.memo-icon-button:hover {background:#0000000d;color:#6f4d5e}
+.memo-delete-button {font-size:20px}
+.memo-delete-button:hover {color:#c0476f}
+.memo-card .memo-open-button {border:0;padding:0;font-size:15px}
+.memo-undo-button {border:0;background:none;color:#b0517a;font-weight:650;text-decoration:underline;cursor:pointer;font-size:13px;padding:0 2px}
+@media (pointer:coarse){ .memo-icon-button {width:36px;height:36px} }
