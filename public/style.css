@@ -2757,3 +2757,11 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 /* Drop cues for moving memos (the refreshed card shadow used !important and hid them). */
 .memo-card.memo-drop-before { box-shadow: -8px 0 0 -1px #de91af, 0 4px 14px rgba(120,80,100,.08) !important; }
 .memo-card.memo-drop-after { box-shadow: 8px 0 0 -1px #de91af, 0 4px 14px rgba(120,80,100,.08) !important; }
+
+/* Floating bold button shown over selected memo text */
+.memo-format-bar { position: fixed; z-index: 900; display: flex; gap: 2px; padding: 4px; background: #fff; border: 1px solid #ecd3de; border-radius: 10px; box-shadow: 0 6px 18px rgba(120,80,100,.18); }
+.memo-format-bar.hidden { display: none; }
+.memo-format-bold { width: 32px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #6b4a5a; font-size: 15px; font-weight: 800; cursor: pointer; }
+.memo-format-bold:hover { background: #fdeef3; }
+.memo-format-bold.active { background: #f9d3e0; color: #8a3d5c; }
+.memo-body b, .memo-body strong, .memo-editor b, .memo-editor strong { font-weight: 800; }

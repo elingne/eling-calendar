@@ -140,6 +140,35 @@
     const s=window.getSelection();if(!s.rangeCount)return;
     const r=s.getRangeAt(0);r.deleteContents();const node=document.createTextNode(text);r.insertNode(node);r.setStartAfter(node);r.collapse(true);s.removeAllRanges();s.addRange(r);
   }
+  // Select text in a memo -> a small floating "B" button makes it bold (click again to undo).
+  let boldBar=null,boldEditor=null;
+  function hideBoldBar(){if(boldBar)boldBar.classList.add('hidden');boldEditor=null;}
+  function updateBoldBar(){
+    const sel=window.getSelection?.();
+    const editor=sel&&sel.rangeCount&&!sel.isCollapsed?(sel.anchorNode?.nodeType===1?sel.anchorNode:sel.anchorNode?.parentElement)?.closest?.('.memo-body,#memoEditor'):null;
+    if(!editor||!editor.contains(sel.focusNode)||!String(sel).trim()){hideBoldBar();return;}
+    if(!boldBar){
+      boldBar=document.createElement('div');boldBar.className='memo-format-bar hidden';
+      const btn=document.createElement('button');btn.type='button';btn.className='memo-format-bold';btn.textContent='B';btn.title='진하게';btn.setAttribute('aria-label','선택한 글자 진하게');
+      btn.addEventListener('mousedown',e=>e.preventDefault());   // keep the selection
+      btn.addEventListener('click',()=>{
+        const ed=boldEditor;if(!ed)return;
+        document.execCommand('bold');
+        ed.dispatchEvent(new Event('input',{bubbles:true}));      // saves like normal typing
+        updateBoldBar();
+      });
+      boldBar.appendChild(btn);document.body.appendChild(boldBar);
+    }
+    boldEditor=editor;
+    const rect=sel.getRangeAt(0).getBoundingClientRect();
+    boldBar.classList.remove('hidden');
+    const w=boldBar.offsetWidth||36;
+    boldBar.style.left=Math.max(8,Math.min(window.innerWidth-w-8,rect.left+rect.width/2-w/2))+'px';
+    boldBar.style.top=Math.max(8,rect.top-42)+'px';
+    boldBar.firstChild.classList.toggle('active',!!document.queryCommandState?.('bold'));
+  }
+  document.addEventListener('selectionchange',()=>{if(window.requestAnimationFrame)window.requestAnimationFrame(updateBoldBar);else updateBoldBar();});
+  window.addEventListener('scroll',hideBoldBar,{passive:true,capture:true});
   // Text editing shared by the card body and the full view.
   // getItem() names the memo the editor belongs to (the card's memo, or the one open in full view).
   function wireTextEditor(el,getItem){
