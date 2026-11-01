@@ -328,7 +328,7 @@
         if(el){
           const b=el.getBoundingClientRect(),ratio=(e.clientX-b.left)/b.width;
           // Left/right edge = just before/after that memo in its row; the middle = make a folder.
-          const zone=ratio<.28?'before':ratio>.72?'after':item.kind==='note'?'group':(ratio<.5?'before':'after');
+          const zone=ratio<.4?'before':ratio>.6?'after':item.kind==='note'?'group':(ratio<.5?'before':'after');
           hit={el,zone};el.classList.add(zone==='group'?'memo-drop-target':'memo-drop-'+zone);
           return;
         }

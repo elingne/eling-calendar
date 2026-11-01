@@ -2753,3 +2753,7 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .memo-small-button:not(.memo-photo-count):hover { background: #fff; }
 .memo-toolbar { margin-bottom: 14px; }
 @media (max-width: 700px) { .memo-card { height: 320px; } .memo-card.memo-folder { height: 210px; } }
+
+/* Drop cues for moving memos (the refreshed card shadow used !important and hid them). */
+.memo-card.memo-drop-before { box-shadow: -8px 0 0 -1px #de91af, 0 4px 14px rgba(120,80,100,.08) !important; }
+.memo-card.memo-drop-after { box-shadow: 8px 0 0 -1px #de91af, 0 4px 14px rgba(120,80,100,.08) !important; }
