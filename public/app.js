@@ -93,6 +93,10 @@ async function checkSession() {
     document.body.classList.toggle('read-only', !isOwner);
     document.querySelectorAll('[data-page="schedule"], [data-page="memos"], #searchButton, .quick-todo-card').forEach(el => el.classList.toggle('hidden', !isOwner));
     logoutButton.textContent = isOwner ? '로그아웃' : '관리자 로그인';
+    const calendarTip = $("calendarTip");
+    if (calendarTip) calendarTip.textContent = isOwner
+      ? "날짜 클릭: 하루 기록 · 더블클릭: 일정 추가 · 끌기: 기간 일정 · 일정 끌기: 이동 (Alt: 복사)"
+      : "일정을 누르면 내용을 확인할 수 있어요. 관리자 로그인 후 편집할 수 있어요.";
     await showPage(isOwner ? savedPage() : 'calendar');
   } catch (error) { console.error('Calendar initialization failed', error); document.getElementById('connectionMessage').textContent = '서버에 연결하지 못했어요. 잠시 후 새로고침해주세요.'; }
 }
@@ -127,6 +131,7 @@ async function showPage(page) {
   schedulePage.classList.toggle("hidden", page !== "schedule");
   $("memosPage").classList.toggle("hidden", page !== "memos");
   $("scheduleTopButton").classList.toggle("hidden", page !== "schedule");
+  $("scheduleTopButton").classList.remove("is-visible");
 
 
   navButtons.forEach((button) =>
@@ -458,7 +463,7 @@ function enableCalendarTouchRange(cell) {
 
   cell.addEventListener("touchstart", event => {
     if (!event.touches?.length) return;
-    if (event.target.closest(".calendar-event-chip")) return;
+    if (event.target.closest(".calendar-event-chip, .calendar-more")) return;
 
     const touch = event.touches[0];
     startX = lastX = touch.clientX;
@@ -612,7 +617,7 @@ function createDayCell(date, otherMonth) {
 
   cell.addEventListener("mousedown", (event) => {
     if (!isOwner || event.button !== 0) return;
-    if (event.target.closest(".calendar-event-chip")) return;
+    if (event.target.closest(".calendar-event-chip, .calendar-more")) return;
 
     dragStartDate = cell.dataset.date;
     dragCurrentDate = cell.dataset.date;
@@ -756,7 +761,7 @@ async function loadCalendarExtras() {
   const periods = periodsResult.data || [];
 
   if (visibleCells[0] !== calendarGrid.firstElementChild) return;
-  visibleCells.forEach((cell) => {
+  visibleCells.forEach((cell, cellIndex) => {
     const key = cell.dataset.date;
 
     const badgeWrap = document.createElement("div");
@@ -841,15 +846,16 @@ async function loadCalendarExtras() {
 
     // V32: 캘린더에서 바꾼 순서가 실제 표시 순서의 최우선 기준이 된다.
     // 시작일이 서로 다른 다일 일정끼리도 현재 날짜 칸에서 자유롭게 순서를 바꿀 수 있다.
-    const cellEvents = [...events]
+    const sortedCellEvents = [...events]
       .filter(event => event.start_date <= key && event.end_date >= key)
       .sort((a, b) =>
         (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
         a.start_date.localeCompare(b.start_date) ||
         b.end_date.localeCompare(a.end_date) ||
         a.id - b.id
-      )
-      .slice(0, 3);
+      );
+    // 한 칸에는 3개까지만 칩으로 보여주고, 나머지는 '+N개 더' 버튼으로 모두 볼 수 있게 한다.
+    const cellEvents = sortedCellEvents.slice(0, 3);
 
     cellEvents.forEach((event, rowIndex) => {
       const chip = document.createElement("button");
@@ -864,7 +870,8 @@ async function loadCalendarExtras() {
       if (continuesLeft) chip.classList.add("event-continues-left");
       if (continuesRight) chip.classList.add("event-continues-right");
 
-      chip.textContent = continuesLeft ? "" : event.title;
+      // 여러 날 일정은 첫 날과, 줄이 바뀌는 일요일 칸에서 제목을 다시 보여준다.
+      chip.textContent = continuesLeft && cellIndex % 7 !== 0 ? "" : event.title;
       chip.title = event.title;
 
       chip.addEventListener("click", clickEvent => {
@@ -908,6 +915,20 @@ async function loadCalendarExtras() {
       eventBox.appendChild(chip);
     });
 
+    const hiddenCount = sortedCellEvents.length - cellEvents.length;
+    if (hiddenCount > 0) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "calendar-more";
+      more.textContent = `+${hiddenCount}개 더`;
+      more.title = "이 날의 일정 모두 보기";
+      more.addEventListener("click", clickEvent => {
+        clickEvent.stopPropagation();
+        openDayEventsPopover(more, key, sortedCellEvents);
+      });
+      eventBox.appendChild(more);
+    }
+
   });
 }
 
@@ -935,7 +956,8 @@ async function openDayPanel(date) {
   }
 
   selectedRecordDate = key;
-  setTodoAccordion(false);
+  // 이 패널의 핵심 내용이라 열 때마다 한 번 더 누르지 않아도 바로 보이게 펼쳐 둔다.
+  setTodoAccordion(true);
 
   if (todoAccordionLabel) {
     todoAccordionLabel.textContent = `${date.getMonth() + 1}월 ${date.getDate()}일에 완료한 일`;
@@ -2517,6 +2539,8 @@ function renderScheduleEvent(event, todayKey, group) {
   row.dataset.kind = "event";
   row.dataset.id = event.id;
   row.dataset.sortOrder = event.sort_order;
+  // 캘린더에서 쓰는 표시색을 일정 목록에서도 알아볼 수 있게 한다.
+  row.dataset.color = event.color_variant === "pink" ? "pink" : "blue";
 
   if (event.is_completed || event.end_date < todayKey) {
     row.classList.add("schedule-item-past");
@@ -2880,6 +2904,105 @@ window.setInterval(refreshQuickTodoOnDateChange, 60 * 1000);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refreshQuickTodoOnDateChange();
 });
+
+/* UI HELPERS */
+// '오늘' 버튼: 다른 달을 보다가 현재 달로 한 번에 돌아온다.
+$("todayMonth").addEventListener("click", () => {
+  currentDate = new Date();
+  renderCalendar();
+});
+
+// 한 칸에 일정이 많을 때 모두 보여주는 작은 목록.
+let dayEventsPopover = null;
+
+function closeDayEventsPopover() {
+  if (dayEventsPopover) dayEventsPopover.remove();
+  dayEventsPopover = null;
+}
+
+function openDayEventsPopover(anchor, key, list) {
+  closeDayEventsPopover();
+
+  const popover = document.createElement("div");
+  popover.className = "day-events-popover";
+  popover.setAttribute("role", "dialog");
+  popover.setAttribute("aria-label", `${niceDate(key)} 일정`);
+
+  const head = document.createElement("div");
+  head.className = "day-events-popover-head";
+  head.textContent = `${niceDate(key)} 일정 ${list.length}개`;
+  popover.appendChild(head);
+
+  list.forEach(item => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `day-events-popover-item event-color-${item.color_variant === "pink" ? "pink" : "blue"}`;
+    const dot = document.createElement("i");
+    dot.className = "day-events-popover-dot";
+    const label = document.createElement("span");
+    label.textContent = item.title;
+    button.append(dot, label);
+    button.addEventListener("click", () => {
+      closeDayEventsPopover();
+      openEventModal(item, true);
+    });
+    popover.appendChild(button);
+  });
+
+  document.body.appendChild(popover);
+
+  const rect = anchor.getBoundingClientRect();
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - popover.offsetWidth - 8));
+  const below = rect.bottom + 6;
+  const top = below + popover.offsetHeight > window.innerHeight - 8
+    ? Math.max(8, rect.top - popover.offsetHeight - 6)
+    : below;
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
+
+  dayEventsPopover = popover;
+  popover.querySelector("button")?.focus();
+}
+
+document.addEventListener("click", event => {
+  if (dayEventsPopover && !dayEventsPopover.contains(event.target)) closeDayEventsPopover();
+});
+window.addEventListener("scroll", closeDayEventsPopover, { passive: true });
+
+// Esc로 가장 위에 열려 있는 창부터 닫는다.
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+
+  if (dayEventsPopover) {
+    closeDayEventsPopover();
+    return;
+  }
+  if (!eventModal.classList.contains("hidden")) {
+    closeEventModal();
+    return;
+  }
+  if (!searchModal.classList.contains("hidden")) {
+    searchModal.classList.add("hidden");
+    return;
+  }
+  // 입력 중에 누른 Esc는 입력칸 자체의 취소 동작에 맡긴다.
+  const typing = event.target?.closest?.("input, textarea, [contenteditable='true']");
+  if (!typing && dayPanel.classList.contains("open")) closeDayPanel();
+});
+
+// 일정 편집창 바깥을 눌러 닫기. 글자를 드래그해 선택하다 바깥에서 놓은 경우에는 닫지 않는다.
+let eventModalPressedOnBackdrop = false;
+eventModal.addEventListener("mousedown", event => {
+  eventModalPressedOnBackdrop = event.target === eventModal;
+});
+eventModal.addEventListener("click", event => {
+  if (event.target === eventModal && eventModalPressedOnBackdrop) closeEventModal();
+});
+
+// 일정 화면의 '맨 위로' 버튼은 아래로 내려왔을 때만 보인다.
+window.addEventListener("scroll", () => {
+  $("scheduleTopButton").classList.toggle("is-visible", window.scrollY > 480);
+}, { passive: true });
 
 /* START */
 // 리스너를 먼저 등록한다: checkSession()이 시작하자마자 나는 오류도 놓치지 않도록.

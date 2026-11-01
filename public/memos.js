@@ -282,7 +282,7 @@
   // Clicking any empty part of the memo tab (not a card, button, field or text) adds a memo.
   byId('memosPage').addEventListener('click',event=>{
     if(Date.now()<suppressClick||busy)return;
-    if(event.target.closest('.memo-card,button,a,input,textarea,select,label,[contenteditable="true"],h1,h2,p,.section-label,#memoStatus'))return;
+    if(event.target.closest('.memo-card,button,a,input,textarea,select,label,[contenteditable="true"],h1,h2,p,summary,details,.section-label,#memoStatus'))return;
     if(String(window.getSelection?.()||''))return;
     // Empty space in a row: the new memo goes at the end of that row. Below the last row: a new row.
     const row=event.target.closest('.memo-row,.memo-row-new');
