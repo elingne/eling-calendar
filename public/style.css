@@ -2479,12 +2479,14 @@ body.memo-editing {overflow:hidden}
    Desktop-only tweaks live in (min-width:701px) so the phone layout above is untouched.
    ===================================================================== */
 :root {
-  --accent: #be4f77;              /* solid actions (white text passes AA) */
-  --accent-dark: #a8446b;
-  --chip-blue-bg: #e3f2fb;
-  --chip-blue-ink: #2f6f93;
-  --chip-pink-bg: #ffe9f0;
-  --chip-pink-ink: #a2456a;
+  --accent: #cf7b9b;              /* soft pastel rose for labels / borders */
+  --accent-dark: #f2aac2;
+  --accent-soft: #f9d3e0;         /* pastel fill for solid actions */
+  --accent-ink: #8a3d5c;          /* text on pastel fills */
+  --chip-blue-bg: #e6f3fb;
+  --chip-blue-ink: #4b7f9f;
+  --chip-pink-bg: #ffeef3;
+  --chip-pink-ink: #b0587a;
 }
 
 /* Keyboard focus was invisible on buttons; give every control a clear ring. */
@@ -2531,7 +2533,7 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 }
 
 /* Today stands out clearly (white on the old pastel pink was too faint). */
-.calendar-day.today .day-number { background: var(--accent) !important; color: #fff !important; font-weight: 700; }
+.calendar-day.today .day-number { background: var(--accent-soft) !important; color: var(--accent-ink) !important; font-weight: 700; }
 
 /* Event chips: stronger text contrast; the seam on multi-day events now uses the chip's own colour
    (pink events used to show light-blue notches at every column border). */
@@ -2578,25 +2580,27 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .day-events-popover-dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 3px; background: #9ccbe4; }
 .day-events-popover-item.event-color-pink .day-events-popover-dot { background: #f2a3bd; }
 
-/* ---- Quick todo card: one calm card with a divider instead of boxes inside boxes ---- */
-.quick-todo-card { padding: 18px 20px !important; }
-.quick-todo-layout { display: grid !important; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr) !important; gap: 0 !important; align-items: start; }
-.quick-current, .quick-history {
-  min-height: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important;
+/* ---- Left sidebar: todos on top, completed (light grey) below ---- */
+.calendar-desktop-layout { display: flex !important; flex-direction: row; align-items: flex-start; gap: 16px; }
+.calendar-desktop-layout > .calendar-card { flex: 1 1 0; min-width: 0; width: auto; }
+.quick-todo-card {
+  flex: 0 0 300px; width: 300px; padding: 16px !important; margin: 0 !important;
+  position: sticky; top: 72px; max-height: calc(100vh - 88px); overflow-y: auto;
 }
-.quick-current { padding-right: 24px !important; }
-.quick-history { padding-left: 24px !important; border-left: 1px solid var(--line-soft) !important; }
+.quick-todo-layout { display: flex !important; flex-direction: column; gap: 14px !important; }
+.quick-current, .quick-history { min-height: 0 !important; width: 100%; box-sizing: border-box; }
+.quick-current { padding: 0 !important; border: 0 !important; background: transparent !important; }
 .quick-column-header { display: flex; align-items: baseline; gap: 8px; margin: 0 0 12px !important; }
 .quick-column-header h2 { margin: 0; font-size: 15px !important; }
 .quick-history-header.quick-column-header { justify-content: flex-start; }
 .quick-input-row { max-width: none; gap: 8px; align-items: stretch; }
-.quick-input-row input { min-height: 40px !important; }
+.quick-input-row input { min-height: 40px !important; min-width: 0; }
 .quick-input-row button, #quickTodoAddButton {
   flex: 0 0 40px; width: 40px !important; height: auto !important; min-height: 40px !important; padding: 0 !important;
-  border: 1px solid var(--pink-200) !important; border-radius: 10px !important; background: var(--pink-100) !important;
-  color: var(--accent) !important; font-size: 20px; font-weight: 600; line-height: 1;
+  border: 1px solid var(--pink-200) !important; border-radius: 10px !important; background: var(--accent-soft) !important;
+  color: var(--accent-ink) !important; font-size: 20px; font-weight: 600; line-height: 1;
 }
-.quick-input-row button:hover, #quickTodoAddButton:hover { background: #ffe3ec !important; }
+.quick-input-row button:hover, #quickTodoAddButton:hover { background: #f6c3d4 !important; }
 .quick-item {
   min-height: 42px !important; padding: 8px 10px !important; border-radius: 10px !important; background: #fff !important;
   border: 1px solid var(--line-soft) !important; transition: border-color .15s ease;
@@ -2606,10 +2610,27 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .quick-item-title, .todo-row span { font-size: 13px !important; }
 .quick-item-time { font-size: 11px !important; }
 .empty-text { font-size: 12px !important; }
-@media (max-width: 900px) {
-  .quick-todo-layout { grid-template-columns: 1fr !important; }
-  .quick-current { padding-right: 0 !important; }
-  .quick-history { padding-left: 0 !important; border-left: 0 !important; border-top: 1px solid var(--line-soft) !important; padding-top: 16px !important; margin-top: 18px !important; }
+
+/* completed section: calm light-grey so it reads as "done" next to the white/pink todos */
+.quick-history {
+  padding: 14px !important; border: 1px solid #e6e8ec !important; border-radius: 14px !important; background: #f3f4f6 !important;
+}
+.quick-history .section-label, .quick-history h2, .quick-history strong { color: #8b919c !important; }
+.quick-history .quick-input-row input { background: #fafafb !important; border-color: #e1e4e9 !important; }
+.quick-history .quick-input-row button { background: #e6e8ec !important; border-color: #dcdfe4 !important; color: #7a808b !important; }
+.quick-history .quick-item {
+  background: #eceef1 !important; border-color: #e1e4e9 !important; box-shadow: none !important;
+}
+.quick-history .quick-item:hover { border-color: #cfd3da !important; }
+.quick-history .quick-item-title { color: #9aa0ab !important; text-decoration: line-through; text-decoration-color: #c2c6ce; }
+.quick-history .quick-item-time, .quick-history .empty-text { color: #a8adb8 !important; }
+.quick-history .quick-item input[type="checkbox"] { accent-color: #a8adba; }
+.quick-history .quick-delete-button { color: #a8adb8 !important; }
+
+@media (max-width: 1080px) {
+  .calendar-desktop-layout { flex-direction: column !important; align-items: stretch; }
+  .calendar-desktop-layout > .calendar-card { order: -1; width: 100%; flex: 0 0 auto; }
+  .quick-todo-card { position: static; width: auto; flex: 0 0 auto; max-height: none; overflow: visible; }
 }
 @media (max-width: 700px) { .quick-todo-card { padding: 14px !important; } }
 
@@ -2628,12 +2649,12 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .event-color-option:has(input:checked) { border-color: var(--accent); background: var(--pink-50); font-weight: 600; }
 .event-color-option input { accent-color: var(--accent); }
 .event-color-swatch { width: 18px; height: 18px; border: 1px solid rgba(0,0,0,.06); }
-.event-color-swatch-blue { background: var(--chip-blue-bg); border-color: #a9d3ea; }
+.event-color-swatch-blue { background: var(--chip-blue-bg); border-color: #bcdcee; }
 .event-color-swatch-pink { background: var(--chip-pink-bg); border-color: #f2b5c9; }
 .event-modal-actions { margin-top: 6px; }
 .event-modal-actions .primary-button, .event-modal-actions .secondary-button, .event-modal-actions .danger-button { min-height: 38px !important; padding: 0 16px !important; font-size: 13px !important; }
-.event-modal-actions .primary-button { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; }
-.event-modal-actions .primary-button:hover { background: var(--accent-dark) !important; }
+.event-modal-actions .primary-button { background: var(--accent-soft) !important; border-color: #f2b5c9 !important; color: var(--accent-ink) !important; }
+.event-modal-actions .primary-button:hover { background: #f6c3d4 !important; }
 
 /* ---- Search ---- */
 .search-modal { width: min(640px, 100%) !important; margin-top: 4vh; }
@@ -2678,7 +2699,6 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .schedule-date-heading strong { font-size: 14px; }
 .schedule-date-heading span { font-size: 11px; }
 .schedule-today > .schedule-date-heading { background: var(--pink-50); }
-.schedule-today > .schedule-date-heading strong::after { content: " · 오늘"; color: var(--accent); font-weight: 700; }
 /* The floating "to top" button is small, and only appears once you have scrolled down. */
 .schedule-top {
   width: 44px !important; height: 44px !important; right: 20px !important; bottom: 20px !important; border-radius: 50% !important;
