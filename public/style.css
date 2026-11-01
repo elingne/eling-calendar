@@ -2584,7 +2584,7 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .calendar-desktop-layout { display: flex !important; flex-direction: row; align-items: flex-start; gap: 16px; }
 .calendar-desktop-layout > .calendar-card { flex: 1 1 0; min-width: 0; width: auto; }
 .quick-todo-card {
-  flex: 0 0 300px; width: 300px; padding: 16px !important; margin: 0 !important;
+  flex: 0 0 380px; width: 380px; padding: 16px !important; margin: 0 !important;
   position: sticky; top: 72px; max-height: calc(100vh - 88px); overflow-y: auto;
 }
 .quick-todo-layout { display: flex !important; flex-direction: column; gap: 14px !important; }

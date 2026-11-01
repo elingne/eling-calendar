@@ -1516,7 +1516,6 @@ function makeQuickTodoRow(item, completed) {
 
   deleteButton.addEventListener("click", async () => {
     if (!isOwner) return;
-    if (!window.confirm(`"${item.title}"을(를) 삭제할까요?`)) return;
 
     const { error } = await dbClient
       .from("quick_todos")
