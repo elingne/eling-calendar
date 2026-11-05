@@ -3191,12 +3191,26 @@ body { background: #fafbfc !important; }
 .week-memo-status { flex: 0 0 auto; font-size: 11px; color: #8aa3b5; }
 .week-memo-status.error { color: #c0566f; }
 .week-memo-status:empty { display: none; }
-.week-memo-text { display: block; width: 100%; box-sizing: border-box; min-height: 114px; max-height: 420px; resize: vertical; padding: 2px 14px; margin: 0; border: 1px solid #f0e6b4; border-radius: 14px; outline: none;
-  background-color: #fffdf1; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, #f3ecc4 27px, #f3ecc4 28px); background-attachment: local;
-  font: inherit; font-size: 14px; line-height: 28px; font-weight: 500; color: #2a2c34; }
-.week-memo-text:focus { border-color: #e6d98f; box-shadow: 0 0 0 3px rgba(240,226,150,.28); }
-.week-memo-text::placeholder { color: #b9b49a; font-weight: 400; }
+/* 평소에는 카드 배경과 똑같고, 쓰는 동안에만 메모탭의 메모처럼 옅은 색이 된다. */
+.week-memo-text { display: block; width: calc(100% + 20px); box-sizing: border-box; min-height: 114px; max-height: 420px; resize: vertical; padding: 4px 10px; margin: 0 -10px; border: 1px solid transparent; border-radius: 12px; outline: none;
+  background: transparent; font: inherit; font-size: 14px; line-height: 1.7; font-weight: 500; color: #2a2c34; transition: background-color .15s ease, border-color .15s ease; }
+.week-memo-text:focus { background: rgba(255,255,255,.85); border-color: var(--sky-line); }
+.week-memo-text::placeholder { color: #9fb4c3; font-weight: 400; }
 @media (max-width: 700px) {
   .week-memo-card { margin-bottom: 12px; padding: 12px 14px 14px; }
   .week-memo-text { font-size: 15px; }
 }
+
+/* 날짜를 눌렀을 때 보이는 '완료한 일' 영역: 지금 할 일 쪽 완료 구역처럼 분홍기 도는 회색 */
+.panel-placeholder.todo-accordion { background: #f3f1f3 !important; border-color: #e9e5e8 !important; }
+.todo-accordion .accordion-toggle strong { color: #8b919c !important; }
+.todo-accordion .accordion-toggle p, .todo-accordion .empty-text { color: #a8adb8 !important; }
+.todo-accordion .accordion-chevron { color: #b9b4b9 !important; }
+.todo-accordion .accordion-body { border-top-color: #e5e1e5 !important; }
+.todo-accordion #dayTodoInput { background: #f9f7f9 !important; border-color: #e5e1e5 !important; }
+.todo-accordion .inline-form .primary-button { background: #e8e4e8 !important; border-color: #ddd8dd !important; color: #7a808b !important; }
+.todo-accordion .todo-row { background: #ebe8eb !important; border-color: #e3dfe3 !important; }
+.todo-accordion .todo-row:hover { border-color: #cfd3da !important; }
+.todo-accordion .completed-record-check { color: #a8adba !important; }
+.todo-accordion .completed-record-title { color: #9aa0ab !important; text-decoration: line-through; text-decoration-color: #c2c6ce; }
+.todo-accordion .row-delete { color: #a8adb8 !important; }
