@@ -3106,25 +3106,3 @@ body { background: #fafbfc !important; }
 .memo-drag-handle { color: #b7a3ad; }
 
 #memosPage { max-width: 1280px; margin-left: auto; margin-right: auto; }
-
-/* schedule panel uses the same pastel sky as the todo panel */
-.schedule-side { background: #f6fafd !important; border-color: #e2edf5 !important; box-shadow: 0 1px 2px rgba(60,90,120,.04), 0 6px 18px rgba(80,120,160,.06) !important; }
-.schedule-side-head .card-title { color: #5d7f97 !important; }
-.schedule-list-wrap { border-top-color: #e2edf5 !important; }
-.schedule-side .schedule-date-group { background: #fdfeff !important; border-color: #e5eef5 !important; }
-.schedule-side .schedule-date-heading { background: #f3f8fc !important; border-bottom-color: #e5eef5 !important; }
-.schedule-side .schedule-date-heading strong { color: #587a92 !important; }
-.schedule-side .schedule-date-heading span { color: #9db4c4 !important; }
-.schedule-side .schedule-today > .schedule-date-heading, .schedule-pinned .schedule-date-heading { background: #e5f0f7 !important; }
-.schedule-side .schedule-today > .schedule-date-heading strong, .schedule-pinned .schedule-date-heading strong { color: #5d7f97 !important; }
-.schedule-pinned .schedule-date-group { background: #fafdff !important; border-color: #cfe0ec !important; box-shadow: 0 2px 8px rgba(80,120,160,.10) !important; }
-.schedule-side .schedule-note-row { background: #f3f8fc !important; }
-.schedule-side .schedule-gap:hover .schedule-gap-line { background: #dbe9f3 !important; }
-.schedule-side .schedule-group-body > .schedule-gap:only-child { border-color: #cfe1ee; background: #fbfdff; }
-.schedule-side .schedule-group-body > .schedule-gap:only-child .schedule-gap-hint { color: #8fb0c6; }
-.schedule-side .schedule-list > .schedule-date-group:hover { border-color: #c9dce9 !important; }
-.schedule-side .schedule-gap-input { border-color: #d3e3ee !important; background: #fbfdff !important; }
-.schedule-today-fab { border-color: #cfe0ec !important; color: #5d7f97 !important; }
-.schedule-today-fab:hover { background: #e5f0f7 !important; }
-.schedule-side .schedule-item.schedule-item-button:hover { background: #f6fafd; }
-.day-panel.day-panel-over { border-color: #e2edf5; }
