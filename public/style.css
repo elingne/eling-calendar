@@ -2861,3 +2861,11 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
   .quick-todo-card { flex-basis: 300px !important; width: 300px !important; padding: 14px !important; }
   .schedule-side { flex-basis: 300px; width: 300px; }
 }
+
+/* Today sits at the top of the list; a thin strip above it holds the floating "오늘" button. */
+.schedule-side .schedule-list { top: 26px !important; }
+.schedule-side .schedule-list::before { display: none; }
+.schedule-side .schedule-list::after { height: 60vh; }
+.schedule-today-fab { top: 2px; right: 4px; }
+@media (min-width: 1081px) { .schedule-side { flex-basis: 300px; width: 300px; } }
+@media (min-width: 1500px) { .schedule-side { flex-basis: 330px; width: 330px; } }

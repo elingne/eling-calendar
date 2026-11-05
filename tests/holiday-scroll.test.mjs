@@ -12,7 +12,7 @@ test('holiday snapshot includes lunar holidays, substitute days and overlapping 
   assert.equal(vm.runInContext('KOREAN_HOLIDAYS["2025-05-05"].length',context),2);
   assert.equal(vm.runInContext('KOREAN_HOLIDAYS["2026-10-22"]',context),undefined);
 });
-test('today always exists, list scrolls to it (centered), refresh keeps position, hidden page does not scroll',async()=>{
+test('today always exists, list scrolls to it (top), refresh keeps position, hidden page does not scroll',async()=>{
   const groups=[];let scrolls=0,hidden=false;
   const element=()=>({dataset:{},classList:{add(){}},append(){},appendChild(){},addEventListener(){},scrollIntoView(){scrolls++;}});
   const list={innerHTML:'',scrollTop:0,clientHeight:400,appendChild(g){groups.push(g);},querySelector(){return groups.find(g=>g.dataset.scheduleDate==='2026-10-22');},scrollTo(){scrolls++;}};

@@ -2766,12 +2766,11 @@ async function loadSchedulePage({ scrollToToday = false } = {}) {
   }
 }
 
-// 목록 안에서만 스크롤해서 오늘 날짜가 가운데에 오게 한다 (페이지 전체는 움직이지 않음).
+// 목록 안에서만 스크롤해서 오늘 날짜가 맨 위에 오게 한다 (페이지 전체는 움직이지 않음).
 function scrollScheduleToToday(smooth = false) {
   const target = scheduleList.querySelector(`[data-schedule-date="${formatDateKey(new Date())}"]`);
   if (!target) return;
-  const top = target.offsetTop - ((scheduleList.clientHeight || 0) - (target.offsetHeight || 0)) / 2;
-  scheduleList.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "instant" });
+  scheduleList.scrollTo({ top: Math.max(0, target.offsetTop), behavior: smooth ? "smooth" : "instant" });
 }
 
 /* SEARCH */
