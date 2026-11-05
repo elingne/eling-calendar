@@ -3010,7 +3010,7 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .quick-column-header .section-label { font-size: 9px !important; letter-spacing: .1em; opacity: .75; }
 .quick-column-header h2, .schedule-side-head .card-title { font-size: 14px !important; font-weight: 700; }
 .schedule-side-head { min-height: 22px; margin-bottom: 2px; }
-.quick-todo-card { position: sticky; top: 72px; align-self: flex-start; }
+@media (min-width: 1081px) { .quick-todo-card { position: sticky; top: 72px; align-self: flex-start; } }
 .quick-current .quick-input-row { margin-bottom: 2px; }
 .quick-current .quick-item { box-shadow: none !important; }
 .quick-current .quick-item:hover { transform: none; }
@@ -3019,5 +3019,5 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .quick-history .quick-item-time { font-size: 10px !important; }
 
 /* -- page rhythm -- */
-.calendar-desktop-layout { align-items: flex-start; }
+@media (min-width: 1081px) { .calendar-desktop-layout { align-items: flex-start; } }
 .header { box-shadow: 0 1px 0 rgba(60,60,90,.03); }
