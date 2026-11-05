@@ -2964,3 +2964,60 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .quick-current .quick-item input[type="checkbox"]:checked::after {
   content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: translateY(-1px) rotate(-45deg);
 }
+
+/* =====================================================================
+   Tidy-up of the main calendar screen (same look, less noise)
+   ===================================================================== */
+
+/* -- schedule list: quiet by default, tools appear on hover -- */
+.schedule-side .schedule-gap { min-height: 6px; }
+.schedule-side .schedule-gap-line { background: transparent !important; transition: background .12s ease; }
+.schedule-side .schedule-gap:hover .schedule-gap-line { background: #dbe8d1 !important; }
+.schedule-side .schedule-gap-hint { opacity: 0; white-space: nowrap; }
+.schedule-side .schedule-gap:hover .schedule-gap-hint { opacity: 1; }
+.schedule-side .schedule-drag-handle { opacity: 0; transition: opacity .12s ease; }
+.schedule-side .schedule-entry:hover .schedule-drag-handle { opacity: .8; }
+/* an empty day (usually today) keeps one visible "add" row instead of a lonely hairline */
+.schedule-side .schedule-group-body:has(> .schedule-gap:only-child) { padding: 4px 8px 6px; }
+.schedule-side .schedule-group-body > .schedule-gap:only-child { min-height: 22px; justify-content: center; border: 1px dashed #cfe0c4; border-radius: 7px; background: #fbfdf9; }
+.schedule-side .schedule-group-body > .schedule-gap:only-child .schedule-gap-line { display: none; }
+.schedule-side .schedule-group-body > .schedule-gap:only-child .schedule-gap-hint { opacity: 1; color: #8fa583; font-size: 9.5px; }
+.schedule-side .schedule-date-heading span { color: #9aa894; }
+.schedule-side .schedule-list > .schedule-date-group { transition: border-color .12s ease; }
+.schedule-side .schedule-list > .schedule-date-group:hover { border-color: #c9dcbc !important; }
+
+/* -- calendar: calmer header, lighter grid, clearer today -- */
+.calendar-card { padding: 12px 16px 16px !important; }
+.calendar-header { margin-bottom: 0 !important; }
+.calendar-tip { text-align: center !important; padding: 2px 4px 10px !important; color: #a8abb7 !important; font-size: 10.5px !important; letter-spacing: -0.01em; }
+.weekdays { border-bottom: 1px solid #eceef3 !important; margin-bottom: 0 !important; }
+.weekdays div { font-size: 11px !important; font-weight: 600 !important; letter-spacing: .04em; color: #a0a4b0 !important; padding: 7px 0 !important; }
+.weekdays .sunday { color: #e08ea3 !important; } .weekdays .saturday { color: #7fb4d1 !important; }
+.calendar-grid { border-color: #eef0f5 !important; }
+.calendar-day { border-color: #eef0f5 !important; transition: background .12s ease; }
+.calendar-day:hover { background: #fbfbfe !important; }
+.calendar-day.today { background: #fff7fa !important; }
+.calendar-day.today .day-number { box-shadow: 0 0 0 3px #ffe6ee; }
+.calendar-day.other-month { background: #fafafc !important; }
+.calendar-day.other-month .calendar-event-chip { opacity: .55; }
+.day-number { font-variant-numeric: tabular-nums; }
+.calendar-event-chip { border-radius: 5px !important; }
+.calendar-more { font-size: 10px !important; color: #9a9db0 !important; padding-left: 4px; }
+
+/* -- side panels: same header rhythm, quieter labels -- */
+.quick-todo-card, .schedule-side { box-shadow: 0 1px 2px rgba(60,60,90,.04), 0 6px 18px rgba(60,60,90,.05) !important; }
+.quick-column-header { align-items: center; }
+.quick-column-header .section-label { font-size: 9px !important; letter-spacing: .1em; opacity: .75; }
+.quick-column-header h2, .schedule-side-head .card-title { font-size: 14px !important; font-weight: 700; }
+.schedule-side-head { min-height: 22px; margin-bottom: 2px; }
+.quick-todo-card { position: sticky; top: 72px; align-self: flex-start; }
+.quick-current .quick-input-row { margin-bottom: 2px; }
+.quick-current .quick-item { box-shadow: none !important; }
+.quick-current .quick-item:hover { transform: none; }
+.quick-star-button, .quick-delete-button { opacity: .55; transition: opacity .12s ease; }
+.quick-item:hover .quick-star-button, .quick-item:hover .quick-delete-button, .quick-star-button.active { opacity: 1; }
+.quick-history .quick-item-time { font-size: 10px !important; }
+
+/* -- page rhythm -- */
+.calendar-desktop-layout { align-items: flex-start; }
+.header { box-shadow: 0 1px 0 rgba(60,60,90,.03); }
