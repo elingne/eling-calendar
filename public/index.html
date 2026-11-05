@@ -19,7 +19,6 @@
       <button id="logoHomeButton" class="logo logo-button" type="button">My Calendar</button>
       <nav class="nav">
         <button class="nav-button active" data-page="calendar">캘린더</button>
-        <button class="nav-button" data-page="schedule">일정</button>
         <button class="nav-button hidden" data-page="memos">메모</button>
       </nav>
 
@@ -94,26 +93,20 @@
           </div>
           <div id="calendarGrid" class="calendar-grid"></div>
         </section>
-        </div>
-      </section>
 
-      <!-- SCHEDULE PAGE -->
-      <section id="schedulePage" class="page-section hidden">
-        <div class="page-heading page-heading-row">
-          <div>
-            <span class="section-label">SCHEDULE</span>
-            <h1 class="page-title">일정</h1>
-            <p class="page-description">하루 일정과 기간 일정을 한곳에서 관리해요. 빈 줄을 두 번 누르면 일정, 한 번 누르면 메모를 추가할 수 있어요.</p>
-          </div>
-          <button id="openScheduleCreateButton" type="button" class="primary-button owner-control">+ 일정 추가</button>
+          <aside id="schedulePage" class="schedule-side hidden" aria-label="일정 목록">
+            <div class="schedule-side-head">
+              <h2 class="card-title">일정</h2>
+              <button id="openScheduleCreateButton" type="button" class="primary-button owner-control">+ 일정 추가</button>
+            </div>
+            <div id="schedulePinned" class="schedule-pinned" aria-label="오늘 일정"></div>
+            <div class="schedule-list-wrap">
+              <div id="scheduleList" class="schedule-list"></div>
+              <button id="scheduleTodayButton" type="button" class="schedule-today-fab" aria-label="오늘 날짜로 이동" title="오늘로 이동">오늘</button>
+            </div>
+          </aside>
+
         </div>
-        <section class="page-card schedule-list-card">
-          <div class="card-title-row">
-            <h2 class="card-title">전체 일정</h2>
-            <span class="tiny-note">가까운 일정부터</span>
-          </div>
-          <div id="scheduleList" class="schedule-list"></div>
-        </section>
       </section>
 
       <section id="memosPage" class="page-section hidden">
@@ -130,7 +123,6 @@
         <div id="memoBoard" class="memo-board" aria-label="메모 보드"><span class="memo-empty-hint">빈 곳을 누르거나 + 메모를 눌러 첫 메모를 남겨보세요</span></div>
       </section>
     </main>
-    <button id="scheduleTopButton" type="button" class="schedule-top hidden" aria-label="일정 최상단으로 이동">↑<span>맨 위로</span></button>
   </div>
 
   <!-- DAY PANEL -->

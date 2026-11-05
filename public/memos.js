@@ -169,6 +169,14 @@
   }
   document.addEventListener('selectionchange',()=>{if(window.requestAnimationFrame)window.requestAnimationFrame(updateBoldBar);else updateBoldBar();});
   window.addEventListener('scroll',hideBoldBar,{passive:true,capture:true});
+  // Spell-check red underlines only while a field is being edited: they disappear as soon as you leave it.
+  const SPELL_FIELDS='.memo-body,#memoEditor,.memo-card-title-input,#memoTitle';
+  const spell=(el,on)=>{if(el&&el.matches?.(SPELL_FIELDS))el.spellcheck=on;};
+  document.addEventListener('focusin',e=>spell(e.target,true));
+  document.addEventListener('focusout',e=>spell(e.target,false));
+  const spellOff=()=>board.querySelectorAll?.(SPELL_FIELDS).forEach(el=>{if(el!==document.activeElement)el.spellcheck=false;});
+  new MutationObserver(spellOff).observe(board,{childList:true,subtree:true});
+  byId('memoEditor').spellcheck=false;byId('memoTitle').spellcheck=false;
   // Text editing shared by the card body and the full view.
   // getItem() names the memo the editor belongs to (the card's memo, or the one open in full view).
   function wireTextEditor(el,getItem){

@@ -62,6 +62,7 @@ const quickMetaSaveState = $("quickMetaSaveState");
 
 const openScheduleCreateButton = $("openScheduleCreateButton");
 const scheduleList = $("scheduleList");
+const schedulePinned = $("schedulePinned");
 
 const eventModal = $("eventModal");
 const eventModalTitle = $("eventModalTitle");
@@ -91,7 +92,7 @@ async function checkSession() {
     if (!response.ok) throw Error('연결 실패');
     isOwner = Boolean((await response.json()).owner);
     document.body.classList.toggle('read-only', !isOwner);
-    document.querySelectorAll('[data-page="schedule"], [data-page="memos"], #searchButton, .quick-todo-card').forEach(el => el.classList.toggle('hidden', !isOwner));
+    document.querySelectorAll('[data-page="memos"], #searchButton, .quick-todo-card, #schedulePage').forEach(el => el.classList.toggle('hidden', !isOwner));
     logoutButton.textContent = isOwner ? '로그아웃' : '관리자 로그인';
     const calendarTip = $("calendarTip");
     if (calendarTip) calendarTip.textContent = isOwner
@@ -116,7 +117,7 @@ navButtons.forEach((button) => {
 
 async function showPage(page) {
   const allowedPages = isOwner
-    ? ["calendar", "schedule", "memos"]
+    ? ["calendar", "memos"]
     : ["calendar"];
 
   if (!allowedPages.includes(page)) page = "calendar";
@@ -128,10 +129,7 @@ async function showPage(page) {
   }
 
   calendarPage.classList.toggle("hidden", page !== "calendar");
-  schedulePage.classList.toggle("hidden", page !== "schedule");
   $("memosPage").classList.toggle("hidden", page !== "memos");
-  $("scheduleTopButton").classList.toggle("hidden", page !== "schedule");
-  $("scheduleTopButton").classList.remove("is-visible");
 
 
   navButtons.forEach((button) =>
@@ -142,14 +140,13 @@ async function showPage(page) {
 
   if (page === "calendar") {
     renderCalendar();
-    if (isOwner) loadQuickTodos();
+    if (isOwner) {
+      loadQuickTodos();
+      loadSchedulePage({ scrollToToday: true });
+    }
   }
 
   if (page === "memos" && window.loadMemoBoard) await window.loadMemoBoard();
-
-  if (page === "schedule") {
-    loadSchedulePage({ scrollToToday: true });
-  }
 
 }
 
@@ -2650,7 +2647,9 @@ async function loadSchedulePage({ scrollToToday = false } = {}) {
       .order("created_at")
   ]);
 
+  const savedScroll = scheduleList.scrollTop || 0;
   scheduleList.innerHTML = "";
+  if (typeof schedulePinned !== "undefined" && schedulePinned) schedulePinned.innerHTML = "";
 
   if (eventsResult.error || notesResult.error) {
     console.error("일정 불러오기 오류:", eventsResult.error || notesResult.error);
@@ -2673,11 +2672,13 @@ async function loadSchedulePage({ scrollToToday = false } = {}) {
     return;
   }
 
-  dates.forEach(date => {
+  // 한 날짜의 카드(제목 + 일정/메모 목록). 맨 위 고정 카드와 목록 안에서 같은 방식으로 쓴다.
+  const buildGroup = (date, container, pinned) => {
     const group = document.createElement("section");
     group.className = "schedule-date-group";
     group.dataset.scheduleDate = date;
     if (date === todayKey) group.classList.add("schedule-today");
+    if (pinned) group.classList.add("schedule-pinned-card");
 
     const heading = document.createElement("div");
     heading.className = "schedule-date-heading";
@@ -2721,7 +2722,7 @@ async function loadSchedulePage({ scrollToToday = false } = {}) {
       });
     }
 
-    scheduleList.appendChild(group);
+    container.appendChild(group);
 
     const mixed = [
       ...events
@@ -2750,14 +2751,27 @@ async function loadSchedulePage({ scrollToToday = false } = {}) {
     body.appendChild(
       renderScheduleGap(date, mixed[mixed.length - 1] || null, null, group)
     );
-  });
+  };
+
+  if (typeof schedulePinned !== "undefined" && schedulePinned) buildGroup(todayKey, schedulePinned, true);
+  dates.forEach(date => buildGroup(date, scheduleList, false));
+
   if (scrollToToday) {
     requestAnimationFrame(() => {
       if (schedulePage.classList.contains("hidden")) return;
-      const target = scheduleList.querySelector(`[data-schedule-date="${todayKey}"]`);
-      target?.scrollIntoView({ block: "start", behavior: "instant" });
+      scrollScheduleToToday(false);
     });
+  } else {
+    scheduleList.scrollTop = savedScroll;   // 편집 후 새로 그려도 보던 위치 유지
   }
+}
+
+// 목록 안에서만 스크롤해서 오늘 날짜가 가운데에 오게 한다 (페이지 전체는 움직이지 않음).
+function scrollScheduleToToday(smooth = false) {
+  const target = scheduleList.querySelector(`[data-schedule-date="${formatDateKey(new Date())}"]`);
+  if (!target) return;
+  const top = target.offsetTop - ((scheduleList.clientHeight || 0) - (target.offsetHeight || 0)) / 2;
+  scheduleList.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "instant" });
 }
 
 /* SEARCH */
@@ -2998,11 +3012,6 @@ eventModal.addEventListener("click", event => {
   if (event.target === eventModal && eventModalPressedOnBackdrop) closeEventModal();
 });
 
-// 일정 화면의 '맨 위로' 버튼은 아래로 내려왔을 때만 보인다.
-window.addEventListener("scroll", () => {
-  $("scheduleTopButton").classList.toggle("is-visible", window.scrollY > 480);
-}, { passive: true });
-
 /* START */
 // 리스너를 먼저 등록한다: checkSession()이 시작하자마자 나는 오류도 놓치지 않도록.
 window.addEventListener('calendar-api-error', e => { document.getElementById('connectionMessage').textContent = e.detail; });
@@ -3012,7 +3021,7 @@ window.addEventListener('calendar-api-ok', () => { document.getElementById('conn
 clearQuickTodoAutofill();
 checkSession();
 
-$("scheduleTopButton").addEventListener('click',()=>window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}));
+$("scheduleTodayButton").addEventListener('click',()=>scrollScheduleToToday(true));
 $("completedTodoForm").addEventListener('submit',async event=>{
   event.preventDefault();
   if(!isOwner)return;

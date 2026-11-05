@@ -157,7 +157,7 @@ test('completed list input adds a completed item immediately and blocks double s
  const html=fs.readFileSync(new URL('../public/index.html',import.meta.url),'utf8'),dom=new JSDOM(html,{runScripts:'outside-only'}),w=dom.window;
  const calls=[];w.isOwner=true;w.selectedRecordDate=null;w.$=id=>w.document.getElementById(id);w.loadQuickTodos=async()=>{};w.loadDayTodos=async()=>{};
  w.dbClient={from:table=>({insert:async values=>{calls.push({table,values});await new Promise(r=>setTimeout(r,5));return {error:null};}})};
- const app=fs.readFileSync(new URL('../public/app.js',import.meta.url),'utf8');w.eval(app.slice(app.indexOf('$("scheduleTopButton").addEventListener')));
+ const app=fs.readFileSync(new URL('../public/app.js',import.meta.url),'utf8');w.eval(app.slice(app.indexOf('$("scheduleTodayButton").addEventListener')));
  const input=w.document.getElementById('completedTodoInput');input.value='이미 한 일';const form=w.document.getElementById('completedTodoForm');
  form.dispatchEvent(new w.Event('submit',{cancelable:true}));form.dispatchEvent(new w.Event('submit',{cancelable:true}));await new Promise(r=>setTimeout(r,20));
  assert.equal(calls.length,1);assert.equal(calls[0].values.is_completed,true);assert.ok(Date.parse(calls[0].values.completed_at));assert.equal(input.value,'');dom.window.close();

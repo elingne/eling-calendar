@@ -12,10 +12,10 @@ test('holiday snapshot includes lunar holidays, substitute days and overlapping 
   assert.equal(vm.runInContext('KOREAN_HOLIDAYS["2025-05-05"].length',context),2);
   assert.equal(vm.runInContext('KOREAN_HOLIDAYS["2026-10-22"]',context),undefined);
 });
-test('today always exists, entry scrolls to it, refresh keeps position, hidden page does not scroll',async()=>{
+test('today always exists, list scrolls to it (centered), refresh keeps position, hidden page does not scroll',async()=>{
   const groups=[];let scrolls=0,hidden=false;
   const element=()=>({dataset:{},classList:{add(){}},append(){},appendChild(){},addEventListener(){},scrollIntoView(){scrolls++;}});
-  const list={innerHTML:'',appendChild(g){groups.push(g);},querySelector(){return groups.find(g=>g.dataset.scheduleDate==='2026-10-22');}};
+  const list={innerHTML:'',scrollTop:0,clientHeight:400,appendChild(g){groups.push(g);},querySelector(){return groups.find(g=>g.dataset.scheduleDate==='2026-10-22');},scrollTo(){scrolls++;}};
   const q={select(){return this;},order(){return this;},then(resolve){return Promise.resolve({data:[]}).then(resolve);}};
   const context=vm.createContext({document:{createElement:element},dbClient:{from(){return q;}},scheduleList:list,schedulePage:{classList:{contains(){return hidden;}}},isOwner:true,console,Date,Set,formatDateKey:()=> '2026-10-22',formatScheduleDateHeading:d=>d,renderScheduleGap:()=>element(),requestAnimationFrame:fn=>fn()});
   vm.runInContext(app.slice(app.indexOf('async function loadSchedulePage('),app.indexOf('/* SEARCH */')),context);
