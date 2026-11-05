@@ -962,6 +962,7 @@ async function openDayPanel(date) {
 
   const weekdays = ["일요일","월요일","화요일","수요일","목요일","금요일","토요일"];
   selectedDateTitle.textContent = `${date.getFullYear()}. ${date.getMonth()+1}. ${date.getDate()}. ${weekdays[date.getDay()]}`;
+  alignDayPanel();
   dayPanel.classList.add("open");
 
   await Promise.all([
@@ -969,6 +970,25 @@ async function openDayPanel(date) {
     loadQuickDateMeta(key)
   ]);
 }
+
+// 데스크톱에서는 날짜를 눌렀을 때 사이드탭이 오른쪽 일정 목록 패널을 딱 덮도록 위치·크기를 맞춘다.
+function alignDayPanel() {
+  const side = typeof schedulePage !== "undefined" ? schedulePage : null;
+  const rect = side && !side.classList.contains("hidden") && window.innerWidth > 1080 ? side.getBoundingClientRect() : null;
+  if (!rect || !rect.width) {
+    dayPanel.classList.remove("day-panel-over");
+    ["top", "left", "width", "height", "right"].forEach(name => dayPanel.style.removeProperty(name));
+    return;
+  }
+  dayPanel.classList.add("day-panel-over");
+  dayPanel.style.setProperty("top", rect.top + "px", "important");
+  dayPanel.style.setProperty("left", rect.left + "px", "important");
+  dayPanel.style.setProperty("width", rect.width + "px", "important");
+  dayPanel.style.setProperty("height", rect.height + "px", "important");
+  dayPanel.style.setProperty("right", "auto", "important");
+}
+window.addEventListener("scroll", () => { if (dayPanel.classList.contains("open")) alignDayPanel(); }, { passive: true });
+window.addEventListener("resize", () => { if (dayPanel.classList.contains("open")) alignDayPanel(); });
 
 function closeDayPanel() {
   dayPanel.classList.remove("open");

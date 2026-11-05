@@ -2869,3 +2869,25 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .schedule-today-fab { top: 2px; right: 4px; }
 @media (min-width: 1081px) { .schedule-side { flex-basis: 300px; width: 300px; } }
 @media (min-width: 1500px) { .schedule-side { flex-basis: 330px; width: 330px; } }
+
+/* Day side panel sits exactly over the schedule list (desktop) */
+.day-panel.day-panel-over {
+  transform: none !important; opacity: 0; visibility: hidden; pointer-events: none; z-index: 120;
+  border: 1px solid var(--line-soft); border-radius: 14px; box-sizing: border-box; padding: 0 !important;
+  box-shadow: 0 6px 22px rgba(120,80,100,.16) !important; transition: opacity .15s ease, visibility .15s;
+}
+.day-panel.day-panel-over.open { opacity: 1; visibility: visible; pointer-events: auto; }
+
+/* Slightly roomier side panels, bigger calendar cells; page uses almost the whole window */
+@media (min-width: 1081px) {
+  .main { width: min(1900px, calc(100% - 16px)) !important; }
+  .calendar-desktop-layout { gap: 10px; }
+  .quick-todo-card { flex-basis: 266px !important; width: 266px !important; }
+  .schedule-side { flex-basis: 316px; width: 316px; }
+  .calendar-day { min-height: 148px !important; }
+}
+@media (min-width: 1500px) {
+  .quick-todo-card { flex-basis: 320px !important; width: 320px !important; }
+  .schedule-side { flex-basis: 350px; width: 350px; }
+  .calendar-day { min-height: 156px !important; }
+}
