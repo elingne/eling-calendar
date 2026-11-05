@@ -3181,23 +3181,22 @@ body { background: #fafbfc !important; }
 
 .schedule-side .schedule-note-edit { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; font-size: 10px !important; padding: 3px 6px; border: 1px solid #cfe0ec; border-radius: 6px; background: #fff; }
 
-/* 금주의 할 일 — 캘린더 위쪽 가로 카드 */
-.week-todo-card { box-sizing: border-box; width: 100%; margin: 0 0 16px; padding: 14px 16px; background: var(--sky-bg); border: 1px solid var(--sky-line); border-radius: var(--radius); box-shadow: 0 1px 2px rgba(60,100,130,.05), 0 4px 14px rgba(90,150,190,.10); }
-.week-todo-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 10px; }
-.week-todo-head .quick-column-header { margin: 0 !important; }
-.week-todo-head .section-label { color: #6aa3c7; }
-.week-todo-head .quick-column-header h2 { color: var(--sky-ink); }
-.week-todo-range { color: var(--subtext); font-size: 12px; }
-.week-todo-form { flex: 0 1 380px; min-width: 220px; }
-.week-todo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 18px; }
-.week-todo-list .empty-text { grid-column: 1 / -1; }
-.week-todo-item { min-width: 0; min-height: 40px; }
-.week-todo-item.quick-item-completed .quick-item-title { color: #a8adb8; text-decoration: line-through; }
-.week-todo-item .quick-inline-input { width: 100%; min-height: 30px; box-sizing: border-box; }
-.week-todo-status { margin: 8px 0 0; font-size: 12px; color: #c0566f; }
-.week-todo-status:empty { display: none; }
+/* 금주의 메모 — 캘린더 위쪽 가로 카드 (메모지처럼 바로 쓰는 칸) */
+.week-memo-card { box-sizing: border-box; width: 100%; margin: 0 0 16px; padding: 14px 16px 16px; background: var(--sky-bg); border: 1px solid var(--sky-line); border-radius: var(--radius); box-shadow: 0 1px 2px rgba(60,100,130,.05), 0 4px 14px rgba(90,150,190,.10); }
+.week-memo-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 10px; }
+.week-memo-head .quick-column-header { margin: 0 !important; }
+.week-memo-head .section-label { color: #6aa3c7; }
+.week-memo-head .quick-column-header h2 { color: var(--sky-ink); }
+.week-memo-range { color: var(--subtext); font-size: 12px; }
+.week-memo-status { flex: 0 0 auto; font-size: 11px; color: #8aa3b5; }
+.week-memo-status.error { color: #c0566f; }
+.week-memo-status:empty { display: none; }
+.week-memo-text { display: block; width: 100%; box-sizing: border-box; min-height: 114px; max-height: 420px; resize: vertical; padding: 2px 14px; margin: 0; border: 1px solid #f0e6b4; border-radius: 14px; outline: none;
+  background-color: #fffdf1; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, #f3ecc4 27px, #f3ecc4 28px); background-attachment: local;
+  font: inherit; font-size: 14px; line-height: 28px; font-weight: 500; color: #2a2c34; }
+.week-memo-text:focus { border-color: #e6d98f; box-shadow: 0 0 0 3px rgba(240,226,150,.28); }
+.week-memo-text::placeholder { color: #b9b49a; font-weight: 400; }
 @media (max-width: 700px) {
-  .week-todo-card { margin-bottom: 12px; padding: 12px 14px; }
-  .week-todo-form { flex: 1 1 100%; }
-  .week-todo-list { grid-template-columns: 1fr; }
+  .week-memo-card { margin-bottom: 12px; padding: 12px 14px 14px; }
+  .week-memo-text { font-size: 15px; }
 }

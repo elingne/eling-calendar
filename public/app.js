@@ -7,8 +7,8 @@ let dragStartDate = null;
 let dragCurrentDate = null;
 let didRangeDrag = false;
 let isOwner = false;
-// week-todos.js 가 아직 실행되지 않았을 때 요청이 사라지지 않도록 대기 표시만 남겨둔다.
-window.loadWeekTodos = window.loadWeekTodos || (() => { window.weekTodosPending = true; });
+// week-memo.js 가 아직 실행되지 않았을 때 요청이 사라지지 않도록 대기 표시만 남겨둔다.
+window.loadWeekMemo = window.loadWeekMemo || (() => { window.weekMemoPending = true; });
 let suppressCalendarClickUntil = 0;
 let scheduleTouchDragging = false;
 let editingEventOriginalStartDate = null;
@@ -93,7 +93,7 @@ async function checkSession() {
     if (!response.ok) throw Error('연결 실패');
     isOwner = Boolean((await response.json()).owner);
     document.body.classList.toggle('read-only', !isOwner);
-    document.querySelectorAll('[data-page="memos"], #searchButton, .quick-todo-card, #schedulePage, #weekTodoCard').forEach(el => el.classList.toggle('hidden', !isOwner));
+    document.querySelectorAll('[data-page="memos"], #searchButton, .quick-todo-card, #schedulePage, #weekMemoCard').forEach(el => el.classList.toggle('hidden', !isOwner));
     logoutButton.textContent = isOwner ? '로그아웃' : '관리자 로그인';
     const calendarTip = $("calendarTip");
     if (calendarTip) calendarTip.textContent = isOwner
@@ -144,7 +144,7 @@ async function showPage(page) {
     if (isOwner) {
       loadQuickTodos();
       loadSchedulePage({ scrollToToday: true });
-      window.loadWeekTodos();
+      window.loadWeekMemo();
     }
   }
 
