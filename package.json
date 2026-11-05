@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check src/worker.js && node --check public/app.js && node --check public/api.js && node --check src/memos.js && node --check public/memos.js",
+    "check": "node --check src/worker.js && node --check public/app.js && node --check public/api.js && node --check src/memos.js && node --check public/memos.js && node --check src/weekly.js && node --check public/week-todos.js",
     "deploy": "npm run check && npm test && wrangler d1 migrations apply eling-calendar --remote && wrangler deploy",
     "db:local": "wrangler d1 migrations apply eling-calendar --local"
   },

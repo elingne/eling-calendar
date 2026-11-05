@@ -1,5 +1,6 @@
 import {createRemoteJWKSet, jwtVerify} from 'jose';
 import {memos} from './memos.js';
+import {weekTodos} from './weekly.js';
 const jwksCache=new Map();
 const fields={
   events:['title','description','start_date','end_date','color_variant','is_completed','sort_order'],
@@ -116,6 +117,12 @@ export default {
         if(!['GET','POST'].includes(request.method))return json({error:'Method not allowed'},405);
         if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return json({error:'Invalid origin'},403);
         return await memos(request,env,url.pathname);
+      }
+      if(url.pathname==='/api/private/week-todos') {
+        if(!await owner(request,env))return json({error:'Unauthorized'},401);
+        if(!['GET','POST'].includes(request.method))return json({error:'Method not allowed'},405);
+        if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return json({error:'Invalid origin'},403);
+        return await weekTodos(request,env);
       }
       if(url.pathname==='/api/private/query') {
         if(!await owner(request,env))return json({error:'Unauthorized'},401);

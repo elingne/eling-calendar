@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <title>My Calendar</title>
-  <link rel="stylesheet" href="style.css?v=20261105l">
+  <link rel="stylesheet" href="style.css?v=20261105m">
 </head>
 <body class="read-only">
 
@@ -34,6 +34,21 @@
       <p id="connectionMessage" role="status" aria-live="polite"></p>
       <!-- CALENDAR PAGE -->
       <section id="calendarPage" class="page-section">
+        <section id="weekTodoCard" class="week-todo-card hidden" aria-label="금주의 할 일">
+          <div class="week-todo-head">
+            <div class="quick-column-header">
+              <span class="section-label">THIS WEEK</span>
+              <h2>금주의 할 일</h2>
+              <span id="weekTodoRange" class="week-todo-range"></span>
+            </div>
+            <form id="weekTodoForm" class="quick-input-row week-todo-form">
+              <input id="weekTodoInput" type="text" maxlength="120" autocomplete="off" data-lpignore="true" data-1p-ignore="true" placeholder="이번 주에 할 일을 적어보세요" aria-label="금주의 할 일">
+              <button type="submit" aria-label="금주의 할 일 추가">+</button>
+            </form>
+          </div>
+          <div id="weekTodoList" class="week-todo-list"></div>
+          <p id="weekTodoStatus" class="week-todo-status" role="status" aria-live="polite"></p>
+        </section>
         <div class="calendar-desktop-layout">
         <section class="quick-todo-card">
           <div class="quick-todo-layout">
@@ -259,7 +274,8 @@
   </div>
 
   <script src="api.js?v=20261105c"></script>
-  <script src="app.js?v=20261105e"></script>
+  <script src="app.js?v=20261105f"></script>
+  <script src="week-todos.js?v=20261105a"></script>
   <script src="memos.js?v=20261105c"></script>
 </body>
 </html>
