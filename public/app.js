@@ -2763,13 +2763,25 @@ async function loadSchedulePage({ scrollToToday = false } = {}) {
       }
     });
 
-    body.appendChild(
-      renderScheduleGap(date, mixed[mixed.length - 1] || null, null, group)
-    );
+    // 비어 있는 날짜(오늘)는 맨 위 고정 카드에서만 편집한다. 목록에는 안내 문구를 넣지 않는다.
+    if (pinned || mixed.length) {
+      body.appendChild(
+        renderScheduleGap(date, mixed[mixed.length - 1] || null, null, group)
+      );
+    }
   };
 
   if (typeof schedulePinned !== "undefined" && schedulePinned) buildGroup(todayKey, schedulePinned, true);
-  dates.forEach(date => buildGroup(date, scheduleList, false));
+  dates.forEach((date, index) => {
+    if (isOwner && index > 0) {
+      const missing = [];
+      for (let key = addDaysToKey(dates[index - 1], 1); key < date && missing.length < 800; key = addDaysToKey(key, 1)) {
+        missing.push(key);
+      }
+      if (missing.length) scheduleList.appendChild(renderScheduleBetween(missing));
+    }
+    buildGroup(date, scheduleList, false);
+  });
 
   if (scrollToToday) {
     requestAnimationFrame(() => {
@@ -2779,6 +2791,118 @@ async function loadSchedulePage({ scrollToToday = false } = {}) {
   } else {
     scheduleList.scrollTop = savedScroll;   // 편집 후 새로 그려도 보던 위치 유지
   }
+}
+
+// 목록에 없는 날짜 사이의 빈 구간. 클릭하면 메모를 남길 날짜를 고른다(하루면 바로, 여러 날이면 미니 캘린더).
+function renderScheduleBetween(missing) {
+  const row = document.createElement("div");
+  row.className = "schedule-between owner-control";
+  const first = parseLocalDate(missing[0]);
+  const last = parseLocalDate(missing[missing.length - 1]);
+  const fmt = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  const label = missing.length === 1 ? fmt(first) : `${fmt(first)} ~ ${fmt(last)}`;
+  row.title = "클릭: 이 사이 날짜에 메모 추가";
+  row.innerHTML = '<span class="schedule-gap-line"></span><span class="schedule-gap-hint"></span>';
+  row.querySelector(".schedule-gap-hint").textContent = `+ ${label} 메모`;
+
+  const openEditor = date => {
+    row.classList.add("editing");
+    row.replaceChildren();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "schedule-gap-input";
+    input.maxLength = 300;
+    input.placeholder = `${formatScheduleDateHeading(date)} 메모 남기기`;
+    let busy = false;
+    const restore = () => {
+      row.classList.remove("editing");
+      row.innerHTML = '<span class="schedule-gap-line"></span><span class="schedule-gap-hint"></span>';
+      row.querySelector(".schedule-gap-hint").textContent = `+ ${label} 메모`;
+    };
+    const save = async () => {
+      if (busy) return;
+      const body = input.value.trim();
+      if (!body) { restore(); return; }
+      busy = true;
+      input.disabled = true;
+      const { error } = await dbClient.from("schedule_notes").insert({ note_date: date, body, sort_order: 1000 });
+      if (error) { console.error("사이 날짜 메모 저장 오류:", error); busy = false; input.disabled = false; return; }
+      await loadSchedulePage();
+    };
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); save(); }
+      else if (e.key === "Escape") { e.preventDefault(); busy = true; restore(); }
+    });
+    input.addEventListener("blur", () => { if (!busy) { input.value.trim() ? save() : restore(); } }, { once: true });
+    row.appendChild(input);
+    input.focus();
+  };
+
+  row.addEventListener("click", event => {
+    event.stopPropagation();
+    if (row.classList.contains("editing")) return;
+    if (missing.length === 1) openEditor(missing[0]);
+    else openScheduleMiniCalendar(row, missing, openEditor);
+  });
+  return row;
+}
+
+function openScheduleMiniCalendar(anchor, missing, onPick) {
+  document.querySelectorAll(".schedule-mini-cal").forEach(el => el.remove());
+  const allowed = new Set(missing);
+  const firstD = parseLocalDate(missing[0]);
+  const lastD = parseLocalDate(missing[missing.length - 1]);
+  const minMonth = firstD.getFullYear() * 12 + firstD.getMonth();
+  const maxMonth = lastD.getFullYear() * 12 + lastD.getMonth();
+  let month = minMonth;
+
+  const pop = document.createElement("div");
+  pop.className = "schedule-mini-cal";
+  document.body.appendChild(pop);
+
+  const close = () => { pop.remove(); document.removeEventListener("mousedown", outside, true); };
+  const outside = e => { if (!pop.contains(e.target)) close(); };
+  setTimeout(() => document.addEventListener("mousedown", outside, true), 0);
+
+  const draw = () => {
+    const y = Math.floor(month / 12), m = month % 12;
+    pop.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "smc-head";
+    const prev = document.createElement("button");
+    prev.type = "button"; prev.textContent = "‹"; prev.disabled = month <= minMonth;
+    const next = document.createElement("button");
+    next.type = "button"; next.textContent = "›"; next.disabled = month >= maxMonth;
+    const title = document.createElement("strong");
+    title.textContent = `${y}년 ${m + 1}월`;
+    prev.addEventListener("click", () => { month--; draw(); });
+    next.addEventListener("click", () => { month++; draw(); });
+    head.append(prev, title, next);
+    const grid = document.createElement("div");
+    grid.className = "smc-grid";
+    ["일", "월", "화", "수", "목", "금", "토"].forEach(w => {
+      const c = document.createElement("span"); c.className = "smc-wd"; c.textContent = w; grid.appendChild(c);
+    });
+    const startDow = new Date(y, m, 1).getDay();
+    for (let i = 0; i < startDow; i++) grid.appendChild(document.createElement("span"));
+    const days = new Date(y, m + 1, 0).getDate();
+    for (let d = 1; d <= days; d++) {
+      const key = formatDateKey(new Date(y, m, d));
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = d; b.className = "smc-day";
+      if (!allowed.has(key)) b.disabled = true;
+      else b.addEventListener("click", () => { close(); onPick(key); });
+      grid.appendChild(b);
+    }
+    pop.append(head, grid);
+  };
+  draw();
+
+  const r = anchor.getBoundingClientRect();
+  const w = 224;
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + "px";
+  const h = pop.offsetHeight;
+  pop.style.top = (r.bottom + h + 8 > window.innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 4) + "px";
 }
 
 // 목록 안에서만 스크롤해서 오늘 날짜가 맨 위에 오게 한다 (페이지 전체는 움직이지 않음).
