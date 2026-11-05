@@ -2942,3 +2942,25 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .schedule-side .schedule-item.schedule-item-button:hover { background: #f4f8f1; }
 .schedule-side .schedule-gap-input { background: #f9fbf7 !important; }
 .schedule-today-fab { background: #fbfcfa; }
+
+/* Muted sky, brighter list whites, navy checkbox outline */
+:root { --sky-bg: #f3f7fa; --sky-line: #dde7ee; --sky-deep: #dae6ee; --sky-ink: #4f6b80; }
+.quick-current .section-label { color: #7f9fb5 !important; }
+.quick-current .quick-input-row input:focus { border-color: #a9c0d0 !important; }
+.quick-current #quickTodoAddButton { border-color: #c7d7e2 !important; }
+.quick-current #quickTodoAddButton:hover { background: #cfdde7 !important; }
+.quick-current .quick-item:hover { border-color: #bccfdb !important; background: #f9fbfd !important; }
+.quick-todo-card { box-shadow: 0 1px 2px rgba(60,80,100,.05), 0 4px 14px rgba(100,130,160,.08) !important; }
+.quick-current .quick-input-row input, .quick-current .quick-item { background: #fdfeff !important; }
+.schedule-side .schedule-date-group { background: #fefefd !important; }
+.schedule-pinned .schedule-date-group { background: #fbfcfa !important; }
+.schedule-today-fab { background: #fefefd; }
+
+.quick-current .quick-item input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none; width: 18px; height: 18px; margin: 0; flex: 0 0 auto;
+  border: 1.5px solid #2f3f6b; border-radius: 5px; background: #fff; cursor: pointer; display: inline-grid; place-content: center;
+}
+.quick-current .quick-item input[type="checkbox"]:checked { background: #2f3f6b; }
+.quick-current .quick-item input[type="checkbox"]:checked::after {
+  content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: translateY(-1px) rotate(-45deg);
+}
