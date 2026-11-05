@@ -190,3 +190,4 @@ Access settings의 global session duration도 확인하세요. 이는 팀의 다
 
 ## 화면 스타일 개편 시안 (미리보기 브랜치 ui-restyle-preview, 2026-11-05)
 - public/theme.css 추가(레퍼런스 스타일: 얇은 선, 평면 카드, 세리프 로고, 중앙 탭 밑줄, 그린 화이트 톤). index.html에서 theme.css 링크만 빼면 기존 모습으로 복귀.
+- 시안 v2: 세이지그린&화이트로 정리, 폰트 Pretendard(public/fonts, OFL 라이선스 동봉, CSP 때문에 자체 호스팅), 메모지는 파스텔 유지.
