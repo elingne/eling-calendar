@@ -60,7 +60,6 @@ const moodPickerMenu = $("moodPickerMenu");
 const periodCheck = $("periodCheck");
 const quickMetaSaveState = $("quickMetaSaveState");
 
-const openScheduleCreateButton = $("openScheduleCreateButton");
 const scheduleList = $("scheduleList");
 const schedulePinned = $("schedulePinned");
 
@@ -1795,10 +1794,6 @@ eventDeleteButton.addEventListener("click", async () => {
   renderCalendar();
 });
 
-openScheduleCreateButton.addEventListener("click", () => {
-  if (!isOwner) return;
-  openEventModal();
-});
 
 
 
