@@ -2501,6 +2501,45 @@ function renderScheduleNote(note, group) {
 
   row.append(dot, text, del);
 
+  // 메모 글씨를 누르면 그 자리에서 바로 수정. Enter = 저장, Esc = 취소.
+  if (isOwner) {
+    text.style.cursor = "text";
+    text.addEventListener("click", event => {
+      event.stopPropagation();
+      if (row.classList.contains("editing-note")) return;
+      row.classList.add("editing-note");
+      row.draggable = false;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "schedule-gap-input schedule-note-edit";
+      input.maxLength = 300;
+      input.value = note.body;
+      let done = false;
+      const finish = async save => {
+        if (done) return;
+        done = true;
+        const value = input.value.trim();
+        if (save && value && value !== note.body) {
+          const { error } = await dbClient.from("schedule_notes").update({ body: value }).eq("id", note.id);
+          if (error) console.error("일정 메모 수정 오류:", error);
+          await loadSchedulePage();
+          return;
+        }
+        input.replaceWith(text);
+        row.classList.remove("editing-note");
+        row.draggable = true;
+      };
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); finish(true); }
+        else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+      });
+      input.addEventListener("blur", () => finish(true));
+      text.replaceWith(input);
+      input.focus();
+      input.select();
+    });
+  }
+
   if (isOwner && group) {
     row.draggable = true;
 

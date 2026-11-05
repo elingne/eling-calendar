@@ -3178,3 +3178,5 @@ body { background: #fafbfc !important; }
 .schedule-mini-cal .smc-day { height: 26px; border: 0; border-radius: 8px; background: #f3f8fc; color: #587a92; font-size: 11px; cursor: pointer; }
 .schedule-mini-cal .smc-day:hover:not(:disabled) { background: #dcebf5; }
 .schedule-mini-cal .smc-day:disabled { background: transparent; color: #cfd8de; cursor: default; }
+
+.schedule-side .schedule-note-edit { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; font-size: 10px !important; padding: 3px 6px; border: 1px solid #cfe0ec; border-radius: 6px; background: #fff; }
