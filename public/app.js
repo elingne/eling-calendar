@@ -529,7 +529,8 @@ function renderCalendar() {
   const month = currentDate.getMonth();
   calendarTitle.textContent = `${year}년 ${month + 1}월`;
 
-  const firstDay = new Date(year, month, 1).getDay();
+  // 월요일 시작: 일(0)→6, 월(1)→0 … 토(6)→5
+  const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
   const lastDate = new Date(year, month + 1, 0).getDate();
   const previousMonthLastDate = new Date(year, month, 0).getDate();
 
@@ -866,7 +867,7 @@ async function loadCalendarExtras() {
       if (continuesLeft) chip.classList.add("event-continues-left");
       if (continuesRight) chip.classList.add("event-continues-right");
 
-      // 여러 날 일정은 첫 날과, 줄이 바뀌는 일요일 칸에서 제목을 다시 보여준다.
+      // 여러 날 일정은 첫 날과, 줄이 바뀌는 월요일 칸에서 제목을 다시 보여준다.
       chip.textContent = continuesLeft && cellIndex % 7 !== 0 ? "" : event.title;
       chip.title = event.title;
 
@@ -2919,10 +2920,10 @@ function openScheduleMiniCalendar(anchor, missing, onPick) {
     head.append(prev, title, next);
     const grid = document.createElement("div");
     grid.className = "smc-grid";
-    ["일", "월", "화", "수", "목", "금", "토"].forEach(w => {
+    ["월", "화", "수", "목", "금", "토", "일"].forEach(w => {
       const c = document.createElement("span"); c.className = "smc-wd"; c.textContent = w; grid.appendChild(c);
     });
-    const startDow = new Date(y, m, 1).getDay();
+    const startDow = (new Date(y, m, 1).getDay() + 6) % 7;
     for (let i = 0; i < startDow; i++) grid.appendChild(document.createElement("span"));
     const days = new Date(y, m + 1, 0).getDate();
     for (let d = 1; d <= days; d++) {
