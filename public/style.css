@@ -2789,7 +2789,7 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .schedule-side .schedule-date-heading span { font-size: 10.5px; }
 .schedule-side .schedule-event-main, .schedule-side .schedule-note-text { font-size: 12.5px; }
 .schedule-today-fab {
-  position: absolute; right: 8px; bottom: 8px; z-index: 5; min-width: 44px; height: 28px; padding: 0 12px;
+  position: absolute; right: 8px; top: 14px; z-index: 5; min-width: 44px; height: 28px; padding: 0 12px;
   border: 1px solid var(--pink-200); border-radius: 999px; background: #fff; color: var(--accent);
   font-size: 11.5px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(120,80,100,.18);
 }
@@ -2816,3 +2816,48 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 /* spacers above/below so even the first or last day can sit in the middle of the list */
 .schedule-side .schedule-list::before, .schedule-side .schedule-list::after { content: ""; flex: 0 0 auto; height: 32vh; margin-top: -10px; }
 .schedule-side .schedule-list::after { margin-top: 0; margin-bottom: -10px; }
+
+/* =====================================================================
+   Compact schedule panel + wider calendar (width of the panel itself is unchanged)
+   ===================================================================== */
+.schedule-side { padding: 10px 8px 8px; gap: 6px; border-radius: 14px; }
+.schedule-side-head { padding: 0 2px; }
+.schedule-side-head .card-title { font-size: 13px; }
+.schedule-side-head .primary-button { min-height: 26px !important; padding: 0 9px !important; font-size: 11px !important; border-radius: 8px !important; }
+.schedule-pinned .schedule-date-group { border-radius: 10px !important; }
+.schedule-list-wrap { padding-top: 4px; }
+.schedule-side .schedule-list { top: 4px; gap: 6px; }
+.schedule-side .schedule-date-group { border-radius: 10px; }
+.schedule-side .schedule-date-heading { padding: 5px 8px !important; }
+.schedule-side .schedule-date-heading strong { font-size: 11.5px !important; }
+.schedule-side .schedule-date-heading span { font-size: 9.5px !important; }
+.schedule-side .schedule-group-body { padding: 1px 5px 3px; }
+.schedule-side .schedule-item.schedule-item-button { padding: 5px 6px 5px 11px; grid-template-columns: 14px minmax(0, 1fr); gap: 4px; border-radius: 8px; }
+.schedule-side .schedule-item.schedule-item-button::before { left: 3px; top: 6px; bottom: 6px; width: 3px; }
+.schedule-side .schedule-drag-handle { font-size: 10px; }
+.schedule-side .schedule-event-main { gap: 1px; }
+.schedule-side .schedule-event-main strong { font-size: 11.5px !important; }
+.schedule-side .schedule-event-range, .schedule-side .schedule-event-description { font-size: 9.5px !important; }
+.schedule-side .schedule-note-row { grid-template-columns: 8px minmax(0, 1fr) 18px; gap: 5px; margin: 1px 3px; padding: 4px 6px; border-radius: 7px; font-size: 10.5px; }
+.schedule-side .schedule-note-text { font-size: 10.5px !important; }
+.schedule-side .schedule-note-dot { width: 5px; height: 5px; }
+.schedule-side .schedule-note-delete { width: 18px; min-width: 18px; height: 18px; min-height: 18px; font-size: 14px !important; }
+.schedule-side .schedule-gap { min-height: 8px; padding: 0 6px; gap: 5px; }
+.schedule-side .schedule-gap-hint { font-size: 8px; }
+.schedule-side .schedule-gap.editing { min-height: 28px; }
+.schedule-side .schedule-gap-input { padding: 4px 6px !important; font-size: 10.5px !important; border-radius: 7px !important; }
+.schedule-today-fab { min-width: 36px; height: 22px; padding: 0 9px; font-size: 10px; }
+.schedule-side .empty-text, .schedule-side .error-text { font-size: 11px !important; }
+.schedule-side .schedule-list::before, .schedule-side .schedule-list::after { height: 30vh; }
+
+/* Give the calendar the room: wider page, slimmer side panels (desktop only). */
+@media (min-width: 1081px) {
+  .main { width: min(1760px, calc(100% - 28px)) !important; }
+  .calendar-desktop-layout { gap: 12px; }
+  .quick-todo-card { flex-basis: 250px !important; width: 250px !important; padding: 12px !important; }
+  .schedule-side { flex-basis: 270px; width: 270px; }
+}
+@media (min-width: 1500px) {
+  .quick-todo-card { flex-basis: 300px !important; width: 300px !important; padding: 14px !important; }
+  .schedule-side { flex-basis: 300px; width: 300px; }
+}
