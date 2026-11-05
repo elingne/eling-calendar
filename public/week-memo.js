@@ -73,6 +73,7 @@
 
   area.addEventListener('input', () => { fit(); say(''); later(); });
   area.addEventListener('blur', () => save());
+  area.addEventListener('keydown', event => { if (event.key === 'Escape') area.blur(); });   // 다 썼으면 Esc: 저장하고 배경색으로 돌아간다
   window.loadWeekMemo = load;
   if (window.weekMemoPending) { window.weekMemoPending = false; load(); }
 

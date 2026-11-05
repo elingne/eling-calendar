@@ -3191,14 +3191,15 @@ body { background: #fafbfc !important; }
 .week-memo-status { flex: 0 0 auto; font-size: 11px; color: #8aa3b5; }
 .week-memo-status.error { color: #c0566f; }
 .week-memo-status:empty { display: none; }
-/* 평소에는 카드 배경과 똑같고, 쓰는 동안에만 메모탭의 메모처럼 옅은 색이 된다. */
-.week-memo-text { display: block; width: calc(100% + 20px); box-sizing: border-box; min-height: 114px; max-height: 420px; resize: vertical; padding: 4px 10px; margin: 0 -10px; border: 1px solid transparent; border-radius: 12px; outline: none;
-  background: transparent; font: inherit; font-size: 14px; line-height: 1.7; font-weight: 500; color: #2a2c34; transition: background-color .15s ease, border-color .15s ease; }
-.week-memo-text:focus { background: rgba(255,255,255,.85); border-color: var(--sky-line); }
-.week-memo-text::placeholder { color: #9fb4c3; font-weight: 400; }
+/* 평소에는 카드 배경과 똑같고, 쓰는 동안에만 메모탭의 메모처럼 옅은 색이 된다.
+   전역 textarea 규칙이 배경·테두리·여백·글자 크기를 !important 로 정해두고 있어서 여기서도 !important 로 덮어쓴다. */
+.week-memo-card .week-memo-text { display: block; width: calc(100% + 20px); box-sizing: border-box; min-height: 114px; max-height: 420px; resize: none; padding: 4px 10px !important; margin: 0 -10px; border: 1px solid transparent !important; border-radius: 12px !important; outline: none; box-shadow: none !important;
+  background: transparent !important; font: inherit; font-size: 14px !important; line-height: 1.7; font-weight: 500; color: #2a2c34; transition: background-color .15s ease, border-color .15s ease; }
+.week-memo-card .week-memo-text:focus { background: rgba(255,255,255,.85) !important; border-color: var(--sky-line) !important; box-shadow: none !important; }
+.week-memo-card .week-memo-text::placeholder { color: #9fb4c3; font-weight: 400; }
 @media (max-width: 700px) {
   .week-memo-card { margin-bottom: 12px; padding: 12px 14px 14px; }
-  .week-memo-text { font-size: 15px; }
+  .week-memo-card .week-memo-text { font-size: 16px !important; }
 }
 
 /* 날짜를 눌렀을 때 보이는 '완료한 일' 영역: 지금 할 일 쪽 완료 구역처럼 분홍기 도는 회색 */
