@@ -2891,3 +2891,37 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
   .schedule-side { flex-basis: 350px; width: 350px; }
   .calendar-day { min-height: 156px !important; }
 }
+
+/* =====================================================================
+   Colour zones: todos = pale sky blue (done part stays grey), schedule = pale green
+   ===================================================================== */
+:root { --sky-bg: #f1f8fd; --sky-line: #d4e7f4; --sky-deep: #cfe6f5; --sky-ink: #3f6f8f; --leaf-bg: #f3faee; --leaf-line: #d8eacb; --leaf-deep: #e1f1d5; --leaf-ink: #4d7a3c; }
+
+/* todo zone */
+.quick-todo-card { background: var(--sky-bg) !important; border: 1px solid var(--sky-line) !important; box-shadow: 0 1px 2px rgba(60,100,130,.05), 0 4px 14px rgba(90,150,190,.10) !important; }
+.quick-current .section-label { color: #6aa3c7 !important; }
+.quick-current .quick-column-header h2 { color: var(--sky-ink); }
+.quick-current .quick-input-row input { background: #fff !important; border-color: var(--sky-line) !important; }
+.quick-current .quick-input-row input:focus { border-color: #8fc2e0 !important; }
+.quick-current #quickTodoAddButton { background: var(--sky-deep) !important; border-color: #b9d9ee !important; color: var(--sky-ink) !important; }
+.quick-current #quickTodoAddButton:hover { background: #bfdef2 !important; }
+.quick-current .quick-item { background: #fff !important; border-color: var(--sky-line) !important; }
+.quick-current .quick-item:hover { border-color: #a9d0e8 !important; }
+.quick-current .quick-item input[type="checkbox"] { accent-color: #6aa9d0; }
+
+/* schedule zone */
+.schedule-side { background: var(--leaf-bg) !important; border: 1px solid var(--leaf-line) !important; box-shadow: 0 1px 2px rgba(70,110,50,.05), 0 4px 14px rgba(110,160,80,.10) !important; }
+.schedule-side-head .card-title { color: var(--leaf-ink); }
+.schedule-list-wrap { border-top-color: var(--leaf-line) !important; }
+.schedule-side .schedule-date-group { background: #fff !important; border: 1px solid var(--leaf-line) !important; }
+.schedule-side .schedule-date-heading { background: #f6fbf2 !important; border-bottom-color: var(--leaf-line) !important; }
+.schedule-side .schedule-date-heading strong { color: #46603a; }
+.schedule-side .schedule-today > .schedule-date-heading, .schedule-pinned .schedule-date-heading { background: var(--leaf-deep) !important; }
+.schedule-side .schedule-today > .schedule-date-heading strong, .schedule-pinned .schedule-date-heading strong { color: var(--leaf-ink) !important; }
+.schedule-pinned .schedule-date-group { background: #f9fdf6 !important; border: 1px solid #bfdcab !important; box-shadow: 0 2px 8px rgba(110,160,80,.16) !important; }
+.schedule-side .schedule-gap-line { background: #e6f1dd; }
+.schedule-side .schedule-note-row { background: #f4faef; }
+.schedule-side .schedule-gap-input { border-color: #cfe5c0 !important; background: #fbfef9 !important; }
+.schedule-today-fab { border-color: #bfdcab; color: var(--leaf-ink); background: #fff; }
+.schedule-today-fab:hover { background: var(--leaf-deep); }
+.day-panel.day-panel-over { border-color: var(--leaf-line); }
