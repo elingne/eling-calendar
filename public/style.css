@@ -3021,3 +3021,88 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 /* -- page rhythm -- */
 @media (min-width: 1081px) { .calendar-desktop-layout { align-items: flex-start; } }
 .header { box-shadow: 0 1px 0 rgba(60,60,90,.03); }
+
+/* =====================================================================
+   One calm pastel family: lower saturation, higher lightness, shared by every zone
+   rose = accent · sky = todos · sage = schedule · grey = done
+   ===================================================================== */
+:root {
+  --pink: #eec0cd; --pink-deep: #b9788f; --pink-light: #fcedf2; --pink-50: #fdf6f8; --pink-100: #fbebf0; --pink-200: #f3d9e2;
+  --accent: #c58aa0; --accent-dark: #b9788f; --accent-soft: #fbe7ee; --accent-ink: #9a5f75;
+  --chip-blue-bg: #eaf3f9; --chip-blue-ink: #5f8199; --chip-pink-bg: #fdeef2; --chip-pink-ink: #b27590;
+  --sky-bg: #f6fafd; --sky-line: #e2edf5; --sky-deep: #e5f0f7; --sky-ink: #5d7f97;
+  --leaf-bg: #f8fbf6; --leaf-line: #e6eee1; --leaf-deep: #edf3e8; --leaf-ink: #6e846a;
+  --line: #eceef3; --line-soft: #eceef3;
+}
+body { background: #fafbfc !important; }
+.header { background: #fff !important; }
+
+/* rose (accent) */
+.nav-button.active, .today-button { background: #fcedf2 !important; color: #b9788f !important; border-color: #f3d9e2 !important; }
+.calendar-day.today { background: #fffafb !important; }
+.calendar-day.today .day-number { background: #fbe7ee !important; color: #9a5f75 !important; box-shadow: 0 0 0 3px #fdf1f5 !important; }
+.calendar-day.public-holiday .day-number, .calendar-holiday-name { color: #d4707d !important; }
+.weekdays .sunday { color: #dba3b3 !important; } .weekdays .saturday { color: #94bdd2 !important; }
+.calendar-day.sunday:not(.other-month) .day-number { color: #d894a7 !important; }
+.calendar-day.saturday:not(.other-month) .day-number { color: #8fb9d0 !important; }
+.month-button:hover, .search-button:hover { background: #fdf6f8 !important; border-color: #f3d9e2 !important; color: #b9788f !important; }
+.event-modal-actions .primary-button { background: #f7d9e3 !important; border-color: #efc6d4 !important; color: #8f566c !important; }
+.event-modal-actions .primary-button:hover { background: #f3cbd9 !important; }
+.event-color-option:has(input:checked) { border-color: #d9a3b6 !important; background: #fdf6f8 !important; }
+
+/* chips + list bars + popover dots + swatches (same two pastels everywhere) */
+.calendar-event-chip.event-color-blue { background: #eaf3f9 !important; color: #5f8199 !important; }
+.calendar-event-chip.event-color-pink { background: #fdeef2 !important; color: #b27590 !important; }
+.schedule-item.schedule-item-button::before { background: #b9d8e8 !important; }
+.schedule-item.schedule-item-button[data-color="pink"]::before { background: #f1b9c9 !important; }
+.day-events-popover-dot { background: #b9d8e8 !important; }
+.day-events-popover-item.event-color-pink .day-events-popover-dot { background: #f1b9c9 !important; }
+.event-color-swatch-blue { background: #eaf3f9 !important; border-color: #bcd9e8 !important; }
+.event-color-swatch-pink { background: #fdeef2 !important; border-color: #f1c4d1 !important; }
+.mood-dot.mood-happy, .mood-badge.mood-happy .mood-dot { background: #b6df88 !important; border-color: #a6d276 !important; }
+.mood-dot.mood-neutral, .mood-badge.mood-neutral .mood-dot { background: #e1f0c8 !important; border-color: #d3e5b6 !important; }
+
+/* sky = todos */
+.quick-todo-card { background: #f6fafd !important; border-color: #e2edf5 !important; box-shadow: 0 1px 2px rgba(60,90,120,.04), 0 6px 18px rgba(80,120,160,.06) !important; }
+.quick-current .section-label { color: #8fb0c6 !important; }
+.quick-current .quick-column-header h2 { color: #5d7f97 !important; }
+.quick-current .quick-input-row input, .quick-current .quick-item { background: #fdfeff !important; border-color: #e5eef5 !important; }
+.quick-current .quick-input-row input:focus { border-color: #a9c7da !important; }
+.quick-current #quickTodoAddButton { background: #e5f0f7 !important; border-color: #d3e3ee !important; color: #5d7f97 !important; }
+.quick-current #quickTodoAddButton:hover { background: #d9e9f3 !important; }
+.quick-current .quick-item:hover { border-color: #c9dce9 !important; background: #fbfdff !important; }
+.quick-current .quick-item input[type="checkbox"] { border-color: #55668f; }
+.quick-current .quick-item input[type="checkbox"]:checked { background: #55668f; }
+
+/* sage = schedule */
+.schedule-side { background: #f8fbf6 !important; border-color: #e6eee1 !important; box-shadow: 0 1px 2px rgba(70,100,60,.04), 0 6px 18px rgba(100,140,90,.06) !important; }
+.schedule-side-head .card-title { color: #6e846a !important; }
+.schedule-list-wrap { border-top-color: #e6eee1 !important; }
+.schedule-side .schedule-date-group { background: #fefffd !important; border-color: #e6eee1 !important; }
+.schedule-side .schedule-date-heading { background: #f6faf3 !important; border-bottom-color: #e6eee1 !important; }
+.schedule-side .schedule-date-heading strong { color: #5f7459 !important; }
+.schedule-side .schedule-today > .schedule-date-heading, .schedule-pinned .schedule-date-heading { background: #edf3e8 !important; }
+.schedule-side .schedule-today > .schedule-date-heading strong, .schedule-pinned .schedule-date-heading strong { color: #6e846a !important; }
+.schedule-pinned .schedule-date-group { background: #fbfdf9 !important; border-color: #d6e3cd !important; box-shadow: 0 2px 8px rgba(100,140,90,.10) !important; }
+.schedule-side .schedule-note-row { background: #f6faf3 !important; }
+.schedule-side .schedule-gap:hover .schedule-gap-line { background: #e0ebd8 !important; }
+.schedule-side .schedule-group-body > .schedule-gap:only-child { border-color: #d6e5cc; background: #fcfefb; }
+.schedule-today-fab { border-color: #d6e3cd !important; color: #6e846a !important; }
+.schedule-today-fab:hover { background: #edf3e8 !important; }
+
+/* grey = done (a touch lighter) */
+.quick-history { background: #f1f2f4 !important; border-color: #e5e7ea !important; }
+.quick-history .quick-item { background: #e8eaed !important; border-color: #dfe1e5 !important; }
+.quick-history .quick-input-row input { background: #f8f8fa !important; border-color: #e1e3e7 !important; }
+.quick-history .quick-input-row button { background: #e4e6e9 !important; border-color: #dadce0 !important; }
+
+/* memo notes: same pastel family */
+.memo-card[data-color=red], .memo-modal[data-color=red] { background: #fdeeed !important; border-color: #f4dad8 !important; }
+.memo-card[data-color=orange], .memo-modal[data-color=orange] { background: #fdf1e4 !important; border-color: #f3e0cb !important; }
+.memo-card[data-color=yellow], .memo-modal[data-color=yellow] { background: #fdf8e1 !important; border-color: #f1e8c2 !important; }
+.memo-card[data-color=green], .memo-modal[data-color=green] { background: #ebf5e8 !important; border-color: #d4e7ce !important; }
+.memo-card[data-color=blue], .memo-modal[data-color=blue] { background: #e9f2fb !important; border-color: #d3e2f2 !important; }
+.memo-card.memo-folder, .memo-folder { background: #fdf6dc !important; border-color: #f0e4b8 !important; }
+.memo-drag-handle { color: #b7a3ad; }
+
+#memosPage { max-width: 1280px; margin-left: auto; margin-right: auto; }
