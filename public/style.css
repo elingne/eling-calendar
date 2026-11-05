@@ -3151,3 +3151,13 @@ body { background: #fafbfc !important; }
 .schedule-side .schedule-note-row, .schedule-side .schedule-note-text { font-size: 10px !important; }
 .schedule-side .schedule-event-range, .schedule-side .schedule-event-description { font-size: 9px !important; }
 .schedule-side .schedule-date-heading strong { font-size: 11px !important; }
+
+/* done area: a hint of pink in the grey */
+.quick-history { background: #f3f1f3 !important; border-color: #e9e5e8 !important; }
+.quick-history .quick-item { background: #ebe8eb !important; border-color: #e3dfe3 !important; }
+.quick-history .quick-input-row input { background: #f9f7f9 !important; border-color: #e5e1e5 !important; }
+.quick-history .quick-input-row button { background: #e8e4e8 !important; border-color: #ddd8dd !important; }
+
+/* schedule list: today is a normal date group (only the pinned copy is a card) */
+.schedule-side .schedule-list .schedule-today > .schedule-date-heading { background: #f3f8fc !important; }
+.schedule-side .schedule-list .schedule-today > .schedule-date-heading strong { color: #587a92 !important; }
