@@ -3215,3 +3215,8 @@ body { background: #fafbfc !important; }
 .todo-accordion .completed-record-check { color: #a8adba !important; }
 .todo-accordion .completed-record-title { color: #9aa0ab !important; text-decoration: line-through; text-decoration-color: #c2c6ce; }
 .todo-accordion .row-delete { color: #a8adb8 !important; }
+
+/* 모바일(세로로 쌓이는 화면): '지금 해야 하는 일' 구역을 캘린더와 일정 목록보다 먼저 보여준다. 웹(가로 3단)은 그대로. */
+@media (max-width: 1080px) {
+  .calendar-desktop-layout > .quick-todo-card { order: -3; }
+}
