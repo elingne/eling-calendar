@@ -2925,3 +2925,20 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
 .schedule-today-fab { border-color: #cfdcc8; color: var(--leaf-ink); background: #fff; }
 .schedule-today-fab:hover { background: var(--leaf-deep); }
 .day-panel.day-panel-over { border-color: var(--leaf-line); }
+
+/* Tone refinements: no pure white inside the zones */
+.quick-history { background: #e8eaee !important; border-color: #dcdfe5 !important; }
+.quick-history .quick-input-row input { background: #f3f4f7 !important; border-color: #d8dce2 !important; }
+.quick-history .quick-input-row button { background: #dcdfe5 !important; border-color: #d0d4db !important; }
+.quick-history .quick-item { background: #dfe2e7 !important; border-color: #d3d7de !important; }
+.quick-history .quick-item:hover { border-color: #bfc4cc !important; }
+
+.quick-current .quick-input-row input, .quick-current .quick-item { background: #f7fbfe !important; }
+.quick-current .quick-item:hover { background: #f2f9fd !important; }
+
+.schedule-side .schedule-date-group { background: #fbfcfa !important; }
+.schedule-pinned .schedule-date-group { background: #f7faf5 !important; }
+.schedule-side .schedule-item.schedule-item-button { background: transparent; }
+.schedule-side .schedule-item.schedule-item-button:hover { background: #f4f8f1; }
+.schedule-side .schedule-gap-input { background: #f9fbf7 !important; }
+.schedule-today-fab { background: #fbfcfa; }
