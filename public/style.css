@@ -3128,3 +3128,26 @@ body { background: #fafbfc !important; }
 .schedule-today-fab:hover { background: #e5f0f7 !important; }
 .schedule-side .schedule-item.schedule-item-button:hover { background: #f6fafd; }
 .day-panel.day-panel-over { border-color: #e2edf5; }
+
+/* =====================================================================
+   Todo panel in pale pink pastel + slightly smaller list type
+   ===================================================================== */
+.quick-todo-card { background: #fdf7f9 !important; border-color: #f6e5eb !important; box-shadow: 0 1px 2px rgba(120,70,90,.04), 0 6px 18px rgba(200,130,155,.07) !important; }
+.quick-current .section-label { color: #d1a3b4 !important; }
+.quick-current .quick-column-header h2 { color: #a46b82 !important; }
+.quick-current .quick-input-row input, .quick-current .quick-item { background: #fffdfe !important; border-color: #f7e9ee !important; }
+.quick-current .quick-input-row input:focus { border-color: #e5b9c9 !important; }
+.quick-current #quickTodoAddButton { background: #fbe9ef !important; border-color: #f3d6df !important; color: #a46b82 !important; }
+.quick-current #quickTodoAddButton:hover { background: #f8dde7 !important; }
+.quick-current .quick-item:hover { border-color: #ecc9d6 !important; background: #fffafc !important; }
+
+/* list type: a notch smaller */
+.quick-item-title { font-size: 12.5px !important; }
+.quick-item-time { font-size: 10px !important; }
+.quick-current .quick-item { min-height: 38px !important; padding: 6px 9px !important; }
+.quick-todo-list, .quick-completed-list { gap: 6px !important; }
+.quick-input-row input { font-size: 12.5px !important; }
+.schedule-side .schedule-event-main strong { font-size: 11px !important; }
+.schedule-side .schedule-note-row, .schedule-side .schedule-note-text { font-size: 10px !important; }
+.schedule-side .schedule-event-range, .schedule-side .schedule-event-description { font-size: 9px !important; }
+.schedule-side .schedule-date-heading strong { font-size: 11px !important; }
