@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <title>My Calendar</title>
-  <link rel="stylesheet" href="style.css?v=20261105r">
+  <link rel="stylesheet" href="style.css?v=20261106a">
 </head>
 <body class="read-only">
 
@@ -34,17 +34,6 @@
       <p id="connectionMessage" role="status" aria-live="polite"></p>
       <!-- CALENDAR PAGE -->
       <section id="calendarPage" class="page-section">
-        <section id="weekMemoCard" class="week-memo-card hidden" aria-label="금주의 메모">
-          <div class="week-memo-head">
-            <div class="quick-column-header">
-              <span class="section-label">THIS WEEK</span>
-              <h2>금주의 메모</h2>
-              <span id="weekMemoRange" class="week-memo-range"></span>
-            </div>
-            <span id="weekMemoStatus" class="week-memo-status" role="status" aria-live="polite"></span>
-          </div>
-          <textarea id="weekMemoText" class="week-memo-text" maxlength="10000" rows="4" spellcheck="false" autocomplete="off" placeholder="이번 주 메모를 자유롭게 적어보세요" aria-label="금주의 메모"></textarea>
-        </section>
         <div class="calendar-desktop-layout">
         <section class="quick-todo-card">
           <div class="quick-todo-layout">
@@ -88,6 +77,18 @@
           </div>
         </section>
 
+          <div class="calendar-center">
+        <section id="weekMemoCard" class="week-memo-card hidden" aria-label="금주의 메모">
+          <div class="week-memo-head">
+            <div class="quick-column-header">
+              <span class="section-label">THIS WEEK</span>
+              <h2>금주의 메모</h2>
+              <span id="weekMemoRange" class="week-memo-range"></span>
+            </div>
+            <span id="weekMemoStatus" class="week-memo-status" role="status" aria-live="polite"></span>
+          </div>
+          <textarea id="weekMemoText" class="week-memo-text" maxlength="10000" rows="4" spellcheck="false" autocomplete="off" placeholder="이번 주 메모를 자유롭게 적어보세요" aria-label="금주의 메모"></textarea>
+        </section>
           <section class="calendar-card">
           <div class="calendar-header">
             <button id="prevMonth" class="month-button" type="button" aria-label="이전 달">‹</button>
@@ -104,6 +105,7 @@
           </div>
           <div id="calendarGrid" class="calendar-grid"></div>
         </section>
+          </div>
 
           <aside id="schedulePage" class="schedule-side hidden" aria-label="일정 목록">
             <div class="schedule-side-head">

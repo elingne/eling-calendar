@@ -3220,3 +3220,16 @@ body { background: #fafbfc !important; }
 @media (max-width: 1080px) {
   .calendar-desktop-layout > .quick-todo-card { order: -3; }
 }
+
+/* 금주의 메모는 캘린더 바로 위, 캘린더와 같은 너비(가운데 열). 지금 할 일·일정은 맨 위부터 시작한다. */
+.calendar-center { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.calendar-center > .calendar-card { width: auto; flex: 0 0 auto; }
+.calendar-center > .week-memo-card { margin: 0; }
+@media (max-width: 1080px) {
+  /* 세로로 쌓이는 화면: 가운데 열 묶음을 풀어서 메모 → 지금 할 일 → 캘린더 → 일정 순서를 그대로 유지 */
+  .calendar-center { display: contents; }
+  .calendar-center > .week-memo-card { order: -4; }
+  .quick-todo-card { order: -3 !important; }
+  .calendar-center > .calendar-card { order: -2; width: 100%; }
+  .schedule-side { order: -1; }
+}
