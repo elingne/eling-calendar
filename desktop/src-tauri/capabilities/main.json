@@ -1,0 +1,15 @@
+{
+  "identifier": "main-window",
+  "description": "My Calendar 사이트 화면이 창 모드(위젯/전체), 항상 위, 끌어서 옮기기, 트레이로 숨기기만 할 수 있게 허용합니다. 파일·네트워크·셸 같은 다른 권한은 주지 않습니다.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://eling-calendar.ielingkk.workers.dev/*"]
+  },
+  "permissions": [
+    "allow-get-state",
+    "allow-set-mode",
+    "allow-set-pinned",
+    "allow-start-drag",
+    "allow-hide-window"
+  ]
+}

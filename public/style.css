@@ -3233,3 +3233,51 @@ body { background: #fafbfc !important; }
   .calendar-center > .calendar-card { order: -2; width: 100%; }
   .schedule-side { order: -1; }
 }
+
+/* =====================================================================
+   데스크톱 앱(위젯). desktop.js 가 앱 안에서만 html 에 is-desktop-app 을, 위젯 모드일 때 body 에 desktop-widget 을 붙입니다.
+   일반 브라우저에서는 이 클래스들이 붙지 않아 아무 영향이 없습니다. */
+.desktop-bar, .desktop-login-hint { display: none; }
+.desktop-controls { display: inline-flex; align-items: center; gap: 2px; }
+.desktop-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0;
+  border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--ink-500, #8a909b);
+  transition: background-color .15s ease, color .15s ease;
+}
+.desktop-btn:hover { background: var(--pink-100, #fff0f5); color: var(--pink-500, #df8eaa); }
+.desktop-btn.active { background: var(--pink-200, #fbdbe7); color: #c4627f; }
+.desktop-btn:focus-visible { outline: 2px solid var(--pink-300, #f4bfd2); outline-offset: 1px; }
+.is-desktop-app .header-actions .desktop-controls { margin-right: 6px; }
+
+/* 위젯 모드: 위쪽 얇은 막대(끌어서 옮기기) + 오늘 일정 + 지금 해야 하는 일 */
+.desktop-widget .desktop-bar {
+  display: flex; align-items: center; gap: 6px; position: sticky; top: 0; z-index: 200; height: 36px; padding: 0 6px 0 12px;
+  background: var(--pink-50, #fff8fb); border-bottom: 1px solid var(--pink-200, #fbdbe7); user-select: none; -webkit-user-select: none;
+}
+.desktop-bar-title { flex: 1; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--pink-500, #df8eaa); cursor: default; }
+.desktop-widget .header, .desktop-widget .calendar-center, .desktop-widget .quick-history,
+.desktop-widget .schedule-list-wrap, .desktop-widget .calendar-tip { display: none !important; }
+.desktop-widget .main { width: 100% !important; margin: 0 !important; padding: 8px 8px 14px !important; box-sizing: border-box; }
+.desktop-widget .calendar-desktop-layout { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+.desktop-widget .schedule-side {
+  order: -4 !important; position: static !important; width: auto !important; height: auto !important; flex: 0 0 auto !important;
+  padding: 10px 10px 8px;
+}
+.desktop-widget .quick-todo-card {
+  order: -3 !important; position: static !important; width: auto !important; flex: 0 0 auto !important;
+  max-height: none !important; overflow: visible !important;
+}
+.desktop-widget .schedule-pinned { max-height: none; overflow: visible; }
+.desktop-widget #connectionMessage { padding: 6px 8px; font-size: 12px; }
+/* 로그인하기 전에는 위젯 내용을 가리고 안내만 보여준다 (세션 확인이 끝나기 전에도 가려서 깜빡임을 막는다). */
+.desktop-widget:not([data-session="owner"]) #siteApp { display: none !important; }
+.desktop-widget[data-session="visitor"] .desktop-login-hint {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 36px 18px; text-align: center;
+  color: var(--ink-700, #626875); font-size: 13px;
+}
+.desktop-login-hint p { margin: 0; line-height: 1.6; }
+.desktop-login-hint button {
+  padding: 9px 18px; border: 0; border-radius: 12px; background: var(--pink-200, #fbdbe7); color: #b5506e; font-weight: 700;
+}
+.desktop-login-hint button:hover { background: var(--pink-300, #f4bfd2); }
+@media (prefers-reduced-motion: reduce) { .desktop-btn { transition: none; } }

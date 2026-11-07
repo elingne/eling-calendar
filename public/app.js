@@ -93,6 +93,8 @@ async function checkSession() {
     if (!response.ok) throw Error('연결 실패');
     isOwner = Boolean((await response.json()).owner);
     document.body.classList.toggle('read-only', !isOwner);
+    document.body.dataset.session = isOwner ? 'owner' : 'visitor';   // 데스크톱 위젯이 로그인 안내를 보여줄지 정하는 데 쓴다
+    window.dispatchEvent(new CustomEvent('calendar-session'));        // 로그인 확인이 끝났다: 실시간 동기화(sync.js)가 기준 번호를 바로 받아 둔다
     document.querySelectorAll('[data-page="memos"], #searchButton, .quick-todo-card, #schedulePage, #weekMemoCard').forEach(el => el.classList.toggle('hidden', !isOwner));
     logoutButton.textContent = isOwner ? '로그아웃' : '관리자 로그인';
     const calendarTip = $("calendarTip");
@@ -3191,6 +3193,23 @@ eventModal.addEventListener("mousedown", event => {
 });
 eventModal.addEventListener("click", event => {
   if (event.target === eventModal && eventModalPressedOnBackdrop) closeEventModal();
+});
+
+/* 실시간 동기화: sync.js 가 다른 곳(웹·데스크톱 위젯)에서 바뀐 것을 알려주면 보이는 화면을 최신으로 맞춘다. */
+window.addEventListener('calendar-remote-change', () => {
+  if (!isOwner) return;
+  if (!calendarPage.classList.contains('hidden')) {
+    renderCalendar();
+    loadQuickTodos();
+    loadSchedulePage();
+    window.loadWeekMemo();
+    if (selectedRecordDate && dayPanel.classList.contains('open')) {
+      loadDayTodos(selectedRecordDate);
+      loadQuickDateMeta(selectedRecordDate);
+    }
+  } else if (!$('memosPage').classList.contains('hidden') && window.loadMemoBoard && $('memoModal').classList.contains('hidden')) {
+    window.loadMemoBoard();
+  }
 });
 
 /* START */
