@@ -47,7 +47,7 @@ test('the baseline is taken as soon as the login check finishes, so a change in 
  const {events,server,fire,context}=setup();
  fire('win','calendar-session');await settle();
  assert.equal(server.syncCalls,1);
- server.version++;                         // 첫 5초 안에 다른 곳에서 저장
+ server.version++;                         // 첫 20초 안에 다른 곳에서 저장
  await context.calendarSync.check();
  assert.deepEqual(events,['calendar-remote-change']);
 });

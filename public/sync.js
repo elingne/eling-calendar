@@ -4,7 +4,7 @@
    - 화면이 숨겨져 있으면 확인을 멈추고, 다시 보이면 바로 확인한다.
    - 내가 저장해서 번호가 올라간 것은 다시 불러오지 않는다. */
 (() => {
-  const POLL_MS = 5000;
+  const POLL_MS = 20000;
   const TEXT_TYPES = ['', 'text', 'search', 'date', 'time', 'number', 'url', 'email', 'tel', 'password'];
   // 목록을 다시 그려도 입력 내용이 사라지지 않는 칸은 기다릴 필요가 없다.
   const SAFE_IDS = ['quickTodoInput', 'completedTodoInput', 'searchInput', 'weekMemoText'];
@@ -70,7 +70,7 @@
 
   window.setInterval(() => { if (pending) flush(); check(); }, POLL_MS);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
-  window.addEventListener('calendar-session', check);   // 로그인 확인이 끝나는 즉시 기준 번호를 받아 둔다 (첫 5초 사이의 변경도 놓치지 않게)
+  window.addEventListener('calendar-session', check);   // 로그인 확인이 끝나는 즉시 기준 번호를 받아 둔다 (첫 20초 사이의 변경도 놓치지 않게)
   window.addEventListener('focus', check);
   window.addEventListener('online', check);
   window.calendarSync = { check };
