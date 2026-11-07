@@ -3249,26 +3249,46 @@ body { background: #fafbfc !important; }
 .desktop-btn:focus-visible { outline: 2px solid var(--pink-300, #f4bfd2); outline-offset: 1px; }
 .is-desktop-app .header-actions .desktop-controls { margin-right: 6px; }
 
-/* 위젯 모드: 위쪽 얇은 막대(끌어서 옮기기) + 오늘 일정 + 지금 해야 하는 일 */
+/* 위젯 모드: 위쪽 얇은 막대(끌어서 옮기기) + 캘린더 탭(금주 메모 → 지금 해야 하는 일 → 일정) 또는 메모 탭.
+   zoom 으로 글자까지 한꺼번에 줄인다 (WebView2·Chromium 지원). 막대와 대화상자는 줄이지 않아 누르기 쉽다. */
 .desktop-widget .desktop-bar {
-  display: flex; align-items: center; gap: 6px; position: sticky; top: 0; z-index: 200; height: 36px; padding: 0 6px 0 12px;
+  display: flex; align-items: center; gap: 4px; position: sticky; top: 0; z-index: 200; height: 30px; padding: 0 4px 0 10px;
   background: var(--pink-50, #fff8fb); border-bottom: 1px solid var(--pink-200, #fbdbe7); user-select: none; -webkit-user-select: none;
 }
-.desktop-bar-title { flex: 1; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--pink-500, #df8eaa); cursor: default; }
-.desktop-widget .header, .desktop-widget .calendar-center, .desktop-widget .quick-history,
+.desktop-bar-title { flex: 1; font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--pink-500, #df8eaa); cursor: default; }
+.desktop-widget .desktop-btn { width: 24px; height: 24px; border-radius: 8px; }
+.desktop-widget .desktop-btn svg { width: 14px; height: 14px; }
+.desktop-widget .header, .desktop-widget .calendar-card, .desktop-widget .quick-history,
 .desktop-widget .schedule-list-wrap, .desktop-widget .calendar-tip { display: none !important; }
-.desktop-widget .main { width: 100% !important; margin: 0 !important; padding: 8px 8px 14px !important; box-sizing: border-box; }
+.desktop-widget .main { zoom: .78; width: 100% !important; margin: 0 !important; padding: 8px 8px 14px !important; box-sizing: border-box; }
 .desktop-widget .calendar-desktop-layout { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
-.desktop-widget .schedule-side {
-  order: -4 !important; position: static !important; width: auto !important; height: auto !important; flex: 0 0 auto !important;
-  padding: 10px 10px 8px;
-}
+.desktop-widget .calendar-center { display: contents !important; }
+.desktop-widget .week-memo-card { order: -5 !important; margin: 0 !important; width: auto !important; }
 .desktop-widget .quick-todo-card {
-  order: -3 !important; position: static !important; width: auto !important; flex: 0 0 auto !important;
+  order: -4 !important; position: static !important; width: auto !important; flex: 0 0 auto !important;
   max-height: none !important; overflow: visible !important;
+}
+.desktop-widget .schedule-side {
+  order: -3 !important; position: static !important; width: auto !important; height: auto !important; flex: 0 0 auto !important;
+  padding: 10px 10px 8px;
 }
 .desktop-widget .schedule-pinned { max-height: none; overflow: visible; }
 .desktop-widget #connectionMessage { padding: 6px 8px; font-size: 12px; }
+/* 지금 해야 하는 일 ↔ 완료한 일: 머리글 옆 작은 버튼으로 바꾼다 (한 번에 한쪽만 보인다). */
+.desktop-todo-switch {
+  display: none; margin-left: auto; padding: 2px 9px; border: 1px solid var(--pink-200, #fbdbe7); border-radius: 999px;
+  background: var(--pink-50, #fff8fb); color: #b5506e; font-size: 11px; font-weight: 700; line-height: 1.5;
+}
+.desktop-todo-switch:hover { background: var(--pink-100, #fff0f5); }
+.desktop-widget .desktop-todo-switch { display: inline-block; }
+.desktop-widget .quick-column-header:has(.desktop-todo-switch) { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.desktop-widget[data-widget-todo="done"] .quick-current { display: none !important; }
+.desktop-widget[data-widget-todo="done"] .quick-history { display: block !important; }
+/* 메모 탭: 카드를 작게, 한 줄로 */
+.desktop-widget .memo-board { grid-template-columns: 1fr; gap: 10px; min-height: 0; }
+.desktop-widget .memo-card { height: 220px; }
+.desktop-widget #memosPage .page-heading { margin-bottom: 10px; }
+.desktop-widget #memosPage .page-heading h1, .desktop-widget #memosPage .page-heading h2 { font-size: 18px; }
 /* 로그인하기 전에는 위젯 내용을 가리고 안내만 보여준다 (세션 확인이 끝나기 전에도 가려서 깜빡임을 막는다). */
 .desktop-widget:not([data-session="owner"]) #siteApp { display: none !important; }
 .desktop-widget[data-session="visitor"] .desktop-login-hint {
@@ -3281,3 +3301,11 @@ body { background: #fafbfc !important; }
 }
 .desktop-login-hint button:hover { background: var(--pink-300, #f4bfd2); }
 @media (prefers-reduced-motion: reduce) { .desktop-btn { transition: none; } }
+.desktop-btn[hidden] { display: none; }
+/* 위젯: 스크롤바는 숨기고 휠·터치 스크롤은 그대로 동작한다. */
+html:has(body.desktop-widget), .desktop-widget, .desktop-widget * { scrollbar-width: none; -ms-overflow-style: none; }
+html:has(body.desktop-widget)::-webkit-scrollbar, .desktop-widget::-webkit-scrollbar, .desktop-widget *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.desktop-widget .quick-column-header .desktop-todo-switch { font-size: 11px; font-weight: 700; padding: 2px 9px; width: auto; height: auto; color: #b5506e; }
+.desktop-widget[data-widget-todo="done"] .quick-history { padding: 0 !important; margin: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; width: auto !important; }
+.desktop-widget .week-memo-card .week-memo-text { min-height: 64px !important; }
+.desktop-widget .week-memo-card { padding-bottom: 10px; }
