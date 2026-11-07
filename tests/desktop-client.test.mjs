@@ -25,9 +25,14 @@ function element(tag){
  return self;
 }
 function setup({bridge=true,state={mode:'full',pinned:false},failCommands=[]}={}){
- const body=element('body'),headerActions=element('div'),calls=[];
+ const body=element('body'),headerActions=element('div'),calls=[],navClicks=[],headers=[element('div'),element('div')];
+ body.dataset={};
  const html={classList:element('html').classList};
- const document={documentElement:html,body,createElement:element,querySelector:selector=>selector==='.header-actions'?headerActions:null};
+ const document={documentElement:html,body,createElement:element,querySelector:selector=>{
+  if(selector==='.header-actions')return headerActions;
+  const page=/data-page="(\w+)"/.exec(selector)?.[1];
+  return page?{click:()=>navClicks.push(page)}:null;
+ },querySelectorAll:()=>headers};
  const location={href:'/'};
  const window={location};
  let current={...state};
@@ -41,7 +46,7 @@ function setup({bridge=true,state={mode:'full',pinned:false},failCommands=[]}={}
  const context=vm.createContext({window,document,location,Promise,String,Boolean});
  vm.runInContext(source,context);
  const find=cls=>(function walk(node){if(node.classList.contains(cls))return node;for(const child of node.children){const hit=walk(child);if(hit)return hit;}return null;})(body)||(function walk(node){if(node.classList.contains(cls))return node;for(const child of node.children){const hit=walk(child);if(hit)return hit;}return null;})(headerActions);
- return {window,document,body,headerActions,calls,location,find,html};
+ return {window,document,body,headerActions,calls,location,find,html,navClicks,headers};
 }
 
 test('in a normal browser nothing is changed or requested',async()=>{
@@ -126,4 +131,32 @@ test('the login hint widens the window, then goes to the admin login',async()=>{
  await settle();
  assert.deepEqual(app.calls,[['set_mode',{mode:'full'}]]);
  assert.equal(app.location.href,'/admin');
+});
+
+test('widget tabs: the swap button flips calendar/memos through the site menu, the todo switch flips now/done',async()=>{
+ const app=setup({state:{mode:'widget',pinned:false}});
+ await settle();
+ const swap=app.find('desktop-view');
+ assert.equal(swap.attributes['aria-label'],'메모 보기');
+ assert.equal(swap.hidden,false);
+ app.navClicks.length=0;
+ swap.fire('click');
+ assert.deepEqual(app.navClicks,['memos']);
+ assert.equal(swap.attributes['aria-label'],'캘린더 보기');
+ swap.fire('click');
+ assert.deepEqual(app.navClicks,['memos','calendar']);
+
+ assert.equal(app.body.dataset.widgetTodo,'now');
+ const toggle=app.headers[0].children[0];
+ assert.equal(toggle.textContent,'완료한 일 ›');
+ toggle.fire('click');
+ assert.equal(app.body.dataset.widgetTodo,'done');
+ assert.equal(toggle.textContent,'‹ 지금 할 일');
+ assert.equal(app.headers[1].children[0].textContent,'‹ 지금 할 일');
+
+ app.window.__elingDesktopState({mode:'full',pinned:false});      // 전체 화면에서는 전환 버튼을 숨기고 사이트 메뉴를 건드리지 않는다
+ assert.equal(swap.hidden,true);
+ app.navClicks.length=0;
+ app.window.__elingDesktopState({mode:'full',pinned:true});
+ assert.deepEqual(app.navClicks,[]);
 });

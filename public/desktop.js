@@ -13,10 +13,13 @@
     pin: icon('<path d="M12 16v6"/><path d="M8 3h8l-1.2 6.2L18 13v3H6v-3l3.2-3.8z"/>'),
     shrink: icon('<rect x="3" y="3" width="18" height="18" rx="3"/><rect x="12" y="12" width="9" height="9" rx="2" fill="currentColor"/>'),
     expand: icon('<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>'),
-    hide: icon('<path d="M5 12h14"/>')
+    hide: icon('<path d="M5 12h14"/>'),
+    memo: icon('<path d="M5 3h14v18H5z"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h3"/>'),
+    calendar: icon('<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/>')
   };
 
   let state = { mode: 'full', pinned: false };
+  let view = 'calendar', todo = 'now';   // 위젯에서 보는 탭 (캘린더/메모), 할 일 쪽 (지금/완료)
   let ui = null;
 
   function build() {
@@ -27,9 +30,9 @@
     };
     const controls = document.createElement('div');
     controls.className = 'desktop-controls';
-    const pin = button('desktop-pin', ICONS.pin), mode = button('desktop-mode', ICONS.shrink), hide = button('desktop-hide', ICONS.hide);
+    const pin = button('desktop-pin', ICONS.pin), swap = button('desktop-view', ICONS.memo), mode = button('desktop-mode', ICONS.shrink), hide = button('desktop-hide', ICONS.hide);
     hide.title = '트레이로 숨기기'; hide.setAttribute('aria-label', '트레이로 숨기기');
-    controls.append(pin, mode, hide);
+    controls.append(pin, swap, mode, hide);
 
     const bar = document.createElement('div');
     bar.id = 'desktopBar'; bar.className = 'desktop-bar';
@@ -45,18 +48,41 @@
     login.type = 'button'; login.textContent = '관리자 로그인';
     hint.append(text, login);
 
+    // 지금 해야 하는 일 / 완료한 일 머리글 옆 작은 전환 버튼
+    const todoSwitches = [];
+    document.querySelectorAll('.quick-current .quick-column-header, .quick-history .quick-column-header').forEach(header => {
+      const toggle = document.createElement('button');
+      toggle.type = 'button'; toggle.className = 'desktop-todo-switch';
+      toggle.addEventListener('click', () => { todo = todo === 'now' ? 'done' : 'now'; render(); });
+      header.append(toggle); todoSwitches.push(toggle);
+    });
+
     document.body.prepend(bar);
     document.body.append(hint);
 
     pin.addEventListener('click', () => call('set_pinned', { pinned: !state.pinned }).then(apply));
     mode.addEventListener('click', () => call('set_mode', { mode: state.mode === 'widget' ? 'full' : 'widget' }).then(apply));
+    swap.addEventListener('click', () => { view = view === 'calendar' ? 'memos' : 'calendar'; render(); });
     hide.addEventListener('click', () => call('hide_window'));
     login.addEventListener('click', () => { call('set_mode', { mode: 'full' }).then(apply).finally(() => { location.href = '/admin'; }); });
     // 위젯 모드에는 제목 막대가 없으므로 이 막대를 끌어서 창을 옮기고, 두 번 누르면 전체 화면으로 넓힌다.
     bar.addEventListener('mousedown', event => { if (event.button === 0 && !event.target.closest('button')) call('start_drag'); });
     bar.addEventListener('dblclick', event => { if (!event.target.closest('button')) call('set_mode', { mode: 'full' }).then(apply); });
 
-    return { controls, bar, pin, mode };
+    return { controls, bar, pin, mode, swap, todoSwitches };
+  }
+
+  // 위젯의 탭(캘린더/메모)과 할 일 쪽(지금/완료)을 화면에 맞춘다. 탭 전환은 사이트의 메뉴 버튼을 그대로 눌러서 한다.
+  function render() {
+    if (!ui) return;
+    document.body.dataset.widgetTodo = todo;
+    const toMemos = view === 'memos';
+    if (state.mode === 'widget') document.querySelector(`.nav-button[data-page="${toMemos ? 'memos' : 'calendar'}"]`)?.click();
+    ui.swap.innerHTML = toMemos ? ICONS.calendar : ICONS.memo;
+    const label = toMemos ? '캘린더 보기' : '메모 보기';
+    ui.swap.title = label; ui.swap.setAttribute('aria-label', label);
+    ui.swap.hidden = state.mode !== 'widget';
+    ui.todoSwitches.forEach(toggle => { toggle.textContent = todo === 'now' ? '완료한 일 ›' : '‹ 지금 할 일'; });
   }
 
   function apply(next) {
@@ -74,6 +100,7 @@
     const modeLabel = widget ? '전체 화면으로 넓히기' : '위젯으로 줄이기';
     ui.mode.innerHTML = widget ? ICONS.expand : ICONS.shrink;
     ui.mode.title = modeLabel; ui.mode.setAttribute('aria-label', modeLabel);
+    render();
   }
 
   // 앱이 상태를 알려주는 길(트레이 메뉴에서 바꿨을 때 등)
