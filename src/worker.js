@@ -1,6 +1,7 @@
 import {createRemoteJWKSet, jwtVerify} from 'jose';
 import {memos} from './memos.js';
 import {weekMemo} from './week-memo.js';
+import {sync,bumpVersion,withVersion} from './sync.js';
 const jwksCache=new Map();
 const fields={
   events:['title','description','start_date','end_date','color_variant','is_completed','sort_order'],
@@ -116,13 +117,20 @@ export default {
         if(!await owner(request,env))return json({error:'Unauthorized'},401);
         if(!['GET','POST'].includes(request.method))return json({error:'Method not allowed'},405);
         if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return json({error:'Invalid origin'},403);
-        return await memos(request,env,url.pathname);
+        const response=await memos(request,env,url.pathname);
+        // 사진 업로드는 메모를 저장해야 반영되므로, 메모 자체가 바뀌는 요청만 변경 번호를 올린다.
+        return request.method==='POST'&&url.pathname==='/api/private/memos'&&response.ok?withVersion(response,await bumpVersion(env.DB)):response;
+      }
+      if(url.pathname==='/api/private/sync') {
+        if(!await owner(request,env))return json({error:'Unauthorized'},401);
+        return await sync(request,env);
       }
       if(url.pathname==='/api/private/week-memo') {
         if(!await owner(request,env))return json({error:'Unauthorized'},401);
         if(!['GET','POST'].includes(request.method))return json({error:'Method not allowed'},405);
         if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return json({error:'Invalid origin'},403);
-        return await weekMemo(request,env);
+        const response=await weekMemo(request,env);
+        return request.method==='POST'&&response.ok?withVersion(response,await bumpVersion(env.DB)):response;
       }
       if(url.pathname==='/api/private/query') {
         if(!await owner(request,env))return json({error:'Unauthorized'},401);
@@ -132,13 +140,15 @@ export default {
         const text=await request.text();
         if(text.length>20000)return json({error:'Request too large'},413);
         let q;try{q=JSON.parse(text);}catch{throw fail('Invalid JSON');}
-        return json(await query(env.DB,q));
+        const result=json(await query(env.DB,q));
+        // 읽기가 아닌 요청이 성공하면 변경 번호를 올려 다른 화면(웹·데스크톱 위젯)이 알아채게 한다.
+        return (q.action||'select')==='select'?result:withVersion(result,await bumpVersion(env.DB));
       }
       if(url.pathname.startsWith('/api/'))return json({error:'Not found'},404);
       if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);
       const response=await env.ASSETS.fetch(request);
       const secured=new Response(response.body,response);
-      secured.headers.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+      secured.headers.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
       secured.headers.set('X-Content-Type-Options','nosniff');
       secured.headers.set('Referrer-Policy','same-origin');
       return secured;

@@ -1,0 +1,14 @@
+{
+  "name": "eling-calendar-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "My Calendar 데스크톱 위젯 (Tauri). 사이트와 같은 데이터를 보여주는 얇은 창입니다.",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
