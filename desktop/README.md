@@ -17,7 +17,7 @@
 
 ## 설치 파일 받기 (Rust 설치 없이)
 
-1. GitHub 저장소 → **Actions** → **Desktop app (Windows installer)** → **Run workflow**.
+1. `desktop-widget` 브랜치로 **Pull request를 열면** 자동으로 빌드가 시작돼요(저장소 → **Actions** → **Desktop app (Windows installer)**). `main`에 합친 뒤에는 같은 화면에서 **Run workflow**를 눌러 다시 만들 수 있어요.
 2. 10~20분 뒤 실행 결과 맨 아래 **Artifacts → my-calendar-windows** 를 내려받아 압축을 풀고 `.exe` 설치 파일을 실행해요(관리자 권한 없이 현재 사용자에게 설치돼요).
 3. Windows가 "알 수 없는 게시자" 경고를 띄우면 **추가 정보 → 실행**을 누르세요. 코드 서명을 하지 않은 개인용 설치 파일이라서 나오는 경고예요.
 
