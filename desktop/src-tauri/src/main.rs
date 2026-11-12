@@ -170,7 +170,8 @@ fn apply_window(win: &WebviewWindow, saved: &Saved) {
     let widget = saved.mode == Mode::Widget;
     // 위젯은 테두리 없이, 전체 모드는 일반 창처럼 제목 막대를 둡니다.
     let _ = win.set_decorations(!widget);
-    let _ = win.set_always_on_top(saved.pinned);
+    // 항상 위는 위젯에서만 켠다. 전체 화면이 다른 프로그램 위를 계속 덮으면 작업표시줄에서 다른 앱을 눌러도 올라오지 않는다.
+    let _ = win.set_always_on_top(saved.pinned && widget);
     let min = if widget {
         tauri::LogicalSize::new(260.0, 320.0)
     } else {
@@ -255,10 +256,15 @@ fn set_mode_inner(app: &AppHandle, mode: Mode) {
 }
 
 fn set_pinned_inner(app: &AppHandle, pinned: bool) {
+    let widget = {
+        let state = app.state::<AppState>();
+        let mut saved = state.saved.lock().unwrap();
+        saved.pinned = pinned;
+        saved.mode == Mode::Widget
+    };
     if let Some(win) = app.get_webview_window(MAIN) {
-        let _ = win.set_always_on_top(pinned);
+        let _ = win.set_always_on_top(pinned && widget);
     }
-    app.state::<AppState>().saved.lock().unwrap().pinned = pinned;
     persist(app);
     publish(app);
 }
@@ -405,7 +411,7 @@ fn main() {
             }
             tray.build(app)?;
 
-            // 닫기 → 종료 대신 트레이로, 최소화 → 트레이로, 이동·크기 변경 → 기억
+            // 닫기 → 종료 대신 트레이로, 이동·크기 변경 → 기억
             let events_app = handle.clone();
             let events_win = win.clone();
             win.on_window_event(move |event| match event {
@@ -413,10 +419,9 @@ fn main() {
                     api.prevent_close();
                     hide_main(&events_app);
                 }
+                // 최소화는 윈도우가 하는 대로 둔다(작업표시줄 아이콘을 누르면 최소화/복원). 트레이로 숨기는 건 숨기기 버튼·닫기·트레이 메뉴뿐.
                 WindowEvent::Resized(_) => {
-                    if events_win.is_minimized().unwrap_or(false) {
-                        hide_main(&events_app);
-                    } else {
+                    if !events_win.is_minimized().unwrap_or(false) {
                         remember(&events_app);
                     }
                 }

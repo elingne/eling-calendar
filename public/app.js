@@ -752,11 +752,24 @@ async function loadCalendarExtras() {
   const start = visibleCells[0].dataset.date;
   const end = visibleCells[visibleCells.length - 1].dataset.date;
 
-  const [moodsResult, eventsResult, periodsResult] = await Promise.all([
+  const [moodsResult, eventsResult, periodsResult, doneQuickResult, doneTodoResult] = await Promise.all([
     isOwner ? dbClient.from("moods").select("*").gte("record_date", start).lte("record_date", end) : {data:[]},
     dbClient.from("events").select("*").lte("start_date", end).gte("end_date", start),
-    isOwner ? dbClient.from("period_records").select("*").lte("start_date", end).gte("end_date", start) : {data:[]}
+    isOwner ? dbClient.from("period_records").select("*").lte("start_date", end).gte("end_date", start) : {data:[]},
+    isOwner ? dbClient.from("quick_todos").select("*").eq("is_completed", true) : {data:[]},
+    isOwner ? dbClient.from("todos").select("*").eq("is_completed", true).gte("target_date", start).lte("target_date", end) : {data:[]}
   ]);
+
+  // 날짜별 완료한 일 개수: 지금 할 일은 완료한 날짜, 날짜 할 일은 그 날짜에 센다 (날짜 패널의 '완료한 일'과 같은 기준).
+  const doneCounts = {};
+  (doneQuickResult.data || []).forEach(item => {
+    if (!item.completed_at) return;
+    const day = formatDateKey(new Date(item.completed_at));
+    doneCounts[day] = (doneCounts[day] || 0) + 1;
+  });
+  (doneTodoResult.data || []).forEach(item => {
+    if (item.target_date) doneCounts[item.target_date] = (doneCounts[item.target_date] || 0) + 1;
+  });
 
   const moods = moodsResult.data || [];
   const events = eventsResult.data || [];
@@ -765,6 +778,14 @@ async function loadCalendarExtras() {
   if (visibleCells[0] !== calendarGrid.firstElementChild) return;
   visibleCells.forEach((cell, cellIndex) => {
     const key = cell.dataset.date;
+
+    if (doneCounts[key]) {
+      const doneBadge = document.createElement("span");
+      doneBadge.className = "calendar-done-count";
+      doneBadge.textContent = doneCounts[key];
+      doneBadge.title = `완료한 일 ${doneCounts[key]}개`;
+      cell.appendChild(doneBadge);
+    }
 
     const badgeWrap = document.createElement("div");
     badgeWrap.className = "calendar-top-badges";

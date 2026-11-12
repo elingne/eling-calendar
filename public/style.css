@@ -3309,3 +3309,11 @@ html:has(body.desktop-widget)::-webkit-scrollbar, .desktop-widget::-webkit-scrol
 .desktop-widget[data-widget-todo="done"] .quick-history { padding: 0 !important; margin: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; width: auto !important; }
 .desktop-widget .week-memo-card .week-memo-text { min-height: 64px !important; }
 .desktop-widget .week-memo-card { padding-bottom: 10px; }
+
+/* 날짜 칸 왼쪽 아래: 그날 완료한 일 개수 배지 */
+.calendar-done-count {
+  position: absolute; left: 8px; bottom: 7px; z-index: 2; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 999px;
+  background: #e6f4ea; color: #4c8a62; font-size: 11px; font-weight: 700; line-height: 1; pointer-events: none;
+}
+.calendar-day.other-month .calendar-done-count { opacity: .55; }

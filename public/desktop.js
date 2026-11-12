@@ -82,6 +82,7 @@
     const label = toMemos ? '캘린더 보기' : '메모 보기';
     ui.swap.title = label; ui.swap.setAttribute('aria-label', label);
     ui.swap.hidden = state.mode !== 'widget';
+    ui.pin.hidden = state.mode !== 'widget';   // 항상 위는 위젯에서만 켜진다
     ui.todoSwitches.forEach(toggle => { toggle.textContent = todo === 'now' ? '완료한 일 ›' : '‹ 지금 할 일'; });
   }
 
