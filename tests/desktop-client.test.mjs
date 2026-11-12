@@ -76,7 +76,9 @@ test('full mode puts the buttons in the header, widget mode moves them to the to
  assert.equal(pin.attributes['aria-pressed'],'true');
  assert.equal(pin.attributes['aria-label'],'항상 위에 두기 해제');
 
+ assert.equal(pin.hidden,true,'항상 위는 위젯에서만 켜지므로 전체 화면에서는 핀 버튼을 숨긴다');
  app.window.__elingDesktopState({mode:'widget',pinned:false});     // 트레이 메뉴 등 앱 쪽에서 바뀐 경우
+ assert.equal(pin.hidden,false);
  assert.ok(app.body.classList.contains('desktop-widget'));
  assert.equal(controls.parent.id,'desktopBar');
  assert.equal(pin.classList.contains('active'),false);
