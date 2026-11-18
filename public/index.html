@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <title>My Calendar</title>
-  <link rel="stylesheet" href="style.css?v=20261119b">
+  <link rel="stylesheet" href="style.css?v=20261119d">
 </head>
 <body class="read-only">
 
@@ -63,20 +63,20 @@
                 <p class="empty-text">아직 등록된 할 일이 없어요.</p>
               </div>
             </div>
-
-            <aside id="quickTodoHistory" class="quick-history">
-              <div class="quick-history-header quick-column-header">
-                <span class="section-label">DONE</span>
-                <h2>오늘 완료한 일</h2>
-              </div>
-              <form id="completedTodoForm" class="quick-input-row owner-control">
-                <input id="completedTodoInput" type="text" maxlength="120" autocomplete="off" placeholder="이미 완료한 일을 적어보세요" aria-label="완료한 일">
-                <button type="submit" aria-label="완료한 일 추가">+</button>
-              </form>
-              <div id="quickTodoCompletedList" class="quick-completed-list"></div>
-            </aside>
           </div>
         </section>
+
+          <aside id="quickTodoHistory" class="quick-history">
+            <div class="quick-history-header quick-column-header">
+              <span class="section-label">DONE</span>
+              <h2>오늘 완료한 일</h2>
+            </div>
+            <form id="completedTodoForm" class="quick-input-row owner-control">
+              <input id="completedTodoInput" type="text" maxlength="120" autocomplete="off" placeholder="이미 완료한 일을 적어보세요" aria-label="완료한 일">
+              <button type="submit" aria-label="완료한 일 추가">+</button>
+            </form>
+            <div id="quickTodoCompletedList" class="quick-completed-list"></div>
+            </aside>
 
           <section id="archiveTab" class="quick-archive-card owner-control" aria-label="보관">
             <div class="quick-column-header">
@@ -288,7 +288,7 @@
   </div>
 
   <script src="api.js?v=20261105c"></script>
-  <script src="app.js?v=20261119b"></script>
+  <script src="app.js?v=20261119d"></script>
   <script src="week-memo.js?v=20261105b"></script>
   <script src="memos.js?v=20261105c"></script>
   <script src="sync.js?v=20261107b"></script>

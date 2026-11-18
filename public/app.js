@@ -1178,6 +1178,7 @@ function clearQuickTodoAutofill() {
 }
 
 let quickTodoDragId = null;
+let completedDropInList = false;
 
 async function saveQuickTodoOrderFromDom() {
   if (!isOwner) return;
@@ -1219,6 +1220,37 @@ async function saveQuickTodoOrderFromDom() {
 
   await loadQuickTodos();
 }
+
+// 보관 / 오늘 완료한 일: 화면에 보이는 순서대로 번호를 저장한다.
+async function saveListOrderFromDom(listEl, field, importantFirst = false) {
+  if (!isOwner || !listEl) return;
+
+  const rows = [...listEl.querySelectorAll(".quick-item[data-quick-todo-id]")];
+  if (!rows.length) return;
+
+  let ids = rows.map(row => Number(row.dataset.quickTodoId));
+
+  if (importantFirst) {
+    // 즐겨찾기 항목은 항상 위쪽 그룹으로 유지한다.
+    const important = new Map(lastQuickTodoRows.map(item => [Number(item.id), Boolean(item.is_important)]));
+    ids = [...ids.filter(id => important.get(id)), ...ids.filter(id => !important.get(id))];
+  }
+
+  const results = await Promise.all(ids.map((id, index) =>
+    dbClient
+      .from("quick_todos")
+      .update({ [field]: index })
+      .eq("id", id)
+  ));
+
+  const failed = results.find(result => result.error);
+  if (failed) console.error("QUICK TODO 순서 저장 오류:", failed.error);
+
+  await loadQuickTodos();
+}
+
+const saveArchiveOrderFromDom = () => saveListOrderFromDom(quickArchiveList, "sort_order", true);
+const saveCompletedOrderFromDom = () => saveListOrderFromDom(quickTodoCompletedList, "done_order");
 
 /* QUICK TODOS */
 quickTodoAddButton.addEventListener("click", addQuickTodo);
@@ -1308,6 +1340,9 @@ async function loadQuickTodos() {
   const archived = rows
     .filter(item => !item.is_completed && item.is_archived)
     .sort((a, b) => {
+      const importantDiff = Number(Boolean(b.is_important)) - Number(Boolean(a.is_important));
+      if (importantDiff !== 0) return importantDiff;
+
       const orderA = Number.isFinite(Number(a.sort_order)) ? Number(a.sort_order) : 0;
       const orderB = Number.isFinite(Number(b.sort_order)) ? Number(b.sort_order) : 0;
       if (orderA !== orderB) return orderA - orderB;
@@ -1334,7 +1369,13 @@ async function loadQuickTodos() {
       item.completed_at &&
       formatDateKey(new Date(item.completed_at)) === todayKey
     )
-    .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
+    .sort((a, b) => {
+      const hasA = typeof a.done_order === "number";
+      const hasB = typeof b.done_order === "number";
+      if (hasA && hasB && a.done_order !== b.done_order) return a.done_order - b.done_order;
+      if (hasA !== hasB) return hasA ? 1 : -1;
+      return new Date(b.completed_at) - new Date(a.completed_at);
+    });
 
   quickTodoList.innerHTML = "";
 
@@ -1411,11 +1452,40 @@ function makeQuickTodoRow(item, completed, archived = false) {
         return;
       }
 
+      completedDropInList = false;
+      row.classList.add("dragging");
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData(
         "application/x-completed-item",
         completedPayload("quick_todos", item.id, item.title)
       );
+    });
+
+    row.addEventListener("dragover", (event) => {
+      const dragging = quickTodoCompletedList.querySelector(".quick-item.dragging");
+      if (!dragging) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      if (dragging === row) return;
+
+      const rect = row.getBoundingClientRect();
+      const placeAfter = event.clientY > rect.top + rect.height / 2;
+      quickTodoCompletedList.insertBefore(dragging, placeAfter ? row.nextSibling : row);
+    });
+
+    row.addEventListener("drop", (event) => {
+      if (!quickTodoCompletedList.querySelector(".quick-item.dragging")) return;
+      event.preventDefault();
+      completedDropInList = true;
+    });
+
+    row.addEventListener("dragend", async () => {
+      row.classList.remove("dragging");
+      // 달력 날짜 칸에 놓았을 때는 순서를 건드리지 않고, 이 목록 안에서 놓았을 때만 저장한다.
+      if (completedDropInList) {
+        completedDropInList = false;
+        await saveCompletedOrderFromDom();
+      }
     });
 
     enableCompletedTouchMove(row, {
@@ -1425,7 +1495,9 @@ function makeQuickTodoRow(item, completed, archived = false) {
     });
   }
 
-  if (!completed && !archived && isOwner) {
+  if (!completed && isOwner) {
+    const listEl = archived ? quickArchiveList : quickTodoList;
+    const saveOrder = archived ? saveArchiveOrderFromDom : saveQuickTodoOrderFromDom;
     row.draggable = true;
     row.classList.add("quick-item-draggable");
 
@@ -1446,23 +1518,23 @@ function makeQuickTodoRow(item, completed, archived = false) {
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
 
-      const dragging = quickTodoList.querySelector(".quick-item.dragging");
+      const dragging = listEl.querySelector(".quick-item.dragging");
       if (!dragging || dragging === row) return;
 
       const rect = row.getBoundingClientRect();
       const placeAfter = event.clientY > rect.top + rect.height / 2;
-      quickTodoList.insertBefore(dragging, placeAfter ? row.nextSibling : row);
+      listEl.insertBefore(dragging, placeAfter ? row.nextSibling : row);
     });
 
     row.addEventListener("drop", async (event) => {
       event.preventDefault();
-      await saveQuickTodoOrderFromDom();
+      await saveOrder();
     });
 
     row.addEventListener("dragend", async () => {
       row.classList.remove("dragging");
       quickTodoDragId = null;
-      await saveQuickTodoOrderFromDom();
+      await saveOrder();
     });
   }
 
@@ -1592,7 +1664,7 @@ function makeQuickTodoRow(item, completed, archived = false) {
 
     const finishEditing = () => {
       row.classList.remove("editing");
-      row.draggable = !completed && !archived && isOwner;
+      row.draggable = !completed && isOwner;
       check.disabled = !isOwner;
       starButton.disabled = !isOwner;
       moveButton.disabled = !isOwner;
@@ -1675,8 +1747,18 @@ function makeQuickTodoRow(item, completed, archived = false) {
   });
 
   if (archived) {
-    // 보관: 텍스트 → 올리기 ↑ → X
-    row.append(content, moveButton, deleteButton);
+    // 보관: 텍스트 → 올리기 ↑ → 별 → X
+    row.append(content, moveButton, starButton, deleteButton);
+
+    enableLongPressReorder(
+      row,
+      quickArchiveList,
+      saveArchiveOrderFromDom,
+      {
+        targetSelector: ".quick-item[data-quick-todo-id]",
+        excludeSelector: "button, input, .quick-item-content"
+      }
+    );
   } else if (!completed) {
     // 지금 해야 하는 일: 체크 → 텍스트 → 보관 ↓ → 별 → X
     row.append(check, content, moveButton, starButton, deleteButton);

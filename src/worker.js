@@ -5,7 +5,7 @@ import {sync,bumpVersion,withVersion} from './sync.js';
 const jwksCache=new Map();
 const fields={
   events:['title','description','start_date','end_date','color_variant','is_completed','sort_order'],
-  quick_todos:['title','is_completed','is_important','is_archived','sort_order','completed_at'],
+  quick_todos:['title','is_completed','is_important','is_archived','sort_order','done_order','completed_at'],
   todos:['title','target_date','is_completed','completed_at','sort_order'],
   schedule_notes:['body','note_date','sort_order'],
   moods:['record_date','mood_type','reason'],
@@ -32,7 +32,7 @@ export function validateValues(table,values,partial=false) {
     if(!fields[table].includes(key)) throw fail('Invalid field');
     if(value===null) { if(!['description','reason','completed_at','target_date'].includes(key))throw fail('Required field'); continue; }
     if(['is_completed','is_important','is_archived'].includes(key)) {if(typeof value!=='boolean')throw fail('Invalid boolean');}
-    else if(key==='sort_order') {if(typeof value!=='number'||!Number.isFinite(value)||Math.abs(value)>1e12)throw fail('Invalid order');}
+    else if(['sort_order','done_order'].includes(key)) {if(typeof value!=='number'||!Number.isFinite(value)||Math.abs(value)>1e12)throw fail('Invalid order');}
     else {
       if(typeof value!=='string'||value.length>({title:120,body:300,description:500,reason:2000}[key]||100))throw fail('Invalid text');
       if(['title','body'].includes(key)&&!value.trim())throw fail('Empty text');

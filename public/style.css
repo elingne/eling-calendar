@@ -3306,7 +3306,7 @@ body { background: #fafbfc !important; }
 html:has(body.desktop-widget), .desktop-widget, .desktop-widget * { scrollbar-width: none; -ms-overflow-style: none; }
 html:has(body.desktop-widget)::-webkit-scrollbar, .desktop-widget::-webkit-scrollbar, .desktop-widget *::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .desktop-widget .quick-column-header .desktop-todo-switch { font-size: 11px; font-weight: 700; padding: 2px 9px; width: auto; height: auto; color: #b5506e; }
-.desktop-widget[data-widget-todo="done"] .quick-history { padding: 0 !important; margin: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; width: auto !important; }
+.desktop-widget[data-widget-todo="done"] .quick-todo-card { display: none !important; }
 .desktop-widget .week-memo-card .week-memo-text { min-height: 64px !important; }
 .desktop-widget .week-memo-card { padding-bottom: 10px; }
 
@@ -3317,6 +3317,17 @@ html:has(body.desktop-widget)::-webkit-scrollbar, .desktop-widget::-webkit-scrol
   background: #e6f4ea; color: #4c8a62; font-size: 11px; font-weight: 700; line-height: 1; pointer-events: none;
 }
 .calendar-day.other-month .calendar-done-count { opacity: .55; }
+
+/* 오늘 완료한 일 카드: 지금 해야 하는 일 카드 바로 아래의 별도 카드, 아주 약간 분홍빛 도는 회색 */
+.quick-side > .quick-history {
+  box-sizing: border-box; width: 0; min-width: 100%; padding: 16px !important; border-radius: 14px !important;
+  background: #f4f1f3 !important; border: 1px solid #e8e3e6 !important;
+  box-shadow: 0 1px 2px rgba(100,70,85,.04), 0 6px 18px rgba(150,110,130,.05);
+}
+.quick-side > .quick-history .quick-input-row input { background: #faf8f9 !important; border-color: #e6e0e4 !important; }
+.quick-side > .quick-history .quick-input-row button { background: #e9e4e7 !important; border-color: #ded8dc !important; }
+.quick-side > .quick-history .quick-item { background: #ece8eb !important; border-color: #e3dde1 !important; }
+.read-only .quick-side > .quick-history { display: none !important; }
 
 /* 보관 카드: 지금 해야 하는 일 카드 바로 아래의 별도 카드, 아주 약간 하늘빛 도는 회색 */
 .quick-side { display: flex; flex-direction: column; gap: 14px; flex: 0 0 auto; min-width: 0; }
