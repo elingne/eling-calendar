@@ -1646,7 +1646,7 @@ function makeQuickTodoRow(item, completed, archived = false) {
 
     editor.append(input, saveButton, cancelButton);
     content.classList.add("hidden");
-    row.insertBefore(editor, archived ? moveButton : (completed ? deleteButton : starButton));
+    row.insertBefore(editor, completed ? deleteButton : moveButton);
 
     input.focus();
     input.select();
@@ -1678,8 +1678,8 @@ function makeQuickTodoRow(item, completed, archived = false) {
     // 보관: 텍스트 → 올리기 ↑ → X
     row.append(content, moveButton, deleteButton);
   } else if (!completed) {
-    // 지금 해야 하는 일: 체크 → 텍스트 → 별 → 보관 ↓ → X
-    row.append(check, content, starButton, moveButton, deleteButton);
+    // 지금 해야 하는 일: 체크 → 텍스트 → 보관 ↓ → 별 → X
+    row.append(check, content, moveButton, starButton, deleteButton);
 
     enableLongPressReorder(
       row,
