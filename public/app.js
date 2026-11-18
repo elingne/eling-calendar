@@ -46,6 +46,10 @@ const quickTodoInput = $("quickTodoInput");
 const quickTodoAddButton = $("quickTodoAddButton");
 const quickTodoList = $("quickTodoList");
 const quickTodoCompletedList = $("quickTodoCompletedList");
+const quickArchiveList = $("quickArchiveList");
+const archiveTodoForm = $("archiveTodoForm");
+const archiveTodoInput = $("archiveTodoInput");
+let lastQuickTodoRows = [];
 
 const dayTodoForm = $("dayTodoForm");
 const dayTodoInput = $("dayTodoInput");
@@ -1258,6 +1262,32 @@ async function addQuickTodo() {
   }
 }
 
+if (archiveTodoForm) {
+  archiveTodoForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!isOwner) return;
+
+    const title = archiveTodoInput.value.trim();
+    if (!title) return;
+
+    const { error } = await dbClient.from("quick_todos").insert({
+      title,
+      is_completed: false,
+      is_important: false,
+      is_archived: true,
+      sort_order: nextQuickTodoOrder(true)
+    });
+
+    if (error) {
+      console.error("보관 추가 오류:", error);
+      return;
+    }
+
+    archiveTodoInput.value = "";
+    await loadQuickTodos();
+  });
+}
+
 async function loadQuickTodos() {
   const { data, error } = await dbClient
     .from("quick_todos")
@@ -1272,8 +1302,20 @@ async function loadQuickTodos() {
   const rows = data || [];
   const todayKey = formatDateKey(new Date());
 
+  lastQuickTodoRows = rows;
+
+  // 보관 탭: 언젠가 할 일. 지금 할 일 목록에는 나오지 않는다.
+  const archived = rows
+    .filter(item => !item.is_completed && item.is_archived)
+    .sort((a, b) => {
+      const orderA = Number.isFinite(Number(a.sort_order)) ? Number(a.sort_order) : 0;
+      const orderB = Number.isFinite(Number(b.sort_order)) ? Number(b.sort_order) : 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+
   const active = rows
-    .filter(item => !item.is_completed)
+    .filter(item => !item.is_completed && !item.is_archived)
     .sort((a, b) => {
       const importantDiff = Number(Boolean(b.is_important)) - Number(Boolean(a.is_important));
       if (importantDiff !== 0) return importantDiff;
@@ -1302,6 +1344,18 @@ async function loadQuickTodos() {
     active.forEach(item => quickTodoList.appendChild(makeQuickTodoRow(item, false)));
   }
 
+  if (quickArchiveList) {
+    quickArchiveList.innerHTML = "";
+
+    if (!archived.length) {
+      quickArchiveList.innerHTML = '<p class="empty-text">보관 중인 일이 없어요.</p>';
+    } else {
+      archived.forEach(item =>
+        quickArchiveList.appendChild(makeQuickTodoRow(item, false, true))
+      );
+    }
+  }
+
   quickTodoCompletedList.innerHTML = "";
 
   if (!completedToday.length) {
@@ -1315,9 +1369,35 @@ async function loadQuickTodos() {
   lastQuickTodoDateKey = todayKey;
 }
 
-function makeQuickTodoRow(item, completed) {
+// 다음 순서 번호: 지금 할 일(보관 제외) 또는 보관 목록 맨 아래.
+function nextQuickTodoOrder(archived) {
+  const orders = lastQuickTodoRows
+    .filter(item => !item.is_completed && Boolean(item.is_archived) === archived)
+    .map(item => Number(item.sort_order))
+    .filter(Number.isFinite);
+  return orders.length ? Math.max(...orders) + 1 : 0;
+}
+
+async function moveQuickTodo(item, toArchive) {
+  if (!isOwner) return false;
+
+  const { error } = await dbClient
+    .from("quick_todos")
+    .update({ is_archived: toArchive, sort_order: nextQuickTodoOrder(toArchive) })
+    .eq("id", item.id);
+
+  if (error) {
+    console.error("QUICK TODO 보관 이동 오류:", error);
+    return false;
+  }
+
+  await loadQuickTodos();
+  return true;
+}
+
+function makeQuickTodoRow(item, completed, archived = false) {
   const row = document.createElement("div");
-  row.className = `quick-item ${completed ? "quick-item-completed" : ""}`;
+  row.className = `quick-item ${completed ? "quick-item-completed" : ""} ${archived ? "quick-item-archived" : ""}`;
   row.dataset.quickTodoId = item.id;
 
   if (completed && isOwner) {
@@ -1345,7 +1425,7 @@ function makeQuickTodoRow(item, completed) {
     });
   }
 
-  if (!completed && isOwner) {
+  if (!completed && !archived && isOwner) {
     row.draggable = true;
     row.classList.add("quick-item-draggable");
 
@@ -1455,6 +1535,21 @@ function makeQuickTodoRow(item, completed) {
     content.appendChild(time);
   }
 
+  // 지금 할 일 ↓ 보관하기 / 보관 ↑ 지금 할 일로 올리기
+  const moveButton = document.createElement("button");
+  moveButton.type = "button";
+  moveButton.className = `quick-move-button ${archived ? "quick-move-up" : "quick-move-down"}`;
+  moveButton.textContent = archived ? "↑" : "↓";
+  moveButton.title = archived ? "지금 할 일로 올리기" : "보관하기";
+  moveButton.setAttribute("aria-label", `${item.title} ${moveButton.title}`);
+  moveButton.disabled = !isOwner;
+
+  moveButton.addEventListener("click", async () => {
+    moveButton.disabled = true;
+    const ok = await moveQuickTodo(item, !archived);
+    if (!ok) moveButton.disabled = !isOwner;
+  });
+
   const deleteButton = document.createElement("button");
   deleteButton.type = "button";
   deleteButton.className = "quick-delete-button";
@@ -1470,6 +1565,7 @@ function makeQuickTodoRow(item, completed) {
     row.draggable = false;
     check.disabled = true;
     starButton.disabled = true;
+    moveButton.disabled = true;
     deleteButton.disabled = true;
 
     const originalTitle = item.title;
@@ -1496,9 +1592,10 @@ function makeQuickTodoRow(item, completed) {
 
     const finishEditing = () => {
       row.classList.remove("editing");
-      row.draggable = !completed && isOwner;
+      row.draggable = !completed && !archived && isOwner;
       check.disabled = !isOwner;
       starButton.disabled = !isOwner;
+      moveButton.disabled = !isOwner;
       deleteButton.disabled = !isOwner;
       editor.remove();
       content.classList.remove("hidden");
@@ -1549,7 +1646,7 @@ function makeQuickTodoRow(item, completed) {
 
     editor.append(input, saveButton, cancelButton);
     content.classList.add("hidden");
-    row.insertBefore(editor, completed ? deleteButton : starButton);
+    row.insertBefore(editor, archived ? moveButton : (completed ? deleteButton : starButton));
 
     input.focus();
     input.select();
@@ -1577,9 +1674,12 @@ function makeQuickTodoRow(item, completed) {
     }
   });
 
-  if (!completed) {
-    // 지금 해야 하는 일: 체크 → 텍스트 → 별 → X
-    row.append(check, content, starButton, deleteButton);
+  if (archived) {
+    // 보관: 텍스트 → 올리기 ↑ → X
+    row.append(content, moveButton, deleteButton);
+  } else if (!completed) {
+    // 지금 해야 하는 일: 체크 → 텍스트 → 별 → 보관 ↓ → X
+    row.append(check, content, starButton, moveButton, deleteButton);
 
     enableLongPressReorder(
       row,

@@ -39,6 +39,19 @@ test('quick todos booleans, IN selection and daily mood upsert',async()=>{
   const mood=await query(db,{table:'moods'});assert.equal(mood.data.length,1);assert.equal(mood.data[0].mood_type,'bad');assert.equal(mood.data[0].id,1);
   db.sqlite.close();
 });
+test('quick todos can be archived and restored with is_archived',async()=>{
+  const db=database();
+  await query(db,{table:'quick_todos',action:'insert',values:{title:'지금'}});
+  await query(db,{table:'quick_todos',action:'insert',values:{title:'언젠가',is_archived:true}});
+  let rows=(await query(db,{table:'quick_todos'})).data;
+  assert.equal(rows.find(r=>r.id===1).is_archived,false);
+  assert.equal(rows.find(r=>r.id===2).is_archived,true);
+  await query(db,{table:'quick_todos',action:'update',filters:[['id','eq',2]],values:{is_archived:false,sort_order:5}});
+  rows=(await query(db,{table:'quick_todos',filters:[['id','eq',2]]})).data;
+  assert.equal(rows[0].is_archived,false);
+  await assert.rejects(query(db,{table:'quick_todos',action:'update',filters:[['id','eq',2]],values:{is_archived:'yes'}}));
+  db.sqlite.close();
+});
 test('public response excludes personal fields; private APIs reject forged identity',async()=>{
   const db=database();await query(db,{table:'events',action:'insert',values:event});
   const env={DB:db,ASSETS:{fetch:async()=>new Response('ok')}};
