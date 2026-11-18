@@ -5,7 +5,7 @@ import {sync,bumpVersion,withVersion} from './sync.js';
 const jwksCache=new Map();
 const fields={
   events:['title','description','start_date','end_date','color_variant','is_completed','sort_order'],
-  quick_todos:['title','is_completed','is_important','sort_order','completed_at'],
+  quick_todos:['title','is_completed','is_important','is_archived','sort_order','completed_at'],
   todos:['title','target_date','is_completed','completed_at','sort_order'],
   schedule_notes:['body','note_date','sort_order'],
   moods:['record_date','mood_type','reason'],
@@ -31,7 +31,7 @@ export function validateValues(table,values,partial=false) {
   for(const [key,value] of Object.entries(values)) {
     if(!fields[table].includes(key)) throw fail('Invalid field');
     if(value===null) { if(!['description','reason','completed_at','target_date'].includes(key))throw fail('Required field'); continue; }
-    if(['is_completed','is_important'].includes(key)) {if(typeof value!=='boolean')throw fail('Invalid boolean');}
+    if(['is_completed','is_important','is_archived'].includes(key)) {if(typeof value!=='boolean')throw fail('Invalid boolean');}
     else if(key==='sort_order') {if(typeof value!=='number'||!Number.isFinite(value)||Math.abs(value)>1e12)throw fail('Invalid order');}
     else {
       if(typeof value!=='string'||value.length>({title:120,body:300,description:500,reason:2000}[key]||100))throw fail('Invalid text');
@@ -92,7 +92,7 @@ export async function query(db,q) {
   }
   validateValues(table,q.values);
   if(action==='upsert'&&table!=='moods')throw fail('Upsert unsupported');
-  const defaults={events:{color_variant:'blue',is_completed:false,sort_order:0},quick_todos:{is_completed:false,is_important:false,sort_order:0},todos:{is_completed:false},schedule_notes:{sort_order:0}};
+  const defaults={events:{color_variant:'blue',is_completed:false,sort_order:0},quick_todos:{is_completed:false,is_important:false,is_archived:false,sort_order:0},todos:{is_completed:false},schedule_notes:{sort_order:0}};
   const data={...defaults[table],...q.values,created_at:new Date().toISOString()};
   let sql=`INSERT INTO records(collection,id,data) SELECT ?, COALESCE(MAX(id),0)+1,json_set(?,'$.id',COALESCE(MAX(id),0)+1) FROM records WHERE collection=?`;
   if(action==='upsert')sql+=` ON CONFLICT DO UPDATE SET data=json_set(excluded.data,'$.id',records.id,'$.created_at',json_extract(records.data,'$.created_at'))`;

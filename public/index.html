@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <title>My Calendar</title>
-  <link rel="stylesheet" href="style.css?v=20261112a">
+  <link rel="stylesheet" href="style.css?v=20261119a">
 </head>
 <body class="read-only">
 
@@ -61,6 +61,20 @@
               <div id="quickTodoList" class="quick-todo-list">
                 <p class="empty-text">아직 등록된 할 일이 없어요.</p>
               </div>
+
+              <section id="archiveTab" class="quick-archive owner-control" aria-label="보관">
+                <div class="quick-column-header">
+                  <span class="section-label">LATER</span>
+                  <h2>보관</h2>
+                </div>
+                <form id="archiveTodoForm" class="quick-input-row">
+                  <input id="archiveTodoInput" type="text" maxlength="120" autocomplete="off" data-lpignore="true" data-1p-ignore="true" placeholder="언젠가 할 일을 적어보세요" aria-label="보관할 일">
+                  <button type="submit" aria-label="보관에 추가">+</button>
+                </form>
+                <div id="quickArchiveList" class="quick-todo-list quick-archive-list">
+                  <p class="empty-text">보관 중인 일이 없어요.</p>
+                </div>
+              </section>
             </div>
 
             <aside id="quickTodoHistory" class="quick-history">
@@ -272,7 +286,7 @@
   </div>
 
   <script src="api.js?v=20261105c"></script>
-  <script src="app.js?v=20261112a"></script>
+  <script src="app.js?v=20261119a"></script>
   <script src="week-memo.js?v=20261105b"></script>
   <script src="memos.js?v=20261105c"></script>
   <script src="sync.js?v=20261107b"></script>
