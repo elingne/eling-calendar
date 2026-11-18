@@ -52,6 +52,14 @@ test('quick todos can be archived and restored with is_archived',async()=>{
   await assert.rejects(query(db,{table:'quick_todos',action:'update',filters:[['id','eq',2]],values:{is_archived:'yes'}}));
   db.sqlite.close();
 });
+test('quick todos accept done_order and numeric validation',async()=>{
+  const db=database();
+  await query(db,{table:'quick_todos',action:'insert',values:{title:'완료',is_completed:true}});
+  await query(db,{table:'quick_todos',action:'update',filters:[['id','eq',1]],values:{done_order:2}});
+  assert.equal((await query(db,{table:'quick_todos'})).data[0].done_order,2);
+  await assert.rejects(query(db,{table:'quick_todos',action:'update',filters:[['id','eq',1]],values:{done_order:'x'}}));
+  db.sqlite.close();
+});
 test('public response excludes personal fields; private APIs reject forged identity',async()=>{
   const db=database();await query(db,{table:'events',action:'insert',values:event});
   const env={DB:db,ASSETS:{fetch:async()=>new Response('ok')}};
